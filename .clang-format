@@ -1,0 +1,13 @@
+BasedOnStyle: Google
+IndentWidth: 4
+AccessModifierOffset: -4
+ColumnLimit: 120
+UseTab: Never
+DerivePointerAlignment: false
+PointerAlignment: Left
+SortIncludes: true
+IncludeCategories:
+  - Regex: '^"'
+    Priority: 1
+  - Regex: "^<"
+    Priority: 2

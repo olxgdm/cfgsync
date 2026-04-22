@@ -1,0 +1,131 @@
+### C++ ###
+# Prerequisites
+*.d
+
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Fortran module files
+*.mod
+*.smod
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+
+### CMake ###
+build/*
+CMakeLists.txt.user
+CMakeCache.txt
+CMakeFiles
+CMakeScripts
+Testing
+Makefile
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+CTestTestfile.cmake
+_deps
+
+### CMake Patch ###
+CMakeUserPresets.json
+
+# External projects
+*-prefix/
+
+### Linux ###
+*~
+
+# temporary files which can be created if a process still has a handle open of a deleted file
+.fuse_hidden*
+
+# KDE directory preferences
+.directory
+
+# Linux trash folder which might appear on any partition or disk
+.Trash-*
+
+# .nfs files are created when an open file is removed but is still being accessed
+.nfs*
+
+### VisualStudioCode ###
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+!.vscode/*.code-snippets
+
+### Agents ###
+AGENTS.md
+
+# Local History for Visual Studio Code
+.history/
+
+# Built Visual Studio Code Extensions
+*.vsix
+
+### VisualStudioCode Patch ###
+# Ignore all local history of files
+.history
+.ionide
+
+### PVS ###
+# Ignore binary files
+pvsbin/
+bin/
+lib/
+*.bin
+.pvscontext
+# Ignore orphaned and old proofs
+orphaned-proofs.prf
+*.prf~
+# Ignore compiled Lisp files
+*fasl
+# Ignore PVS dump files
+*.dmp
+# Ignore PVS log files
+*.log
+
+### Coverage ###
+# Coverage files
+*.gcda
+*.gcno
+*.gcov
+coverage.info
+coverage.xml
+*.coverage
+*.coveragexml
+
+# Coverage directories
+coverage/
+coverage-html/
+coverage-report/
+htmlcov/
+.coverage/
+build-coverage/
+
+# Cache directory
+.cache/
+
+# Temporary files
+tmpfile.txt

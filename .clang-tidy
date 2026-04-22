@@ -1,0 +1,57 @@
+Checks: >
+  -*,
+  clang-analyzer-*,
+  bugprone-*,
+  performance-*,
+  modernize-*,
+  readability-*,
+  cppcoreguidelines-*,
+  misc-*,
+  -readability-identifier-naming,
+  -readability-magic-numbers,
+  -cppcoreguidelines-avoid-magic-numbers,
+  -cppcoreguidelines-pro-bounds-pointer-arithmetic,
+  -cppcoreguidelines-owning-memory,
+  -cppcoreguidelines-avoid-c-arrays,
+  -modernize-use-trailing-return-type,
+  -readability-function-cognitive-complexity
+
+WarningsAsErrors: >
+  clang-analyzer-*,
+  bugprone-*,
+  cppcoreguidelines-init-variables,
+  cppcoreguidelines-narrowing-conversions
+
+HeaderFileExtensions:
+  - h
+  - hh
+  - hpp
+  - hxx
+
+ImplementationFileExtensions:
+  - c
+  - cc
+  - cpp
+  - cxx
+
+FormatStyle: file
+SystemHeaders: false
+
+CheckOptions:
+  - key: modernize-use-nullptr.NullMacros
+    value: 'NULL'
+
+  - key: modernize-loop-convert.MaxCopySize
+    value: '16'
+
+  - key: cppcoreguidelines-narrowing-conversions.WarnOnEquivalentBitWidth
+    value: '1'
+
+  - key: cppcoreguidelines-narrowing-conversions.WarnWithinTemplateInstantiation
+    value: '0'
+
+  - key: readability-implicit-bool-conversion.AllowIntegerConditions
+    value: '0'
+
+  - key: bugprone-argument-comment.StrictMode
+    value: '0'
