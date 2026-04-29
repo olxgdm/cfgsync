@@ -7,29 +7,36 @@
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
-#include <random>
 #include <string>
 
 namespace {
 namespace fs = std::filesystem;
 
 fs::path MakeTestRoot() {
-    const auto base = fs::temp_directory_path();
+    const auto base = fs::temp_directory_path();  // NOSONAR: Safe for tests; path is not trusted, directory is created
+                                                  // atomically and permissions are restricted.
 
-    std::random_device random_device;
+    const auto pid =
+#ifdef _WIN32
+        static_cast<unsigned long>(_getpid());
+#else
+        static_cast<unsigned long>(getpid());
+#endif
 
     for (int attempt = 0; attempt < 100; ++attempt) {
-        const auto candidate = base / ("cfgsync-app-config-tests-" + std::to_string(random_device()) + "-" +
-                                       std::to_string(random_device()));
+        const auto now = std::chrono::steady_clock::now().time_since_epoch().count();
 
-        std::error_code err_code;
-        if (!fs::create_directory(candidate, err_code)) {
+        const auto candidate = base / ("cfgsync-app-config-tests-" + std::to_string(pid) + "-" + std::to_string(now) +
+                                       "-" + std::to_string(attempt));
+
+        std::error_code ec;
+        if (!fs::create_directory(candidate, ec)) {
             continue;
         }
 
-        fs::permissions(candidate, fs::perms::owner_all, fs::perm_options::replace, err_code);
+        fs::permissions(candidate, fs::perms::owner_all, fs::perm_options::replace, ec);
 
-        if (err_code) {
+        if (ec) {
             fs::remove_all(candidate);
             continue;
         }
