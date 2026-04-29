@@ -72,11 +72,11 @@ void BuildCli(CLI::App& app, core::Registry& registry, storage::StorageManager& 
     restoreCommand->add_option("file", *restoreFile, "Tracked file path to restore.");
     restoreCommand->callback([&registry, &storageManager, loadActiveStorage, restoreAll, restoreFile]() {
         if (*restoreAll && !restoreFile->empty()) {
-            throw std::runtime_error("Specify either '--all' or a single file path, not both.");
+            throw CLI::ValidationError("restore", "Specify either '--all' or a file.");
         }
 
         if (!*restoreAll && restoreFile->empty()) {
-            throw std::runtime_error("Specify either '--all' or a single file path to restore.");
+            throw CLI::ValidationError("restore", "Specify either '--all' or a single file path to restore.");
         }
 
         loadActiveStorage();
