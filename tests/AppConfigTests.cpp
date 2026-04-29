@@ -29,14 +29,14 @@ fs::path MakeTestRoot() {
         const auto candidate = base / ("cfgsync-app-config-tests-" + std::to_string(pid) + "-" + std::to_string(now) +
                                        "-" + std::to_string(attempt));
 
-        std::error_code ec;
-        if (!fs::create_directory(candidate, ec)) {
+        std::error_code error_code;
+        if (!fs::create_directory(candidate, error_code)) {
             continue;
         }
 
-        fs::permissions(candidate, fs::perms::owner_all, fs::perm_options::replace, ec);
+        fs::permissions(candidate, fs::perms::owner_all, fs::perm_options::replace, error_code);
 
-        if (ec) {
+        if (error_code) {
             fs::remove_all(candidate);
             continue;
         }
