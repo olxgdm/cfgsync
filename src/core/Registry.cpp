@@ -131,20 +131,48 @@ void Registry::Initialize(const fs::path& storageRoot) {
         RegistryPath_ = normalizedStorageRoot / "registry.json";
     }
 
-    utils::EnsureDirectoryExists(normalizedStorageRoot / "files");
-
     if (fs::exists(RegistryPath_)) {
+        LoadExisting(normalizedStorageRoot);
+        utils::EnsureDirectoryExists(normalizedStorageRoot / "files");
         utils::LogInfo(std::string{"Using existing cfgsync registry at "} + RegistryPath_.string());
         return;
     }
 
+    utils::EnsureDirectoryExists(normalizedStorageRoot);
+    utils::EnsureDirectoryExists(normalizedStorageRoot / "files");
+    TrackedEntries_.clear();
+    SaveEmpty(normalizedStorageRoot);
+    utils::LogInfo(std::string{"Created cfgsync registry at "} + RegistryPath_.string());
+}
+
+const std::vector<TrackedEntry>& Registry::GetTrackedEntries() const { return TrackedEntries_; }
+
+void Registry::LoadExisting(const fs::path& expectedStorageRoot) {
+    const auto document = ReadRegistryDocument(RegistryPath_);
+    if (!document.is_object()) {
+        throw MalformedRegistryError(RegistryPath_, "root value must be an object.");
+    }
+
+    ValidateRegistryVersion(document, RegistryPath_);
+
+    const auto storedStorageRoot = ReadStorageRoot(document, RegistryPath_);
+    if (storedStorageRoot != expectedStorageRoot) {
+        throw std::runtime_error{
+            fmt::format(fmt::runtime("cfgsync registry '{}' belongs to storage root '{}', not '{}'."),
+                        RegistryPath_.string(), storedStorageRoot.string(), expectedStorageRoot.string())};
+    }
+
+    TrackedEntries_ = ReadTrackedEntries(document, RegistryPath_);
+}
+
+void Registry::SaveEmpty(const fs::path& storageRoot) const {
     if (RegistryPath_.has_parent_path()) {
         utils::EnsureDirectoryExists(RegistryPath_.parent_path());
     }
 
     const nlohmann::json document = {
         {"version", CurrentRegistryVersion},
-        {"storage_root", normalizedStorageRoot.string()},
+        {"storage_root", storageRoot.string()},
         {"tracked_files", nlohmann::json::array()},
     };
 
