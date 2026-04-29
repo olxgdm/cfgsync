@@ -135,6 +135,7 @@ endif()
 
 add_executable(cfgsync_app_config_tests
     tests/AppConfigTests.cpp
+    tests/common/TestTempDirectory.cpp
     src/core/AppConfig.cpp
     src/utils/AppConfigPath.cpp
     src/utils/FileUtils.cpp
@@ -165,6 +166,7 @@ gtest_discover_tests(cfgsync_app_config_tests)
 
 add_executable(cfgsync_registry_init_tests
     tests/RegistryInitTests.cpp
+    tests/common/TestTempDirectory.cpp
     src/core/Registry.cpp
     src/utils/FileUtils.cpp
     src/utils/PathUtils.cpp
