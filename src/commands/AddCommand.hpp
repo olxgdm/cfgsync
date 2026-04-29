@@ -10,7 +10,7 @@ class AddCommand {
 public:
     explicit AddCommand(core::Registry& registry);
 
-    void Execute(const std::filesystem::path& filePath);
+    void Execute(const std::filesystem::path& filePath) const;
 
 private:
     core::Registry& Registry_;

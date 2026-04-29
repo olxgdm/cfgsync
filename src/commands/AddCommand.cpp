@@ -8,7 +8,7 @@ namespace cfgsync::commands {
 
 AddCommand::AddCommand(core::Registry& registry) : Registry_(registry) {}
 
-void AddCommand::Execute(const std::filesystem::path& filePath) {
+void AddCommand::Execute(const std::filesystem::path& filePath) const {
     const auto normalizedPath = utils::NormalizePath(filePath);
     const auto registryPath =
         Registry_.GetRegistryPath().empty() ? std::string{"<unset>"} : Registry_.GetRegistryPath().string();
