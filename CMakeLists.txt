@@ -223,3 +223,31 @@ else()
 endif()
 
 gtest_discover_tests(cfgsync_registry_tests)
+
+add_executable(cfgsync_path_file_utils_tests
+    tests/PathFileUtilsTests.cpp
+    tests/common/TestTempDirectory.cpp
+    src/utils/FileUtils.cpp
+    src/utils/PathUtils.cpp
+)
+
+target_include_directories(cfgsync_path_file_utils_tests PRIVATE src)
+
+target_compile_options(cfgsync_path_file_utils_tests BEFORE PRIVATE
+    "$<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-iquote${googletest_SOURCE_DIR}/googletest/include>"
+)
+
+target_link_libraries(cfgsync_path_file_utils_tests
+    PRIVATE
+    fmt::fmt
+    spdlog::spdlog
+    GTest::gtest
+)
+
+if(MSVC)
+    target_compile_options(cfgsync_path_file_utils_tests PRIVATE /W4 /permissive-)
+else()
+    target_compile_options(cfgsync_path_file_utils_tests PRIVATE -Wall -Wextra -Wpedantic)
+endif()
+
+gtest_discover_tests(cfgsync_path_file_utils_tests)
