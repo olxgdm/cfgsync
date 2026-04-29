@@ -39,13 +39,15 @@ bool IsWindowsDriveAbsolutePath(std::string_view input) {
            IsPathSeparator(input[2]);
 }
 
-std::vector<std::string> SplitNormalizedWindowsComponents(std::string_view input) {
+bool IsPosixAbsolutePath(std::string_view input) { return input.starts_with('/') && !input.starts_with("//"); }
+
+std::vector<std::string> SplitNormalizedComponents(std::string_view input, std::size_t startIndex) {
     std::string normalizedInput{input};
     std::replace(normalizedInput.begin(), normalizedInput.end(), '\\', '/');
 
     std::vector<std::string> components;
     std::string currentComponent;
-    for (std::size_t index = 3; index < normalizedInput.size(); ++index) {
+    for (std::size_t index = startIndex; index < normalizedInput.size(); ++index) {
         if (normalizedInput[index] != '/') {
             currentComponent.push_back(normalizedInput[index]);
             continue;
@@ -79,16 +81,27 @@ std::vector<std::string> SplitNormalizedWindowsComponents(std::string_view input
     return components;
 }
 
-fs::path MakeWindowsDriveStorageRelativePath(std::string_view input) {
+fs::path BuildStorageRelativePath(std::string_view rootSegment, const std::vector<std::string>& components) {
     fs::path storageRelativePath{"files"};
-    const auto drive = static_cast<char>(std::toupper(static_cast<unsigned char>(input[0])));
-    storageRelativePath /= std::string{drive};
+    if (!rootSegment.empty()) {
+        storageRelativePath /= rootSegment;
+    }
 
-    for (const auto& component : SplitNormalizedWindowsComponents(input)) {
+    for (const auto& component : components) {
         storageRelativePath /= component;
     }
 
     return storageRelativePath;
+}
+
+fs::path MakeWindowsDriveStorageRelativePath(std::string_view input) {
+    const auto drive = static_cast<char>(std::toupper(static_cast<unsigned char>(input[0])));
+    const std::string driveSegment{drive};
+    return BuildStorageRelativePath(driveSegment, SplitNormalizedComponents(input, 3));
+}
+
+fs::path MakePosixStorageRelativePath(std::string_view input) {
+    return BuildStorageRelativePath({}, SplitNormalizedComponents(input, 1));
 }
 
 }  // namespace
@@ -126,9 +139,13 @@ fs::path NormalizePath(const fs::path& path) {
 }
 
 fs::path MakeStorageRelativePath(const fs::path& originalPath) {
-    const auto originalPathText = originalPath.string();
+    const auto originalPathText = originalPath.generic_string();
     if (IsWindowsDriveAbsolutePath(originalPathText)) {
         return MakeWindowsDriveStorageRelativePath(originalPathText);
+    }
+
+    if (IsPosixAbsolutePath(originalPathText)) {
+        return MakePosixStorageRelativePath(originalPathText);
     }
 
     const auto normalizedPath = NormalizePath(originalPath);
