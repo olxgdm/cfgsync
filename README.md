@@ -1,5 +1,3 @@
-# cfgsync
-
 ![cfgsync preview](img/cfgsync-preview-rm.png)
 
 `cfgsync` is a small cross-platform CLI utility for backing up and restoring text-based configuration files.
