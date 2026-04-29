@@ -1,59 +1,18 @@
+#include "common/TestTempDirectory.hpp"
 #include "core/AppConfig.hpp"
 #include "gtest/gtest.h"
 #include "utils/AppConfigPath.hpp"
 #include "utils/FileUtils.hpp"
 #include "utils/PathUtils.hpp"
 
-#include <chrono>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <stdexcept>
 #include <string>
 
-#ifdef _WIN32
-#include <process.h>
-#else
-#include <unistd.h>
-#endif
-
 namespace {
 namespace fs = std::filesystem;
-
-fs::path MakeTestRoot() {
-    const auto base = fs::temp_directory_path();  // NOSONAR: Safe for tests; path is not trusted, directory is created
-                                                  // atomically and permissions are restricted.
-
-    const auto pid =
-#ifdef _WIN32
-        static_cast<unsigned long>(_getpid());
-#else
-        static_cast<unsigned long>(getpid());
-#endif
-
-    for (int attempt = 0; attempt < 100; ++attempt) {
-        const auto now = std::chrono::steady_clock::now().time_since_epoch().count();
-
-        const auto candidate = base / ("cfgsync-app-config-tests-" + std::to_string(pid) + "-" + std::to_string(now) +
-                                       "-" + std::to_string(attempt));
-
-        std::error_code error_code;
-        if (!fs::create_directory(candidate, error_code)) {
-            continue;
-        }
-
-        fs::permissions(candidate, fs::perms::owner_all, fs::perm_options::replace, error_code);
-
-        if (error_code) {
-            fs::remove_all(candidate);
-            continue;
-        }
-
-        return candidate;
-    }
-
-    throw std::runtime_error("Failed to create private temporary test directory");
-}
 
 void SetEnvironmentVariable(const std::string& name, const std::string& value) {
 #ifdef _WIN32
@@ -66,7 +25,7 @@ void SetEnvironmentVariable(const std::string& name, const std::string& value) {
 class AppConfigTest : public testing::Test {
 protected:
     void SetUp() override {
-        TestRoot = MakeTestRoot();
+        TestRoot = cfgsync::tests::MakeTestRoot();
         cfgsync::utils::EnsureDirectoryExists(TestRoot);
     }
 
