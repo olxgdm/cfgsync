@@ -60,7 +60,7 @@ Not part of the MVP:
 - **Logging:** spdlog provides structured command output and diagnostics.
 - **Formatting:** fmt is used directly and as the external formatting backend for spdlog.
 - **Testing:** GoogleTest is used for unit tests, currently focused on app configuration and platform-aware path behavior.
-- **Static analysis:** optional clang-tidy support can be enabled with `CFGSYNC_ENABLE_CLANG_TIDY`.
+- **Static analysis:** optional clang-tidy support can be enabled with `CFGSYNC_ENABLE_CLANG_TIDY`, and SonarQube is used as an additional code quality analyzer.
 - **Continuous integration:** GitHub Actions builds and runs tests across Windows, Linux with GCC, Linux with Clang, and macOS.
 
 ## Status
