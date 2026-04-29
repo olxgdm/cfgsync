@@ -4,7 +4,6 @@
 #include "utils/FileUtils.hpp"
 #include "utils/PathUtils.hpp"
 
-#include <cstdint>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
