@@ -19,6 +19,9 @@ public:
     const std::vector<TrackedEntry>& GetTrackedEntries() const;
 
 private:
+    void LoadExisting(const std::filesystem::path& expectedStorageRoot);
+    void SaveEmpty(const std::filesystem::path& storageRoot) const;
+
     std::filesystem::path RegistryPath_;
     std::vector<TrackedEntry> TrackedEntries_;
 };
