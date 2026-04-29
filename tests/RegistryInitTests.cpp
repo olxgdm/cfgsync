@@ -76,13 +76,14 @@ TEST_F(RegistryInitTest, RerunWithValidRegistryPreservesTrackedEntries) {
     const auto storageRoot = GetTestRoot() / "valid-storage";
     const auto normalizedStorageRoot = cfgsync::utils::NormalizePath(storageRoot);
     const auto registryPath = normalizedStorageRoot / "registry.json";
+    const auto originalPath = cfgsync::utils::NormalizePath(normalizedStorageRoot / "source.conf");
 
     const nlohmann::json existingRegistry = {
         {"version", 1},
         {"storage_root", normalizedStorageRoot.string()},
         {"tracked_files", nlohmann::json::array({
                               {
-                                  {"original_path", normalizedStorageRoot.string() + "/source.conf"},
+                                  {"original_path", originalPath.string()},
                                   {"stored_relative_path", "files/source.conf"},
                               },
                           })},
@@ -95,7 +96,7 @@ TEST_F(RegistryInitTest, RerunWithValidRegistryPreservesTrackedEntries) {
     const auto document = ReadJsonFile(registryPath);
     EXPECT_EQ(document, existingRegistry);
     ASSERT_EQ(registry.GetTrackedEntries().size(), 1U);
-    EXPECT_EQ(registry.GetTrackedEntries()[0].OriginalPath, normalizedStorageRoot.string() + "/source.conf");
+    EXPECT_EQ(registry.GetTrackedEntries()[0].OriginalPath, originalPath.string());
     EXPECT_EQ(registry.GetTrackedEntries()[0].StoredRelativePath, "files/source.conf");
 }
 
