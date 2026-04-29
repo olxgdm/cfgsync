@@ -1,15 +1,14 @@
+#include "core/AppConfig.hpp"
+#include "gtest/gtest.h"
+#include "utils/AppConfigPath.hpp"
+#include "utils/FileUtils.hpp"
+#include "utils/PathUtils.hpp"
+
 #include <chrono>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <string>
-
-#include "gtest/gtest.h"
-
-#include "core/AppConfig.hpp"
-#include "utils/AppConfigPath.hpp"
-#include "utils/FileUtils.hpp"
-#include "utils/PathUtils.hpp"
 
 namespace {
 namespace fs = std::filesystem;
