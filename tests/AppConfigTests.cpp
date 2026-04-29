@@ -4,18 +4,34 @@
 #include "utils/FileUtils.hpp"
 #include "utils/PathUtils.hpp"
 
-#include <chrono>
+#include <cstdint>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <random>
 #include <string>
 
 namespace {
 namespace fs = std::filesystem;
 
 fs::path MakeTestRoot() {
-    const auto now = std::chrono::steady_clock::now().time_since_epoch().count();
-    return fs::temp_directory_path() / ("cfgsync-app-config-tests-" + std::to_string(now));
+    // const auto now = std::chrono::steady_clock::now().time_since_epoch().count();
+    // return fs::temp_directory_path() / ("cfgsync-app-config-tests-" + std::to_string(now));
+    auto base = fs::temp_directory_path();
+    std::random_device rand;
+    std::mt19937_64 gen{rand()};
+    std::uniform_int_distribution<std::uint64_t> dist;
+
+    for (int attempt = 0; attempt < 100; ++attempt) {
+        const auto candidate = base / ("cfgsync-app-config-tests-" + std::to_string(dist(gen)));
+
+        std::error_code err_code;
+        if (fs::create_directory(candidate, err_code)) {
+            fs::permissions(candidate, fs::perms::owner_all, fs::perm_options::replace, err_code);
+            return candidate;
+        }
+    }
+    throw std::runtime_error("Failed to create unique temporary test directory");
 }
 
 void SetEnvironmentVariable(const std::string& name, const std::string& value) {
