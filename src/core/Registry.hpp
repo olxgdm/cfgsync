@@ -14,7 +14,7 @@ public:
     void SetRegistryPath(std::filesystem::path registryPath);
     const std::filesystem::path& GetRegistryPath() const;
 
-    void SetStorageRoot(std::filesystem::path storageRoot);
+    void SetStorageRoot(const std::filesystem::path& storageRoot);
     const std::filesystem::path& GetStorageRoot() const;
 
     void Initialize(const std::filesystem::path& storageRoot);

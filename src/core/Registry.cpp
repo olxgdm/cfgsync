@@ -155,7 +155,7 @@ void Registry::SetRegistryPath(fs::path registryPath) { RegistryPath_ = std::mov
 
 const fs::path& Registry::GetRegistryPath() const { return RegistryPath_; }
 
-void Registry::SetStorageRoot(fs::path storageRoot) {
+void Registry::SetStorageRoot(const fs::path& storageRoot) {
     StorageRoot_ = utils::NormalizePath(storageRoot);
     if (RegistryPath_.empty() && !StorageRoot_.empty()) {
         RegistryPath_ = StorageRoot_ / "registry.json";
