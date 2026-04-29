@@ -1,21 +1,23 @@
 #pragma once
 
-#include <filesystem>
-
+#include "core/AppConfig.hpp"
 #include "core/Registry.hpp"
 #include "storage/StorageManager.hpp"
+
+#include <filesystem>
 
 namespace cfgsync::commands {
 
 class InitCommand {
 public:
-    InitCommand(core::Registry& registry, storage::StorageManager& storageManager);
+    InitCommand(core::Registry& registry, storage::StorageManager& storageManager, core::AppConfig& appConfig);
 
     void Execute(const std::filesystem::path& storageRoot);
 
 private:
-    core::Registry& Registry_;
-    storage::StorageManager& StorageManager_;
+    core::Registry& Registry_;                 // NOLINT(cppcoreguidelines-avoid-const-or-ref-data-members)
+    storage::StorageManager& StorageManager_;  // NOLINT(cppcoreguidelines-avoid-const-or-ref-data-members)
+    core::AppConfig& AppConfig_;               // NOLINT(cppcoreguidelines-avoid-const-or-ref-data-members)
 };
 
 }  // namespace cfgsync::commands

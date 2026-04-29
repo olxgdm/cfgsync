@@ -14,6 +14,8 @@ public:
     void SetRegistryPath(std::filesystem::path registryPath);
     const std::filesystem::path& GetRegistryPath() const;
 
+    void Initialize(const std::filesystem::path& storageRoot);
+
     const std::vector<TrackedEntry>& GetTrackedEntries() const;
 
 private:
