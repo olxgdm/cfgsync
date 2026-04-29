@@ -1,57 +1,17 @@
+#include "common/TestTempDirectory.hpp"
 #include "core/Registry.hpp"
 #include "gtest/gtest.h"
 #include "utils/FileUtils.hpp"
 #include "utils/PathUtils.hpp"
 
-#include <chrono>
-#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <nlohmann/json.hpp>
 #include <stdexcept>
 #include <string>
 
-#ifdef _WIN32
-#include <process.h>
-#else
-#include <unistd.h>
-#endif
-
 namespace {
 namespace fs = std::filesystem;
-
-fs::path MakeTestRoot() {
-    const auto base = fs::temp_directory_path();  // NOSONAR: Safe for tests; the directory is created with a unique
-                                                  // name and restricted owner permissions.
-
-    const auto pid =
-#ifdef _WIN32
-        static_cast<unsigned long>(_getpid());
-#else
-        static_cast<unsigned long>(getpid());
-#endif
-
-    for (int attempt = 0; attempt < 100; ++attempt) {
-        const auto now = std::chrono::steady_clock::now().time_since_epoch().count();
-        const auto candidate = base / ("cfgsync-registry-init-tests-" + std::to_string(pid) + "-" +
-                                       std::to_string(now) + "-" + std::to_string(attempt));
-
-        std::error_code errorCode;
-        if (!fs::create_directory(candidate, errorCode)) {
-            continue;
-        }
-
-        fs::permissions(candidate, fs::perms::owner_all, fs::perm_options::replace, errorCode);
-        if (errorCode) {
-            fs::remove_all(candidate);
-            continue;
-        }
-
-        return candidate;
-    }
-
-    throw std::runtime_error{"Failed to create private temporary test directory"};
-}
 
 nlohmann::json ReadJsonFile(const fs::path& path) {
     std::ifstream input{path};
@@ -71,7 +31,7 @@ void WriteJsonFile(const fs::path& path, const nlohmann::json& document) {
 
 class RegistryInitTest : public testing::Test {
 protected:
-    void SetUp() override { TestRoot = MakeTestRoot(); }
+    void SetUp() override { TestRoot = cfgsync::tests::MakeTestRoot(); }
 
     void TearDown() override { fs::remove_all(TestRoot); }
 
