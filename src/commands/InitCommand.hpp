@@ -15,9 +15,9 @@ public:
     void Execute(const std::filesystem::path& storageRoot);
 
 private:
-    core::Registry& Registry_;
-    storage::StorageManager& StorageManager_;
-    core::AppConfig& AppConfig_;
+    core::Registry& Registry_;                 // NOLINT(cppcoreguidelines-avoid-const-or-ref-data-members)
+    storage::StorageManager& StorageManager_;  // NOLINT(cppcoreguidelines-avoid-const-or-ref-data-members)
+    core::AppConfig& AppConfig_;               // NOLINT(cppcoreguidelines-avoid-const-or-ref-data-members)
 };
 
 }  // namespace cfgsync::commands
