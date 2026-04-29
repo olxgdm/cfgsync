@@ -18,6 +18,101 @@ namespace {
 
 constexpr int CurrentRegistryVersion = 1;
 
+std::runtime_error MalformedRegistryError(const fs::path& registryPath, const std::string& message) {
+    return std::runtime_error{
+        fmt::format(fmt::runtime("Malformed cfgsync registry '{}': {}"), registryPath.string(), message)};
+}
+
+nlohmann::json ReadRegistryDocument(const fs::path& registryPath) {
+    std::ifstream input{registryPath};
+    if (!input) {
+        throw std::runtime_error{
+            fmt::format(fmt::runtime("Unable to open cfgsync registry: {}"), registryPath.string())};
+    }
+
+    nlohmann::json document;
+    try {
+        input >> document;
+    } catch (const nlohmann::json::parse_error& error) {
+        throw std::runtime_error{
+            fmt::format(fmt::runtime("Malformed cfgsync registry '{}': {}"), registryPath.string(), error.what())};
+    }
+
+    return document;
+}
+
+void ValidateRegistryVersion(const nlohmann::json& document, const fs::path& registryPath) {
+    if (!document.contains("version") || !document["version"].is_number_integer()) {
+        throw MalformedRegistryError(registryPath, "version must be an integer.");
+    }
+
+    const auto version = document["version"].get<int>();
+    if (version != CurrentRegistryVersion) {
+        throw std::runtime_error{fmt::format(fmt::runtime("Unsupported cfgsync registry version {} in '{}'."), version,
+                                             registryPath.string())};
+    }
+}
+
+fs::path ReadStorageRoot(const nlohmann::json& document, const fs::path& registryPath) {
+    if (!document.contains("storage_root") || !document["storage_root"].is_string()) {
+        throw MalformedRegistryError(registryPath, "storage_root must be a string.");
+    }
+
+    const fs::path storageRoot{document["storage_root"].get<std::string>()};
+    if (storageRoot.empty()) {
+        throw MalformedRegistryError(registryPath, "storage_root must not be empty.");
+    }
+
+    return utils::NormalizePath(storageRoot);
+}
+
+std::vector<TrackedEntry> ReadTrackedEntries(const nlohmann::json& document, const fs::path& registryPath) {
+    if (!document.contains("tracked_files") || !document["tracked_files"].is_array()) {
+        throw MalformedRegistryError(registryPath, "tracked_files must be an array.");
+    }
+
+    std::vector<TrackedEntry> trackedEntries;
+    for (std::size_t index = 0; index < document["tracked_files"].size(); ++index) {
+        const auto& entry = document["tracked_files"][index];
+        if (!entry.is_object()) {
+            throw MalformedRegistryError(registryPath,
+                                         fmt::format(fmt::runtime("tracked_files[{}] must be an object."), index));
+        }
+
+        if (!entry.contains("original_path") || !entry["original_path"].is_string()) {
+            throw MalformedRegistryError(
+                registryPath, fmt::format(fmt::runtime("tracked_files[{}].original_path must be a string."), index));
+        }
+
+        if (!entry.contains("stored_relative_path") || !entry["stored_relative_path"].is_string()) {
+            throw MalformedRegistryError(
+                registryPath,
+                fmt::format(fmt::runtime("tracked_files[{}].stored_relative_path must be a string."), index));
+        }
+
+        auto originalPath = entry["original_path"].get<std::string>();
+        auto storedRelativePath = entry["stored_relative_path"].get<std::string>();
+
+        if (originalPath.empty()) {
+            throw MalformedRegistryError(
+                registryPath, fmt::format(fmt::runtime("tracked_files[{}].original_path must not be empty."), index));
+        }
+
+        if (storedRelativePath.empty()) {
+            throw MalformedRegistryError(
+                registryPath,
+                fmt::format(fmt::runtime("tracked_files[{}].stored_relative_path must not be empty."), index));
+        }
+
+        trackedEntries.push_back(TrackedEntry{
+            .OriginalPath = std::move(originalPath),
+            .StoredRelativePath = std::move(storedRelativePath),
+        });
+    }
+
+    return trackedEntries;
+}
+
 }  // namespace
 
 Registry::Registry(fs::path registryPath) : RegistryPath_(std::move(registryPath)) {}
@@ -36,20 +131,48 @@ void Registry::Initialize(const fs::path& storageRoot) {
         RegistryPath_ = normalizedStorageRoot / "registry.json";
     }
 
-    utils::EnsureDirectoryExists(normalizedStorageRoot / "files");
-
     if (fs::exists(RegistryPath_)) {
+        LoadExisting(normalizedStorageRoot);
+        utils::EnsureDirectoryExists(normalizedStorageRoot / "files");
         utils::LogInfo(std::string{"Using existing cfgsync registry at "} + RegistryPath_.string());
         return;
     }
 
+    utils::EnsureDirectoryExists(normalizedStorageRoot);
+    utils::EnsureDirectoryExists(normalizedStorageRoot / "files");
+    TrackedEntries_.clear();
+    SaveEmpty(normalizedStorageRoot);
+    utils::LogInfo(std::string{"Created cfgsync registry at "} + RegistryPath_.string());
+}
+
+const std::vector<TrackedEntry>& Registry::GetTrackedEntries() const { return TrackedEntries_; }
+
+void Registry::LoadExisting(const fs::path& expectedStorageRoot) {
+    const auto document = ReadRegistryDocument(RegistryPath_);
+    if (!document.is_object()) {
+        throw MalformedRegistryError(RegistryPath_, "root value must be an object.");
+    }
+
+    ValidateRegistryVersion(document, RegistryPath_);
+
+    const auto storedStorageRoot = ReadStorageRoot(document, RegistryPath_);
+    if (storedStorageRoot != expectedStorageRoot) {
+        throw std::runtime_error{
+            fmt::format(fmt::runtime("cfgsync registry '{}' belongs to storage root '{}', not '{}'."),
+                        RegistryPath_.string(), storedStorageRoot.string(), expectedStorageRoot.string())};
+    }
+
+    TrackedEntries_ = ReadTrackedEntries(document, RegistryPath_);
+}
+
+void Registry::SaveEmpty(const fs::path& storageRoot) const {
     if (RegistryPath_.has_parent_path()) {
         utils::EnsureDirectoryExists(RegistryPath_.parent_path());
     }
 
     const nlohmann::json document = {
         {"version", CurrentRegistryVersion},
-        {"storage_root", normalizedStorageRoot.string()},
+        {"storage_root", storageRoot.string()},
         {"tracked_files", nlohmann::json::array()},
     };
 
@@ -60,9 +183,6 @@ void Registry::Initialize(const fs::path& storageRoot) {
     }
 
     output << document.dump(4) << '\n';
-    utils::LogInfo(std::string{"Created cfgsync registry at "} + RegistryPath_.string());
 }
-
-const std::vector<TrackedEntry>& Registry::GetTrackedEntries() const { return TrackedEntries_; }
 
 }  // namespace cfgsync::core
