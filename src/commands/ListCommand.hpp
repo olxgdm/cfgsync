@@ -11,7 +11,7 @@ public:
     void Execute() const;
 
 private:
-    core::Registry& Registry_;
+    core::Registry& Registry_;  // NOLINT(cppcoreguidelines-avoid-const-or-ref-data-members)
 };
 
 }  // namespace cfgsync::commands

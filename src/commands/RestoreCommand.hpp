@@ -15,8 +15,8 @@ public:
     void ExecuteSingle(const std::filesystem::path& filePath) const;
 
 private:
-    core::Registry& Registry_;
-    storage::StorageManager& StorageManager_;
+    core::Registry& Registry_;                 // NOLINT(cppcoreguidelines-avoid-const-or-ref-data-members)
+    storage::StorageManager& StorageManager_;  // NOLINT(cppcoreguidelines-avoid-const-or-ref-data-members)
 };
 
 }  // namespace cfgsync::commands

@@ -13,7 +13,7 @@ public:
     void Execute(const std::filesystem::path& filePath) const;
 
 private:
-    core::Registry& Registry_;
+    core::Registry& Registry_;  // NOLINT(cppcoreguidelines-avoid-const-or-ref-data-members)
 };
 
 }  // namespace cfgsync::commands
