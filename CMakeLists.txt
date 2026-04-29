@@ -20,6 +20,8 @@ set(CMAKE_LINK_LIBRARIES_STRATEGY REORDER_FREELY)
 
 project(cfgsync VERSION 0.1.0 LANGUAGES CXX)
 
+enable_testing()
+
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -46,6 +48,7 @@ cfgsync_use_cached_fetchcontent(CLI11 cli11-src)
 cfgsync_use_cached_fetchcontent(fmt fmt-src)
 cfgsync_use_cached_fetchcontent(spdlog spdlog-src)
 cfgsync_use_cached_fetchcontent(nlohmann_json nlohmann_json-src)
+cfgsync_use_cached_fetchcontent(googletest googletest-src)
 
 FetchContent_Declare(
     CLI11
@@ -71,12 +74,24 @@ FetchContent_Declare(
     GIT_TAG v3.12.0
 )
 
-FetchContent_MakeAvailable(CLI11 fmt spdlog nlohmann_json)
+set(gtest_force_shared_crt ON CACHE BOOL "Use shared CRT for GoogleTest on Windows" FORCE)
+set(BUILD_GMOCK OFF CACHE BOOL "Build GoogleMock" FORCE)
+
+FetchContent_Declare(
+    googletest
+    GIT_REPOSITORY https://github.com/google/googletest.git
+    GIT_TAG v1.15.2
+)
+
+FetchContent_MakeAvailable(CLI11 fmt spdlog nlohmann_json googletest)
+
+include(GoogleTest)
 
 add_executable(cfgsync
     src/main.cpp
     src/App.cpp
     src/cli/BuildCli.cpp
+    src/core/AppConfig.cpp
     src/core/Registry.cpp
     src/storage/StorageManager.cpp
     src/commands/InitCommand.cpp
@@ -117,3 +132,33 @@ if(MSVC)
 else()
     target_compile_options(cfgsync PRIVATE -Wall -Wextra -Wpedantic)
 endif()
+
+add_executable(cfgsync_app_config_tests
+    tests/AppConfigTests.cpp
+    src/core/AppConfig.cpp
+    src/utils/AppConfigPath.cpp
+    src/utils/FileUtils.cpp
+    src/utils/PathUtils.cpp
+)
+
+target_include_directories(cfgsync_app_config_tests PRIVATE src)
+
+target_compile_options(cfgsync_app_config_tests BEFORE PRIVATE
+    "$<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-iquote${googletest_SOURCE_DIR}/googletest/include>"
+)
+
+target_link_libraries(cfgsync_app_config_tests
+    PRIVATE
+    fmt::fmt
+    spdlog::spdlog
+    nlohmann_json::nlohmann_json
+    GTest::gtest
+)
+
+if(MSVC)
+    target_compile_options(cfgsync_app_config_tests PRIVATE /W4 /permissive-)
+else()
+    target_compile_options(cfgsync_app_config_tests PRIVATE -Wall -Wextra -Wpedantic)
+endif()
+
+gtest_discover_tests(cfgsync_app_config_tests)
