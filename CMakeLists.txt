@@ -85,6 +85,7 @@ add_executable(cfgsync
     src/commands/ListCommand.cpp
     src/commands/BackupCommand.cpp
     src/commands/RestoreCommand.cpp
+    src/utils/AppConfigPath.cpp
     src/utils/PathUtils.cpp
     src/utils/FileUtils.cpp
 )
