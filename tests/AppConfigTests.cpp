@@ -138,8 +138,8 @@ TEST_F(AppConfigTest, NonIntegerVersionThrowsClearError) {
 
 TEST_F(AppConfigTest, ResolvesDefaultConfigPathFromPlatformEnvironment) {
 #ifdef _WIN32
-    SetEnvironmentVariable("APPDATA", TestRoot.string());
-    const auto expectedPath = TestRoot / "cfgsync" / "config.json";
+    SetEnvironmentVariable("APPDATA", GetTestRoot().string());
+    const auto expectedPath = GetTestRoot() / "cfgsync" / "config.json";
 #else
     SetEnvironmentVariable("HOME", GetTestRoot().string());
     const auto expectedPath = GetTestRoot() / ".config" / "cfgsync" / "config.json";
