@@ -50,10 +50,18 @@ Not part of the MVP:
 
 ## Tech
 
-- C++20
-- CMake
-- CLI11
-- nlohmann/json
+`cfgsync` is implemented as a modern, portable C++ command-line application.
+
+- **Language:** C++20 with the standard library, including `std::filesystem` for cross-platform path and file operations.
+- **Build system:** CMake, with an explicit `cfgsync` executable target and CTest integration.
+- **Dependency management:** CMake `FetchContent` is used to retrieve project dependencies during configuration.
+- **CLI parsing:** CLI11 provides the command structure and argument parsing.
+- **JSON:** nlohmann/json is used for readable registry and app configuration files.
+- **Logging:** spdlog provides structured command output and diagnostics.
+- **Formatting:** fmt is used directly and as the external formatting backend for spdlog.
+- **Testing:** GoogleTest is used for unit tests, currently focused on app configuration and platform-aware path behavior.
+- **Static analysis:** optional clang-tidy support can be enabled with `CFGSYNC_ENABLE_CLANG_TIDY`.
+- **Continuous integration:** GitHub Actions builds and runs tests across Windows, Linux with GCC, Linux with Clang, and macOS.
 
 ## Status
 
