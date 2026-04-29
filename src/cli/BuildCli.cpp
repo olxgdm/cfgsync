@@ -10,7 +10,6 @@
 
 #include <filesystem>
 #include <memory>
-#include <stdexcept>
 #include <string>
 
 namespace cfgsync::cli {
