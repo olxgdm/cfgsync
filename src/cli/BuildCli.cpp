@@ -10,6 +10,7 @@
 
 #include <filesystem>
 #include <memory>
+#include <stdexcept>
 #include <string>
 
 namespace cfgsync::cli {
@@ -19,7 +20,12 @@ void BuildCli(CLI::App& app, core::Registry& registry, storage::StorageManager& 
     const auto loadActiveStorage = [&registry, &storageManager, &appConfig]() {
         appConfig.Load();
         storageManager.SetStorageRoot(appConfig.GetStorageRoot());
+        registry.SetStorageRoot(storageManager.GetStorageRoot());
         registry.SetRegistryPath(storageManager.GetRegistryPath());
+        registry.Load();
+        if (registry.GetStorageRoot() != storageManager.GetStorageRoot()) {
+            throw std::runtime_error{"The active cfgsync storage root does not match the registry storage root."};
+        }
         utils::LogDebug(std::string{"Resolved active cfgsync storage root: "} +
                         storageManager.GetStorageRoot().string());
     };
