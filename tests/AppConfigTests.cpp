@@ -33,16 +33,17 @@ protected:
         cfgsync::utils::EnsureDirectoryExists(TestRoot);
     }
 
-    void TearDown() override {
-        fs::remove_all(TestRoot);
-    }
+    void TearDown() override { fs::remove_all(TestRoot); }
 
+    const fs::path& GetTestRoot() { return TestRoot; }
+
+private:
     fs::path TestRoot;
 };
 
 TEST_F(AppConfigTest, SavesAndLoadsStorageRoot) {
-    const auto configPath = TestRoot / "config" / "config.json";
-    const auto storageRoot = TestRoot / "storage";
+    const auto configPath = GetTestRoot() / "config" / "config.json";
+    const auto storageRoot = GetTestRoot() / "storage";
 
     cfgsync::core::AppConfig saved{configPath};
     saved.SetStorageRoot(storageRoot);
