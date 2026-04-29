@@ -4,10 +4,18 @@
 #include "utils/FileUtils.hpp"
 #include "utils/PathUtils.hpp"
 
+#include <chrono>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <stdexcept>
 #include <string>
+
+#ifdef _WIN32
+#include <process.h>
+#else
+#include <unistd.h>
+#endif
 
 namespace {
 namespace fs = std::filesystem;
