@@ -1,8 +1,8 @@
 #pragma once
 
-#include <filesystem>
-
 #include "core/Registry.hpp"
+
+#include <filesystem>
 
 namespace cfgsync::commands {
 

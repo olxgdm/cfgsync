@@ -1,16 +1,15 @@
 #include "core/Registry.hpp"
 
-#include <fstream>
-#include <stdexcept>
-#include <string>
-#include <utility>
-
-#include <fmt/format.h>
-#include <nlohmann/json.hpp>
-
 #include "utils/FileUtils.hpp"
 #include "utils/LogUtils.hpp"
 #include "utils/PathUtils.hpp"
+
+#include <fmt/format.h>
+#include <fstream>
+#include <nlohmann/json.hpp>
+#include <stdexcept>
+#include <string>
+#include <utility>
 
 namespace cfgsync::core {
 namespace fs = std::filesystem;

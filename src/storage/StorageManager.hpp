@@ -1,8 +1,8 @@
 #pragma once
 
-#include <filesystem>
-
 #include "core/TrackedEntry.hpp"
+
+#include <filesystem>
 
 namespace cfgsync::storage {
 

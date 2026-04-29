@@ -1,13 +1,12 @@
 #include "App.hpp"
 
-#include <cstdlib>
-#include <iostream>
-#include <exception>
-
-#include <CLI/CLI.hpp>
-
 #include "cli/BuildCli.hpp"
 #include "utils/AppConfigPath.hpp"
+
+#include <CLI/CLI.hpp>
+#include <cstdlib>
+#include <exception>
+#include <iostream>
 
 namespace cfgsync {
 

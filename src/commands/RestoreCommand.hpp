@@ -1,9 +1,9 @@
 #pragma once
 
-#include <filesystem>
-
 #include "core/Registry.hpp"
 #include "storage/StorageManager.hpp"
+
+#include <filesystem>
 
 namespace cfgsync::commands {
 

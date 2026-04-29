@@ -1,9 +1,9 @@
 #include "commands/InitCommand.hpp"
 
-#include <string>
-
 #include "utils/LogUtils.hpp"
 #include "utils/PathUtils.hpp"
+
+#include <string>
 
 namespace cfgsync::commands {
 
