@@ -4,16 +4,11 @@
 
 namespace cfgsync::storage {
 
-StorageManager::StorageManager(std::filesystem::path storageRoot)
-    : StorageRoot_(std::move(storageRoot)) {}
+StorageManager::StorageManager(std::filesystem::path storageRoot) : StorageRoot_(std::move(storageRoot)) {}
 
-void StorageManager::SetStorageRoot(std::filesystem::path storageRoot) {
-    StorageRoot_ = std::move(storageRoot);
-}
+void StorageManager::SetStorageRoot(std::filesystem::path storageRoot) { StorageRoot_ = std::move(storageRoot); }
 
-const std::filesystem::path& StorageManager::GetStorageRoot() const {
-    return StorageRoot_;
-}
+const std::filesystem::path& StorageManager::GetStorageRoot() const { return StorageRoot_; }
 
 std::filesystem::path StorageManager::GetRegistryPath() const {
     if (StorageRoot_.empty()) {

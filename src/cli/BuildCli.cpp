@@ -8,23 +8,26 @@
 #include "commands/RestoreCommand.hpp"
 #include "utils/LogUtils.hpp"
 
+#include <filesystem>
+#include <memory>
+#include <stdexcept>
+#include <string>
+
 namespace cfgsync::cli {
 
-void BuildCli(CLI::App& app,
-              core::Registry& registry,
-              storage::StorageManager& storageManager,
+void BuildCli(CLI::App& app, core::Registry& registry, storage::StorageManager& storageManager,
               core::AppConfig& appConfig) {
     const auto loadActiveStorage = [&registry, &storageManager, &appConfig]() {
         appConfig.Load();
         storageManager.SetStorageRoot(appConfig.GetStorageRoot());
         registry.SetRegistryPath(storageManager.GetRegistryPath());
-        utils::LogDebug(std::string{"Resolved active cfgsync storage root: "} + storageManager.GetStorageRoot().string());
+        utils::LogDebug(std::string{"Resolved active cfgsync storage root: "} +
+                        storageManager.GetStorageRoot().string());
     };
 
     auto* initCommand = app.add_subcommand("init", "Initialize the cfgsync storage directory.");
     auto storageRoot = std::make_shared<std::string>();
-    initCommand->add_option("--storage", *storageRoot, "Directory where cfgsync data will be stored.")
-        ->required();
+    initCommand->add_option("--storage", *storageRoot, "Directory where cfgsync data will be stored.")->required();
     initCommand->callback([&registry, &storageManager, &appConfig, storageRoot]() {
         commands::InitCommand command{registry, storageManager, appConfig};
         command.Execute(std::filesystem::path{*storageRoot});
@@ -41,8 +44,7 @@ void BuildCli(CLI::App& app,
 
     auto* removeCommand = app.add_subcommand("remove", "Remove a file from the registry.");
     auto removeFile = std::make_shared<std::string>();
-    removeCommand->add_option("file", *removeFile, "Tracked file path to remove from the registry.")
-        ->required();
+    removeCommand->add_option("file", *removeFile, "Tracked file path to remove from the registry.")->required();
     removeCommand->callback([&registry, loadActiveStorage, removeFile]() {
         loadActiveStorage();
         commands::RemoveCommand command{registry};

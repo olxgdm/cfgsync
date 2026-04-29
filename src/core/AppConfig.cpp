@@ -26,24 +26,15 @@ std::runtime_error MissingConfigError(const fs::path& configPath) {
 
 }  // namespace
 
-AppConfig::AppConfig(fs::path configPath)
-    : ConfigPath_(std::move(configPath)) {}
+AppConfig::AppConfig(fs::path configPath) : ConfigPath_(std::move(configPath)) {}
 
-void AppConfig::SetConfigPath(fs::path configPath) {
-    ConfigPath_ = std::move(configPath);
-}
+void AppConfig::SetConfigPath(fs::path configPath) { ConfigPath_ = std::move(configPath); }
 
-const fs::path& AppConfig::GetConfigPath() const {
-    return ConfigPath_;
-}
+const fs::path& AppConfig::GetConfigPath() const { return ConfigPath_; }
 
-void AppConfig::SetStorageRoot(const fs::path& storageRoot) {
-    StorageRoot_ = utils::NormalizePath(storageRoot);
-}
+void AppConfig::SetStorageRoot(const fs::path& storageRoot) { StorageRoot_ = utils::NormalizePath(storageRoot); }
 
-const fs::path& AppConfig::GetStorageRoot() const {
-    return StorageRoot_;
-}
+const fs::path& AppConfig::GetStorageRoot() const { return StorageRoot_; }
 
 void AppConfig::Load() {
     if (ConfigPath_.empty()) {
@@ -64,37 +55,35 @@ void AppConfig::Load() {
     try {
         input >> document;
     } catch (const nlohmann::json::parse_error& error) {
-        throw std::runtime_error{fmt::format(fmt::runtime("Malformed cfgsync app config '{}': {}"),
-                                             ConfigPath_.string(),
-                                             error.what())};
+        throw std::runtime_error{
+            fmt::format(fmt::runtime("Malformed cfgsync app config '{}': {}"), ConfigPath_.string(), error.what())};
     }
 
     if (!document.is_object()) {
-        throw std::runtime_error{fmt::format(fmt::runtime("Malformed cfgsync app config '{}': root value must be an object."),
-                                             ConfigPath_.string())};
+        throw std::runtime_error{fmt::format(
+            fmt::runtime("Malformed cfgsync app config '{}': root value must be an object."), ConfigPath_.string())};
     }
 
     if (!document.contains("version") || !document["version"].is_number_integer()) {
-        throw std::runtime_error{fmt::format(fmt::runtime("Malformed cfgsync app config '{}': version must be an integer."),
-                                             ConfigPath_.string())};
+        throw std::runtime_error{fmt::format(
+            fmt::runtime("Malformed cfgsync app config '{}': version must be an integer."), ConfigPath_.string())};
     }
 
     const auto version = document["version"].get<int>();
     if (version != CurrentConfigVersion) {
         throw std::runtime_error{fmt::format(fmt::runtime("Unsupported cfgsync app config version {} in '{}'."),
-                                             version,
-                                             ConfigPath_.string())};
+                                             version, ConfigPath_.string())};
     }
 
     if (!document.contains("storage_root") || !document["storage_root"].is_string()) {
-        throw std::runtime_error{fmt::format(fmt::runtime("Malformed cfgsync app config '{}': storage_root must be a string."),
-                                             ConfigPath_.string())};
+        throw std::runtime_error{fmt::format(
+            fmt::runtime("Malformed cfgsync app config '{}': storage_root must be a string."), ConfigPath_.string())};
     }
 
     SetStorageRoot(fs::path{document["storage_root"].get<std::string>()});
     if (StorageRoot_.empty()) {
-        throw std::runtime_error{fmt::format(fmt::runtime("Malformed cfgsync app config '{}': storage_root must not be empty."),
-                                             ConfigPath_.string())};
+        throw std::runtime_error{fmt::format(
+            fmt::runtime("Malformed cfgsync app config '{}': storage_root must not be empty."), ConfigPath_.string())};
     }
 
     utils::LogDebug(std::string{"Loaded cfgsync app config from "} + ConfigPath_.string());

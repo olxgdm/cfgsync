@@ -75,10 +75,8 @@ fs::path MakeStorageRelativePath(const fs::path& originalPath) {
     if (!rootName.empty()) {
         std::string sanitizedRoot = rootName;
         sanitizedRoot.erase(
-            std::remove_if(
-                sanitizedRoot.begin(),
-                sanitizedRoot.end(),
-                [](char character) { return character == ':' || character == '/' || character == '\\'; }),
+            std::remove_if(sanitizedRoot.begin(), sanitizedRoot.end(),
+                           [](char character) { return character == ':' || character == '/' || character == '\\'; }),
             sanitizedRoot.end());
         if (!sanitizedRoot.empty()) {
             storageRelativePath /= sanitizedRoot;

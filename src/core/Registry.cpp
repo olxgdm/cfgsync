@@ -20,16 +20,11 @@ constexpr int CurrentRegistryVersion = 1;
 
 }  // namespace
 
-Registry::Registry(fs::path registryPath)
-    : RegistryPath_(std::move(registryPath)) {}
+Registry::Registry(fs::path registryPath) : RegistryPath_(std::move(registryPath)) {}
 
-void Registry::SetRegistryPath(fs::path registryPath) {
-    RegistryPath_ = std::move(registryPath);
-}
+void Registry::SetRegistryPath(fs::path registryPath) { RegistryPath_ = std::move(registryPath); }
 
-const fs::path& Registry::GetRegistryPath() const {
-    return RegistryPath_;
-}
+const fs::path& Registry::GetRegistryPath() const { return RegistryPath_; }
 
 void Registry::Initialize(const fs::path& storageRoot) {
     const auto normalizedStorageRoot = utils::NormalizePath(storageRoot);
@@ -68,8 +63,6 @@ void Registry::Initialize(const fs::path& storageRoot) {
     utils::LogInfo(std::string{"Created cfgsync registry at "} + RegistryPath_.string());
 }
 
-const std::vector<TrackedEntry>& Registry::GetTrackedEntries() const {
-    return TrackedEntries_;
-}
+const std::vector<TrackedEntry>& Registry::GetTrackedEntries() const { return TrackedEntries_; }
 
 }  // namespace cfgsync::core

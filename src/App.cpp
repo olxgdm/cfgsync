@@ -23,7 +23,7 @@ int App::Run(int argc, char* argv[]) {
         return EXIT_SUCCESS;
     } catch (const CLI::ParseError& error) {
         return cli.exit(error);
-    } catch (const std::exception& error) {
+    } catch (const std::exception& error) {  // NOSONAR: top-level exception boundary
         std::cerr << "error: " << error.what() << '\n';
         return EXIT_FAILURE;
     }
