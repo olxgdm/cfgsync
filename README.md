@@ -1,5 +1,7 @@
 # cfgsync
 
+![cfgsync preview](img/cfgsync-preview.png)
+
 `cfgsync` is a small cross-platform CLI utility for backing up and restoring text-based configuration files.
 
 It is designed for a simple, local workflow: track important config files, save copies into a dedicated storage directory, and restore them later after a reinstall, migration, or accidental loss.
