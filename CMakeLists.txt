@@ -162,3 +162,32 @@ else()
 endif()
 
 gtest_discover_tests(cfgsync_app_config_tests)
+
+add_executable(cfgsync_registry_init_tests
+    tests/RegistryInitTests.cpp
+    src/core/Registry.cpp
+    src/utils/FileUtils.cpp
+    src/utils/PathUtils.cpp
+)
+
+target_include_directories(cfgsync_registry_init_tests PRIVATE src)
+
+target_compile_options(cfgsync_registry_init_tests BEFORE PRIVATE
+    "$<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-iquote${googletest_SOURCE_DIR}/googletest/include>"
+)
+
+target_link_libraries(cfgsync_registry_init_tests
+    PRIVATE
+    fmt::fmt
+    spdlog::spdlog
+    nlohmann_json::nlohmann_json
+    GTest::gtest
+)
+
+if(MSVC)
+    target_compile_options(cfgsync_registry_init_tests PRIVATE /W4 /permissive-)
+else()
+    target_compile_options(cfgsync_registry_init_tests PRIVATE -Wall -Wextra -Wpedantic)
+endif()
+
+gtest_discover_tests(cfgsync_registry_init_tests)
