@@ -56,7 +56,7 @@ TEST_F(AppConfigTest, SavesAndLoadsStorageRoot) {
 }
 
 TEST_F(AppConfigTest, MissingConfigThrowsActionableError) {
-    cfgsync::core::AppConfig config{TestRoot / "missing" / "config.json"};
+    cfgsync::core::AppConfig config{GetTestRoot() / "missing" / "config.json"};
 
     try {
         config.Load();
@@ -69,7 +69,7 @@ TEST_F(AppConfigTest, MissingConfigThrowsActionableError) {
 }
 
 TEST_F(AppConfigTest, MalformedConfigThrowsClearError) {
-    const auto configPath = TestRoot / "malformed" / "config.json";
+    const auto configPath = GetTestRoot() / "malformed" / "config.json";
     cfgsync::utils::EnsureDirectoryExists(configPath.parent_path());
 
     std::ofstream output{configPath};
@@ -87,7 +87,7 @@ TEST_F(AppConfigTest, MalformedConfigThrowsClearError) {
 }
 
 TEST_F(AppConfigTest, NonIntegerVersionThrowsClearError) {
-    const auto configPath = TestRoot / "invalid-version" / "config.json";
+    const auto configPath = GetTestRoot() / "invalid-version" / "config.json";
     cfgsync::utils::EnsureDirectoryExists(configPath.parent_path());
 
     std::ofstream output{configPath};
@@ -112,8 +112,8 @@ TEST_F(AppConfigTest, ResolvesDefaultConfigPathFromPlatformEnvironment) {
     SetEnvironmentVariable("APPDATA", TestRoot.string());
     const auto expectedPath = TestRoot / "cfgsync" / "config.json";
 #else
-    SetEnvironmentVariable("HOME", TestRoot.string());
-    const auto expectedPath = TestRoot / ".config" / "cfgsync" / "config.json";
+    SetEnvironmentVariable("HOME", GetTestRoot().string());
+    const auto expectedPath = GetTestRoot() / ".config" / "cfgsync" / "config.json";
 #endif
 
     EXPECT_EQ(cfgsync::utils::GetDefaultAppConfigPath(), expectedPath);
