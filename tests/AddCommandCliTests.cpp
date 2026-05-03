@@ -109,6 +109,10 @@ TEST_F(AddCommandCliTest, DuplicateAddReturnsSuccessAndLeavesRegistryUnchanged) 
 }  // namespace
 
 int main(int argc, char** argv) {
+    if (argc > 0) {
+        CfgsyncExecutablePath = ResolveCfgsyncExecutablePath(argv[0]);
+    }
+
     testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }
