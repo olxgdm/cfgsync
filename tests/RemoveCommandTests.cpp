@@ -1,6 +1,5 @@
 #include "commands/RemoveCommand.hpp"
-#include "common/TestTempDirectory.hpp"
-#include "core/Registry.hpp"
+#include "common/RegistryCommandTestFixture.hpp"
 #include "gtest/gtest.h"
 #include "utils/FileUtils.hpp"
 #include "utils/PathUtils.hpp"
@@ -30,29 +29,7 @@ void WriteTextFile(const fs::path& path, const std::string& contents) {
     output << contents;
 }
 
-class RemoveCommandTest : public testing::Test {
-protected:
-    void SetUp() override {
-        TestRoot = cfgsync::tests::MakeTestRoot();
-        Registry_.SetStorageRoot(StorageRoot());
-        Registry_.SetRegistryPath(RegistryPath());
-        Registry_.Save();
-    }
-
-    void TearDown() override { fs::remove_all(TestRoot); }
-
-    fs::path StorageRoot() const { return TestRoot / "storage"; }
-
-    fs::path RegistryPath() const { return StorageRoot() / "registry.json"; }
-
-    fs::path SourcePath(const std::string& filename) const { return TestRoot / "home" / "user" / filename; }
-
-    cfgsync::core::Registry& Registry() { return Registry_; }
-
-private:
-    fs::path TestRoot;
-    cfgsync::core::Registry Registry_;
-};
+class RemoveCommandTest : public cfgsync::tests::RegistryCommandTestFixture {};
 
 TEST_F(RemoveCommandTest, RemovesExistingTrackedEntryAndSavesRegistry) {
     const auto sourcePath = cfgsync::utils::NormalizePath(SourcePath(".gitconfig"));
