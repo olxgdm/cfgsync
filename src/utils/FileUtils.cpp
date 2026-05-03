@@ -41,6 +41,10 @@ void RequireOrdinaryFile(const fs::path& path) {
     std::error_code errorCode;
     const auto status = fs::symlink_status(path, errorCode);
     if (errorCode) {
+        if (errorCode == std::errc::no_such_file_or_directory) {
+            throw std::runtime_error{fmt::format(fmt::runtime("Path does not exist: {}"), path.string())};
+        }
+
         throw std::runtime_error{
             fmt::format(fmt::runtime("Unable to inspect file '{}': {}"), path.string(), errorCode.message())};
     }
