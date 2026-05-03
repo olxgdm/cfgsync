@@ -4,6 +4,7 @@
 
 #include <cstddef>
 #include <exception>
+#include <format>
 #include <stdexcept>
 #include <string>
 
@@ -31,8 +32,8 @@ void BackupCommand::Execute() const {
     }
 
     if (failureCount > 0) {
-        const auto suffix = failureCount == 1 ? std::string{} : std::string{"s"};
-        throw std::runtime_error{"Backup completed with " + std::to_string(failureCount) + " failure" + suffix + "."};
+        throw std::runtime_error{std::format("Backup completed with {} failure{}.", failureCount,
+                                             failureCount == 1 ? "" : "s")};
     }
 }
 
