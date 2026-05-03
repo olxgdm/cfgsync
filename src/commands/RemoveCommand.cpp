@@ -1,5 +1,6 @@
 #include "commands/RemoveCommand.hpp"
 
+#include "utils/LogUtils.hpp"
 #include "utils/PathUtils.hpp"
 
 #include <stdexcept>
@@ -10,11 +11,13 @@ RemoveCommand::RemoveCommand(core::Registry& registry) : Registry_(registry) {}
 
 void RemoveCommand::Execute(const std::filesystem::path& filePath) {
     const auto normalizedPath = utils::NormalizePath(filePath);
-    const auto registryPath =
-        Registry_.GetRegistryPath().empty() ? std::string{"<unset>"} : Registry_.GetRegistryPath().string();
+    const auto removed = Registry_.RemoveEntry(normalizedPath);
+    if (!removed) {
+        throw std::runtime_error{"File is not tracked: " + normalizedPath.string()};
+    }
 
-    throw std::logic_error("The 'remove' command is wired, but registry updates are not implemented yet. File: " +
-                           normalizedPath.string() + ". Registry: " + registryPath);
+    Registry_.Save();
+    utils::LogInfo("Removed file from tracking: " + normalizedPath.string());
 }
 
 }  // namespace cfgsync::commands
