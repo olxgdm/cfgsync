@@ -2,9 +2,8 @@
 #include "common/TestFileUtils.hpp"
 #include "common/TestTempDirectory.hpp"
 #include "core/TrackedEntry.hpp"
-#include "storage/StorageManager.hpp"
-
 #include "gtest/gtest.h"
+#include "storage/StorageManager.hpp"
 
 #include <filesystem>
 #include <string>

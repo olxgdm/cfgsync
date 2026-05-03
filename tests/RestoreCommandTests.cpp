@@ -1,13 +1,12 @@
+#include "Exceptions.hpp"
 #include "commands/RestoreCommand.hpp"
 #include "common/GoogleTestMain.hpp"
 #include "common/RegistryCommandTestFixture.hpp"
 #include "common/TestFileUtils.hpp"
 #include "common/TestRegistryUtils.hpp"
-#include "Exceptions.hpp"
+#include "gtest/gtest.h"
 #include "storage/StorageManager.hpp"
 #include "utils/PathUtils.hpp"
-
-#include "gtest/gtest.h"
 
 #include <filesystem>
 #include <string>

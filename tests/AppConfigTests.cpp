@@ -1,5 +1,5 @@
-#include "common/TestTempDirectory.hpp"
 #include "Exceptions.hpp"
+#include "common/TestTempDirectory.hpp"
 #include "core/AppConfig.hpp"
 #include "gtest/gtest.h"
 #include "utils/AppConfigPath.hpp"

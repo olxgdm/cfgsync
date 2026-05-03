@@ -2,9 +2,8 @@
 #include "common/CliTestUtils.hpp"
 #include "common/GoogleTestMain.hpp"
 #include "common/TestFileUtils.hpp"
-#include "utils/PathUtils.hpp"
-
 #include "gtest/gtest.h"
+#include "utils/PathUtils.hpp"
 
 #include <filesystem>
 #include <string>

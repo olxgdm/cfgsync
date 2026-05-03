@@ -1,6 +1,6 @@
+#include "Exceptions.hpp"
 #include "commands/RemoveCommand.hpp"
 #include "common/RegistryCommandTestFixture.hpp"
-#include "Exceptions.hpp"
 #include "gtest/gtest.h"
 #include "utils/FileUtils.hpp"
 #include "utils/PathUtils.hpp"

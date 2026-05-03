@@ -2,7 +2,6 @@
 
 #include "TestTempDirectory.hpp"
 #include "core/Registry.hpp"
-
 #include "gtest/gtest.h"
 
 #include <filesystem>
