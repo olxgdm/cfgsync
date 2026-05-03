@@ -47,7 +47,6 @@ cfgsync_use_cached_fetchcontent(CLI11 cli11-src)
 cfgsync_use_cached_fetchcontent(fmt fmt-src)
 cfgsync_use_cached_fetchcontent(spdlog spdlog-src)
 cfgsync_use_cached_fetchcontent(nlohmann_json nlohmann_json-src)
-cfgsync_use_cached_fetchcontent(googletest googletest-src)
 
 FetchContent_Declare(
     CLI11
@@ -73,18 +72,7 @@ FetchContent_Declare(
     GIT_TAG v3.12.0
 )
 
-set(gtest_force_shared_crt ON CACHE BOOL "Use shared CRT for GoogleTest on Windows" FORCE)
-set(BUILD_GMOCK OFF CACHE BOOL "Build GoogleMock" FORCE)
-
-FetchContent_Declare(
-    googletest
-    GIT_REPOSITORY https://github.com/google/googletest.git
-    GIT_TAG v1.15.2
-)
-
-FetchContent_MakeAvailable(CLI11 fmt spdlog nlohmann_json googletest)
-
-include(GoogleTest)
+FetchContent_MakeAvailable(CLI11 fmt spdlog nlohmann_json)
 
 add_executable(cfgsync
     src/main.cpp
@@ -132,438 +120,191 @@ else()
     target_compile_options(cfgsync PRIVATE -Wall -Wextra -Wpedantic)
 endif()
 
-add_executable(cfgsync_app_config_tests
-    tests/AppConfigTests.cpp
-    tests/common/TestTempDirectory.cpp
-    src/core/AppConfig.cpp
-    src/utils/AppConfigPath.cpp
-    src/utils/FileUtils.cpp
-    src/utils/PathUtils.cpp
-)
+if(CFGSYNC_BUILD_TESTS)
+    enable_testing()
 
-target_include_directories(cfgsync_app_config_tests PRIVATE src)
+    cfgsync_use_cached_fetchcontent(googletest googletest-src)
 
-target_compile_options(cfgsync_app_config_tests BEFORE PRIVATE
-    "$<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-iquote${googletest_SOURCE_DIR}/googletest/include>"
-)
+    set(gtest_force_shared_crt ON CACHE BOOL "Use shared CRT for GoogleTest on Windows" FORCE)
+    set(BUILD_GMOCK OFF CACHE BOOL "Build GoogleMock" FORCE)
 
-target_link_libraries(cfgsync_app_config_tests
-    PRIVATE
-    fmt::fmt
-    spdlog::spdlog
-    nlohmann_json::nlohmann_json
-    GTest::gtest
-)
+    FetchContent_Declare(
+        googletest
+        GIT_REPOSITORY https://github.com/google/googletest.git
+        GIT_TAG v1.15.2
+    )
 
-if(MSVC)
-    target_compile_options(cfgsync_app_config_tests PRIVATE /W4 /permissive-)
-else()
-    target_compile_options(cfgsync_app_config_tests PRIVATE -Wall -Wextra -Wpedantic)
+    FetchContent_MakeAvailable(googletest)
+
+    include("${CMAKE_CURRENT_LIST_DIR}/cmake/CfgsyncTesting.cmake")
+
+    cfgsync_add_gtest_target(cfgsync_app_config_tests
+        SOURCES
+            tests/AppConfigTests.cpp
+            tests/common/TestTempDirectory.cpp
+            src/core/AppConfig.cpp
+            src/utils/AppConfigPath.cpp
+            src/utils/FileUtils.cpp
+            src/utils/PathUtils.cpp
+        LIBRARIES
+            nlohmann_json::nlohmann_json
+    )
+
+    cfgsync_add_gtest_target(cfgsync_registry_init_tests
+        SOURCES
+            tests/RegistryInitTests.cpp
+            tests/common/TestTempDirectory.cpp
+            src/core/Registry.cpp
+            src/utils/FileUtils.cpp
+            src/utils/PathUtils.cpp
+        LIBRARIES
+            nlohmann_json::nlohmann_json
+    )
+
+    cfgsync_add_gtest_target(cfgsync_registry_tests
+        SOURCES
+            tests/RegistryTests.cpp
+            tests/common/TestTempDirectory.cpp
+            src/core/Registry.cpp
+            src/utils/FileUtils.cpp
+            src/utils/PathUtils.cpp
+        LIBRARIES
+            nlohmann_json::nlohmann_json
+    )
+
+    cfgsync_add_gtest_target(cfgsync_path_file_utils_tests
+        SOURCES
+            tests/PathFileUtilsTests.cpp
+            tests/common/TestTempDirectory.cpp
+            src/utils/FileUtils.cpp
+            src/utils/PathUtils.cpp
+    )
+
+    cfgsync_add_gtest_target(cfgsync_storage_manager_tests
+        SOURCES
+            tests/StorageManagerTests.cpp
+            tests/common/TestTempDirectory.cpp
+            src/storage/StorageManager.cpp
+            src/utils/FileUtils.cpp
+            src/utils/PathUtils.cpp
+        LIBRARIES
+            nlohmann_json::nlohmann_json
+    )
+
+    cfgsync_add_gtest_target(cfgsync_add_command_tests
+        SOURCES
+            tests/AddCommandTests.cpp
+            tests/common/TestTempDirectory.cpp
+            src/commands/AddCommand.cpp
+            src/core/Registry.cpp
+            src/utils/FileUtils.cpp
+            src/utils/PathUtils.cpp
+        LIBRARIES
+            nlohmann_json::nlohmann_json
+    )
+
+    cfgsync_add_gtest_target(cfgsync_add_command_cli_tests CLI
+        SOURCES
+            tests/AddCommandCliTests.cpp
+            tests/common/CliTestUtils.cpp
+            tests/common/TestTempDirectory.cpp
+            src/utils/FileUtils.cpp
+            src/utils/PathUtils.cpp
+        LIBRARIES
+            nlohmann_json::nlohmann_json
+    )
+
+    cfgsync_add_gtest_target(cfgsync_list_command_tests
+        SOURCES
+            tests/ListCommandTests.cpp
+            tests/common/TestTempDirectory.cpp
+            src/commands/ListCommand.cpp
+            src/core/Registry.cpp
+            src/utils/FileUtils.cpp
+            src/utils/PathUtils.cpp
+        LIBRARIES
+            nlohmann_json::nlohmann_json
+    )
+
+    cfgsync_add_gtest_target(cfgsync_list_command_cli_tests CLI
+        SOURCES
+            tests/ListCommandCliTests.cpp
+            tests/common/CliTestUtils.cpp
+            tests/common/TestTempDirectory.cpp
+            src/utils/FileUtils.cpp
+            src/utils/PathUtils.cpp
+        LIBRARIES
+            nlohmann_json::nlohmann_json
+    )
+
+    cfgsync_add_gtest_target(cfgsync_remove_command_tests
+        SOURCES
+            tests/RemoveCommandTests.cpp
+            tests/common/TestTempDirectory.cpp
+            src/commands/RemoveCommand.cpp
+            src/core/Registry.cpp
+            src/utils/FileUtils.cpp
+            src/utils/PathUtils.cpp
+        LIBRARIES
+            nlohmann_json::nlohmann_json
+    )
+
+    cfgsync_add_gtest_target(cfgsync_remove_command_cli_tests CLI
+        SOURCES
+            tests/RemoveCommandCliTests.cpp
+            tests/common/CliTestUtils.cpp
+            tests/common/TestTempDirectory.cpp
+            src/utils/FileUtils.cpp
+            src/utils/PathUtils.cpp
+        LIBRARIES
+            nlohmann_json::nlohmann_json
+    )
+
+    cfgsync_add_gtest_target(cfgsync_backup_command_tests
+        SOURCES
+            tests/BackupCommandTests.cpp
+            tests/common/TestTempDirectory.cpp
+            src/commands/BackupCommand.cpp
+            src/storage/StorageManager.cpp
+            src/core/Registry.cpp
+            src/utils/FileUtils.cpp
+            src/utils/PathUtils.cpp
+        LIBRARIES
+            nlohmann_json::nlohmann_json
+    )
+
+    cfgsync_add_gtest_target(cfgsync_backup_command_cli_tests CLI
+        SOURCES
+            tests/BackupCommandCliTests.cpp
+            tests/common/CliTestUtils.cpp
+            tests/common/TestTempDirectory.cpp
+            src/utils/FileUtils.cpp
+            src/utils/PathUtils.cpp
+        LIBRARIES
+            nlohmann_json::nlohmann_json
+    )
+
+    cfgsync_add_gtest_target(cfgsync_restore_command_tests
+        SOURCES
+            tests/RestoreCommandTests.cpp
+            tests/common/TestTempDirectory.cpp
+            src/commands/RestoreCommand.cpp
+            src/storage/StorageManager.cpp
+            src/core/Registry.cpp
+            src/utils/FileUtils.cpp
+            src/utils/PathUtils.cpp
+        LIBRARIES
+            nlohmann_json::nlohmann_json
+    )
+
+    cfgsync_add_gtest_target(cfgsync_restore_command_cli_tests CLI
+        SOURCES
+            tests/RestoreCommandCliTests.cpp
+            tests/common/CliTestUtils.cpp
+            tests/common/TestTempDirectory.cpp
+            src/utils/FileUtils.cpp
+            src/utils/PathUtils.cpp
+        LIBRARIES
+            nlohmann_json::nlohmann_json
+    )
 endif()
-
-gtest_discover_tests(cfgsync_app_config_tests)
-
-add_executable(cfgsync_registry_init_tests
-    tests/RegistryInitTests.cpp
-    tests/common/TestTempDirectory.cpp
-    src/core/Registry.cpp
-    src/utils/FileUtils.cpp
-    src/utils/PathUtils.cpp
-)
-
-target_include_directories(cfgsync_registry_init_tests PRIVATE src)
-
-target_compile_options(cfgsync_registry_init_tests BEFORE PRIVATE
-    "$<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-iquote${googletest_SOURCE_DIR}/googletest/include>"
-)
-
-target_link_libraries(cfgsync_registry_init_tests
-    PRIVATE
-    fmt::fmt
-    spdlog::spdlog
-    nlohmann_json::nlohmann_json
-    GTest::gtest
-)
-
-if(MSVC)
-    target_compile_options(cfgsync_registry_init_tests PRIVATE /W4 /permissive-)
-else()
-    target_compile_options(cfgsync_registry_init_tests PRIVATE -Wall -Wextra -Wpedantic)
-endif()
-
-gtest_discover_tests(cfgsync_registry_init_tests)
-
-add_executable(cfgsync_registry_tests
-    tests/RegistryTests.cpp
-    tests/common/TestTempDirectory.cpp
-    src/core/Registry.cpp
-    src/utils/FileUtils.cpp
-    src/utils/PathUtils.cpp
-)
-
-target_include_directories(cfgsync_registry_tests PRIVATE src)
-
-target_compile_options(cfgsync_registry_tests BEFORE PRIVATE
-    "$<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-iquote${googletest_SOURCE_DIR}/googletest/include>"
-)
-
-target_link_libraries(cfgsync_registry_tests
-    PRIVATE
-    fmt::fmt
-    spdlog::spdlog
-    nlohmann_json::nlohmann_json
-    GTest::gtest
-)
-
-if(MSVC)
-    target_compile_options(cfgsync_registry_tests PRIVATE /W4 /permissive-)
-else()
-    target_compile_options(cfgsync_registry_tests PRIVATE -Wall -Wextra -Wpedantic)
-endif()
-
-gtest_discover_tests(cfgsync_registry_tests)
-
-add_executable(cfgsync_path_file_utils_tests
-    tests/PathFileUtilsTests.cpp
-    tests/common/TestTempDirectory.cpp
-    src/utils/FileUtils.cpp
-    src/utils/PathUtils.cpp
-)
-
-target_include_directories(cfgsync_path_file_utils_tests PRIVATE src)
-
-target_compile_options(cfgsync_path_file_utils_tests BEFORE PRIVATE
-    "$<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-iquote${googletest_SOURCE_DIR}/googletest/include>"
-)
-
-target_link_libraries(cfgsync_path_file_utils_tests
-    PRIVATE
-    fmt::fmt
-    spdlog::spdlog
-    GTest::gtest
-)
-
-if(MSVC)
-    target_compile_options(cfgsync_path_file_utils_tests PRIVATE /W4 /permissive-)
-else()
-    target_compile_options(cfgsync_path_file_utils_tests PRIVATE -Wall -Wextra -Wpedantic)
-endif()
-
-gtest_discover_tests(cfgsync_path_file_utils_tests)
-
-add_executable(cfgsync_add_command_tests
-    tests/AddCommandTests.cpp
-    tests/common/TestTempDirectory.cpp
-    src/commands/AddCommand.cpp
-    src/core/Registry.cpp
-    src/utils/FileUtils.cpp
-    src/utils/PathUtils.cpp
-)
-
-target_include_directories(cfgsync_add_command_tests PRIVATE src)
-
-target_compile_options(cfgsync_add_command_tests BEFORE PRIVATE
-    "$<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-iquote${googletest_SOURCE_DIR}/googletest/include>"
-)
-
-target_link_libraries(cfgsync_add_command_tests
-    PRIVATE
-    fmt::fmt
-    spdlog::spdlog
-    nlohmann_json::nlohmann_json
-    GTest::gtest
-)
-
-if(MSVC)
-    target_compile_options(cfgsync_add_command_tests PRIVATE /W4 /permissive-)
-else()
-    target_compile_options(cfgsync_add_command_tests PRIVATE -Wall -Wextra -Wpedantic)
-endif()
-
-gtest_discover_tests(cfgsync_add_command_tests)
-
-add_executable(cfgsync_add_command_cli_tests
-    tests/AddCommandCliTests.cpp
-    tests/common/CliTestUtils.cpp
-    tests/common/TestTempDirectory.cpp
-    src/utils/FileUtils.cpp
-    src/utils/PathUtils.cpp
-)
-
-target_include_directories(cfgsync_add_command_cli_tests PRIVATE src)
-
-target_compile_options(cfgsync_add_command_cli_tests BEFORE PRIVATE
-    "$<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-iquote${googletest_SOURCE_DIR}/googletest/include>"
-)
-
-target_link_libraries(cfgsync_add_command_cli_tests
-    PRIVATE
-    fmt::fmt
-    spdlog::spdlog
-    nlohmann_json::nlohmann_json
-    GTest::gtest
-)
-
-if(MSVC)
-    target_compile_options(cfgsync_add_command_cli_tests PRIVATE /W4 /permissive-)
-else()
-    target_compile_options(cfgsync_add_command_cli_tests PRIVATE -Wall -Wextra -Wpedantic)
-endif()
-
-add_dependencies(cfgsync_add_command_cli_tests cfgsync)
-
-gtest_discover_tests(cfgsync_add_command_cli_tests)
-
-add_executable(cfgsync_list_command_tests
-    tests/ListCommandTests.cpp
-    tests/common/TestTempDirectory.cpp
-    src/commands/ListCommand.cpp
-    src/core/Registry.cpp
-    src/utils/FileUtils.cpp
-    src/utils/PathUtils.cpp
-)
-
-target_include_directories(cfgsync_list_command_tests PRIVATE src)
-
-target_compile_options(cfgsync_list_command_tests BEFORE PRIVATE
-    "$<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-iquote${googletest_SOURCE_DIR}/googletest/include>"
-)
-
-target_link_libraries(cfgsync_list_command_tests
-    PRIVATE
-    fmt::fmt
-    spdlog::spdlog
-    nlohmann_json::nlohmann_json
-    GTest::gtest
-)
-
-if(MSVC)
-    target_compile_options(cfgsync_list_command_tests PRIVATE /W4 /permissive-)
-else()
-    target_compile_options(cfgsync_list_command_tests PRIVATE -Wall -Wextra -Wpedantic)
-endif()
-
-gtest_discover_tests(cfgsync_list_command_tests)
-
-add_executable(cfgsync_list_command_cli_tests
-    tests/ListCommandCliTests.cpp
-    tests/common/CliTestUtils.cpp
-    tests/common/TestTempDirectory.cpp
-    src/utils/FileUtils.cpp
-    src/utils/PathUtils.cpp
-)
-
-target_include_directories(cfgsync_list_command_cli_tests PRIVATE src)
-
-target_compile_options(cfgsync_list_command_cli_tests BEFORE PRIVATE
-    "$<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-iquote${googletest_SOURCE_DIR}/googletest/include>"
-)
-
-target_link_libraries(cfgsync_list_command_cli_tests
-    PRIVATE
-    fmt::fmt
-    spdlog::spdlog
-    nlohmann_json::nlohmann_json
-    GTest::gtest
-)
-
-if(MSVC)
-    target_compile_options(cfgsync_list_command_cli_tests PRIVATE /W4 /permissive-)
-else()
-    target_compile_options(cfgsync_list_command_cli_tests PRIVATE -Wall -Wextra -Wpedantic)
-endif()
-
-add_dependencies(cfgsync_list_command_cli_tests cfgsync)
-
-gtest_discover_tests(cfgsync_list_command_cli_tests)
-
-add_executable(cfgsync_remove_command_tests
-    tests/RemoveCommandTests.cpp
-    tests/common/TestTempDirectory.cpp
-    src/commands/RemoveCommand.cpp
-    src/core/Registry.cpp
-    src/utils/FileUtils.cpp
-    src/utils/PathUtils.cpp
-)
-
-target_include_directories(cfgsync_remove_command_tests PRIVATE src)
-
-target_compile_options(cfgsync_remove_command_tests BEFORE PRIVATE
-    "$<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-iquote${googletest_SOURCE_DIR}/googletest/include>"
-)
-
-target_link_libraries(cfgsync_remove_command_tests
-    PRIVATE
-    fmt::fmt
-    spdlog::spdlog
-    nlohmann_json::nlohmann_json
-    GTest::gtest
-)
-
-if(MSVC)
-    target_compile_options(cfgsync_remove_command_tests PRIVATE /W4 /permissive-)
-else()
-    target_compile_options(cfgsync_remove_command_tests PRIVATE -Wall -Wextra -Wpedantic)
-endif()
-
-gtest_discover_tests(cfgsync_remove_command_tests)
-
-add_executable(cfgsync_remove_command_cli_tests
-    tests/RemoveCommandCliTests.cpp
-    tests/common/CliTestUtils.cpp
-    tests/common/TestTempDirectory.cpp
-    src/utils/FileUtils.cpp
-    src/utils/PathUtils.cpp
-)
-
-target_include_directories(cfgsync_remove_command_cli_tests PRIVATE src)
-
-target_compile_options(cfgsync_remove_command_cli_tests BEFORE PRIVATE
-    "$<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-iquote${googletest_SOURCE_DIR}/googletest/include>"
-)
-
-target_link_libraries(cfgsync_remove_command_cli_tests
-    PRIVATE
-    fmt::fmt
-    spdlog::spdlog
-    nlohmann_json::nlohmann_json
-    GTest::gtest
-)
-
-if(MSVC)
-    target_compile_options(cfgsync_remove_command_cli_tests PRIVATE /W4 /permissive-)
-else()
-    target_compile_options(cfgsync_remove_command_cli_tests PRIVATE -Wall -Wextra -Wpedantic)
-endif()
-
-add_dependencies(cfgsync_remove_command_cli_tests cfgsync)
-
-gtest_discover_tests(cfgsync_remove_command_cli_tests)
-
-add_executable(cfgsync_backup_command_tests
-    tests/BackupCommandTests.cpp
-    tests/common/TestTempDirectory.cpp
-    src/commands/BackupCommand.cpp
-    src/storage/StorageManager.cpp
-    src/core/Registry.cpp
-    src/utils/FileUtils.cpp
-    src/utils/PathUtils.cpp
-)
-
-target_include_directories(cfgsync_backup_command_tests PRIVATE src)
-
-target_compile_options(cfgsync_backup_command_tests BEFORE PRIVATE
-    "$<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-iquote${googletest_SOURCE_DIR}/googletest/include>"
-)
-
-target_link_libraries(cfgsync_backup_command_tests
-    PRIVATE
-    fmt::fmt
-    spdlog::spdlog
-    nlohmann_json::nlohmann_json
-    GTest::gtest
-)
-
-if(MSVC)
-    target_compile_options(cfgsync_backup_command_tests PRIVATE /W4 /permissive-)
-else()
-    target_compile_options(cfgsync_backup_command_tests PRIVATE -Wall -Wextra -Wpedantic)
-endif()
-
-gtest_discover_tests(cfgsync_backup_command_tests)
-
-add_executable(cfgsync_backup_command_cli_tests
-    tests/BackupCommandCliTests.cpp
-    tests/common/CliTestUtils.cpp
-    tests/common/TestTempDirectory.cpp
-    src/utils/FileUtils.cpp
-    src/utils/PathUtils.cpp
-)
-
-target_include_directories(cfgsync_backup_command_cli_tests PRIVATE src)
-
-target_compile_options(cfgsync_backup_command_cli_tests BEFORE PRIVATE
-    "$<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-iquote${googletest_SOURCE_DIR}/googletest/include>"
-)
-
-target_link_libraries(cfgsync_backup_command_cli_tests
-    PRIVATE
-    fmt::fmt
-    spdlog::spdlog
-    nlohmann_json::nlohmann_json
-    GTest::gtest
-)
-
-if(MSVC)
-    target_compile_options(cfgsync_backup_command_cli_tests PRIVATE /W4 /permissive-)
-else()
-    target_compile_options(cfgsync_backup_command_cli_tests PRIVATE -Wall -Wextra -Wpedantic)
-endif()
-
-add_dependencies(cfgsync_backup_command_cli_tests cfgsync)
-
-gtest_discover_tests(cfgsync_backup_command_cli_tests)
-
-add_executable(cfgsync_restore_command_tests
-    tests/RestoreCommandTests.cpp
-    tests/common/TestTempDirectory.cpp
-    src/commands/RestoreCommand.cpp
-    src/storage/StorageManager.cpp
-    src/core/Registry.cpp
-    src/utils/FileUtils.cpp
-    src/utils/PathUtils.cpp
-)
-
-target_include_directories(cfgsync_restore_command_tests PRIVATE src)
-
-target_compile_options(cfgsync_restore_command_tests BEFORE PRIVATE
-    "$<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-iquote${googletest_SOURCE_DIR}/googletest/include>"
-)
-
-target_link_libraries(cfgsync_restore_command_tests
-    PRIVATE
-    fmt::fmt
-    spdlog::spdlog
-    nlohmann_json::nlohmann_json
-    GTest::gtest
-)
-
-if(MSVC)
-    target_compile_options(cfgsync_restore_command_tests PRIVATE /W4 /permissive-)
-else()
-    target_compile_options(cfgsync_restore_command_tests PRIVATE -Wall -Wextra -Wpedantic)
-endif()
-
-gtest_discover_tests(cfgsync_restore_command_tests)
-
-add_executable(cfgsync_restore_command_cli_tests
-    tests/RestoreCommandCliTests.cpp
-    tests/common/CliTestUtils.cpp
-    tests/common/TestTempDirectory.cpp
-    src/utils/FileUtils.cpp
-    src/utils/PathUtils.cpp
-)
-
-target_include_directories(cfgsync_restore_command_cli_tests PRIVATE src)
-
-target_compile_options(cfgsync_restore_command_cli_tests BEFORE PRIVATE
-    "$<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-iquote${googletest_SOURCE_DIR}/googletest/include>"
-)
-
-target_link_libraries(cfgsync_restore_command_cli_tests
-    PRIVATE
-    fmt::fmt
-    spdlog::spdlog
-    nlohmann_json::nlohmann_json
-    GTest::gtest
-)
-
-if(MSVC)
-    target_compile_options(cfgsync_restore_command_cli_tests PRIVATE /W4 /permissive-)
-else()
-    target_compile_options(cfgsync_restore_command_cli_tests PRIVATE -Wall -Wextra -Wpedantic)
-endif()
-
-add_dependencies(cfgsync_restore_command_cli_tests cfgsync)
-
-gtest_discover_tests(cfgsync_restore_command_cli_tests)
