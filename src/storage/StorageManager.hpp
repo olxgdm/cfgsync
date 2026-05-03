@@ -16,6 +16,7 @@ public:
     std::filesystem::path GetRegistryPath() const;
     std::filesystem::path ResolveStoredPath(const core::TrackedEntry& entry) const;
     void BackupEntry(const core::TrackedEntry& entry) const;
+    void RestoreEntry(const core::TrackedEntry& entry) const;
 
 private:
     std::filesystem::path StorageRoot_;

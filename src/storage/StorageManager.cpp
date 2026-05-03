@@ -36,4 +36,12 @@ void StorageManager::BackupEntry(const core::TrackedEntry& entry) const {
     utils::CopyFile(sourcePath, destinationPath);
 }
 
+void StorageManager::RestoreEntry(const core::TrackedEntry& entry) const {
+    const auto sourcePath = ResolveStoredPath(entry);
+    const std::filesystem::path destinationPath{entry.OriginalPath};
+
+    utils::RequireOrdinaryFile(sourcePath);
+    utils::CopyFile(sourcePath, destinationPath);
+}
+
 }  // namespace cfgsync::storage
