@@ -12,7 +12,7 @@
 namespace {
 namespace fs = std::filesystem;
 
-constexpr const char* CfgsyncExecutablePath = CFGSYNC_EXECUTABLE_PATH;
+fs::path CfgsyncExecutablePath;
 
 nlohmann::json ReadJsonFile(const fs::path& path) {
     std::ifstream input{path};
@@ -38,9 +38,23 @@ void SetEnvironmentVariable(const std::string& name, const std::string& value) {
 #endif
 }
 
+fs::path ResolveCfgsyncExecutablePath(const char* testExecutablePath) {
+    auto executablePath = fs::absolute(fs::path{testExecutablePath}).parent_path() / "cfgsync";
+#ifdef _WIN32
+    executablePath += ".exe";
+#endif
+    return executablePath;
+}
+
 std::string QuoteForCommand(const fs::path& path) { return "\"" + path.string() + "\""; }
 
-bool CommandSucceeded(const std::string& command) { return std::system(command.c_str()) == 0; }  // NOSONAR
+bool CommandSucceeded(const std::string& arguments) {
+    auto command = QuoteForCommand(CfgsyncExecutablePath) + " " + arguments;
+#ifdef _WIN32
+    command = "\"" + command + "\"";
+#endif
+    return std::system(command.c_str()) == 0;  // NOSONAR
+}
 
 class AddCommandCliTest : public testing::Test {
 protected:
