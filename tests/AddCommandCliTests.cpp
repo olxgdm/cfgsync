@@ -1,5 +1,5 @@
+#include "common/CliCommandTestFixture.hpp"
 #include "common/CliTestUtils.hpp"
-#include "common/TestTempDirectory.hpp"
 #include "gtest/gtest.h"
 #include "utils/FileUtils.hpp"
 #include "utils/PathUtils.hpp"
@@ -28,38 +28,20 @@ void WriteTextFile(const fs::path& path, const std::string& contents) {
     output << contents;
 }
 
-class AddCommandCliTest : public testing::Test {
-protected:
-    void SetUp() override {
-        TestRoot = cfgsync::tests::MakeTestRoot();
-#ifdef _WIN32
-        cfgsync::tests::SetEnvironmentVariable("APPDATA", (TestRoot / "appdata").string());
-#else
-        cfgsync::tests::SetEnvironmentVariable("HOME", (TestRoot / "home").string());
-#endif
-    }
-
-    void TearDown() override { fs::remove_all(TestRoot); }
-
-    fs::path GetTestRoot() const { return TestRoot; }
-
-private:
-    fs::path TestRoot;
-};
+class AddCommandCliTest : public cfgsync::tests::CliCommandTestFixture {};
 
 TEST_F(AddCommandCliTest, AddUsesActiveStorageRootPersistedByInit) {
-    const auto storageRoot = GetTestRoot() / "storage";
-    const auto sourcePath = GetTestRoot() / "configs" / ".gitconfig";
+    const auto sourcePath = SourcePath(".gitconfig");
     WriteTextFile(sourcePath, "[user]\n");
 
     ASSERT_TRUE(cfgsync::tests::CfgsyncCommandSucceeded(
-        "init --storage " + cfgsync::tests::QuoteForCommand(storageRoot), GetTestRoot()));
+        "init --storage " + cfgsync::tests::QuoteForCommand(StorageRoot()), GetTestRoot()));
 
     ASSERT_TRUE(
         cfgsync::tests::CfgsyncCommandSucceeded("add " + cfgsync::tests::QuoteForCommand(sourcePath), GetTestRoot()));
 
     const auto normalizedSourcePath = cfgsync::utils::NormalizePath(sourcePath);
-    const auto document = ReadJsonFile(storageRoot / "registry.json");
+    const auto document = ReadJsonFile(StorageRoot() / "registry.json");
     ASSERT_EQ(document["tracked_files"].size(), 1U);
     EXPECT_EQ(document["tracked_files"][0]["original_path"], normalizedSourcePath.string());
     EXPECT_EQ(document["tracked_files"][0]["stored_relative_path"],
@@ -67,20 +49,19 @@ TEST_F(AddCommandCliTest, AddUsesActiveStorageRootPersistedByInit) {
 }
 
 TEST_F(AddCommandCliTest, DuplicateAddReturnsSuccessAndLeavesRegistryUnchanged) {
-    const auto storageRoot = GetTestRoot() / "storage";
-    const auto sourcePath = GetTestRoot() / "configs" / ".gitconfig";
+    const auto sourcePath = SourcePath(".gitconfig");
     WriteTextFile(sourcePath, "[user]\n");
 
     ASSERT_TRUE(cfgsync::tests::CfgsyncCommandSucceeded(
-        "init --storage " + cfgsync::tests::QuoteForCommand(storageRoot), GetTestRoot()));
+        "init --storage " + cfgsync::tests::QuoteForCommand(StorageRoot()), GetTestRoot()));
     ASSERT_TRUE(
         cfgsync::tests::CfgsyncCommandSucceeded("add " + cfgsync::tests::QuoteForCommand(sourcePath), GetTestRoot()));
-    const auto documentAfterFirstAdd = ReadJsonFile(storageRoot / "registry.json");
+    const auto documentAfterFirstAdd = ReadJsonFile(StorageRoot() / "registry.json");
 
     EXPECT_TRUE(
         cfgsync::tests::CfgsyncCommandSucceeded("add " + cfgsync::tests::QuoteForCommand(sourcePath), GetTestRoot()));
 
-    EXPECT_EQ(ReadJsonFile(storageRoot / "registry.json"), documentAfterFirstAdd);
+    EXPECT_EQ(ReadJsonFile(StorageRoot() / "registry.json"), documentAfterFirstAdd);
 }
 
 }  // namespace

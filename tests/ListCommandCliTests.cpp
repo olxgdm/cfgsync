@@ -1,5 +1,5 @@
+#include "common/CliCommandTestFixture.hpp"
 #include "common/CliTestUtils.hpp"
-#include "common/TestTempDirectory.hpp"
 #include "gtest/gtest.h"
 #include "utils/FileUtils.hpp"
 #include "utils/PathUtils.hpp"
@@ -28,26 +28,7 @@ void WriteTextFile(const fs::path& path, const std::string& contents) {
     output << contents;
 }
 
-class ListCommandCliTest : public testing::Test {
-protected:
-    void SetUp() override {
-        TestRoot = cfgsync::tests::MakeTestRoot();
-#ifdef _WIN32
-        cfgsync::tests::SetEnvironmentVariable("APPDATA", (TestRoot / "appdata").string());
-#else
-        cfgsync::tests::SetEnvironmentVariable("HOME", (TestRoot / "home").string());
-#endif
-    }
-
-    void TearDown() override { fs::remove_all(TestRoot); }
-
-    fs::path GetTestRoot() const { return TestRoot; }
-
-    fs::path StorageRoot() const { return TestRoot / "storage"; }
-
-private:
-    fs::path TestRoot;
-};
+class ListCommandCliTest : public cfgsync::tests::CliCommandTestFixture {};
 
 TEST_F(ListCommandCliTest, ListAfterInitReportsEmptyRegistry) {
     ASSERT_TRUE(cfgsync::tests::CfgsyncCommandSucceeded(
@@ -62,8 +43,8 @@ TEST_F(ListCommandCliTest, ListAfterInitReportsEmptyRegistry) {
 }
 
 TEST_F(ListCommandCliTest, ListPrintsTrackedOriginalPaths) {
-    const auto firstPath = GetTestRoot() / "configs" / ".gitconfig";
-    const auto secondPath = GetTestRoot() / "configs" / "init.lua";
+    const auto firstPath = SourcePath(".gitconfig");
+    const auto secondPath = SourcePath("init.lua");
     WriteTextFile(firstPath, "[user]\n");
     WriteTextFile(secondPath, "vim.opt.number = true\n");
     ASSERT_TRUE(cfgsync::tests::CfgsyncCommandSucceeded(

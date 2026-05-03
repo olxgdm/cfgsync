@@ -1,5 +1,5 @@
+#include "common/CliCommandTestFixture.hpp"
 #include "common/CliTestUtils.hpp"
-#include "common/TestTempDirectory.hpp"
 #include "gtest/gtest.h"
 #include "utils/FileUtils.hpp"
 #include "utils/PathUtils.hpp"
@@ -28,28 +28,7 @@ void WriteTextFile(const fs::path& path, const std::string& contents) {
     output << contents;
 }
 
-class RemoveCommandCliTest : public testing::Test {
-protected:
-    void SetUp() override {
-        TestRoot = cfgsync::tests::MakeTestRoot();
-#ifdef _WIN32
-        cfgsync::tests::SetEnvironmentVariable("APPDATA", (TestRoot / "appdata").string());
-#else
-        cfgsync::tests::SetEnvironmentVariable("HOME", (TestRoot / "home").string());
-#endif
-    }
-
-    void TearDown() override { fs::remove_all(TestRoot); }
-
-    fs::path GetTestRoot() const { return TestRoot; }
-
-    fs::path StorageRoot() const { return TestRoot / "storage"; }
-
-    fs::path SourcePath(const std::string& filename) const { return TestRoot / "configs" / filename; }
-
-private:
-    fs::path TestRoot;
-};
+class RemoveCommandCliTest : public cfgsync::tests::CliCommandTestFixture {};
 
 TEST_F(RemoveCommandCliTest, RemoveUsesActiveStorageRootPersistedByInit) {
     const auto firstPath = SourcePath(".gitconfig");
