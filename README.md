@@ -1,68 +1,258 @@
 ![cfgsync preview](img/cfgsync-preview-rm.png)
 
+# cfgsync
+
 `cfgsync` is a small cross-platform CLI utility for backing up and restoring text-based configuration files.
 
-It is designed for a simple, local workflow: track important config files, save copies into a dedicated storage directory, and restore them later after a reinstall, migration, or accidental loss.
+It is designed for a simple local workflow: track important config files, save copies into a dedicated storage directory, and restore them later after a reinstall, migration, or accidental loss.
 
 This project is not a Git replacement. It focuses on local configuration synchronization and recovery with a clean, minimal MVP.
 
-## What It Does
-
-- Tracks selected config files
-- Stores backups in a readable local storage layout
-- Restores saved files back to their original locations
-- Keeps the workflow terminal-first and cross-platform
-
-## MVP Commands
-
-```bash
-cfgsync init --storage <dir>
-cfgsync add <file>
-cfgsync remove <file>
-cfgsync list
-cfgsync backup
-cfgsync restore --all
-cfgsync restore <file>
-```
-
-## Scope
-
-The current version targets ordinary files only and keeps the first iteration intentionally small.
-
-Not part of the MVP:
-
-- automatic file watching
-- snapshot history
-- diff support
-- merge or conflict handling
-- remote sync
-- encryption
-- directory tracking
-- symlink tracking
-
-## Platforms
-
-`cfgsync` is being built with cross-platform support in mind for:
-
-- Linux
-- macOS
-- Windows
-
-## Tech
-
-`cfgsync` is implemented as a modern, portable C++ command-line application.
-
-- **Language:** C++20 with the standard library, including `std::filesystem` for cross-platform path and file operations.
-- **Build system:** CMake, with an explicit `cfgsync` executable target and CTest integration.
-- **Dependency management:** CMake `FetchContent` is used to retrieve project dependencies during configuration.
-- **CLI parsing:** CLI11 provides the command structure and argument parsing.
-- **JSON:** nlohmann/json is used for readable registry and app configuration files.
-- **Logging:** spdlog provides structured command output and diagnostics.
-- **Formatting:** fmt is used directly and as the external formatting backend for spdlog.
-- **Testing:** GoogleTest is used for unit tests, currently focused on app configuration and platform-aware path behavior.
-- **Static analysis:** optional clang-tidy support can be enabled with `CFGSYNC_ENABLE_CLANG_TIDY`, and SonarQube is used as an additional code quality analyzer.
-- **Continuous integration:** GitHub Actions builds and runs tests across Windows, Linux with GCC, Linux with Clang, and macOS.
-
 ## Status
 
-The project is currently in early MVP development.
+The v0 MVP workflow is implemented:
+
+- initialize a cfgsync storage directory
+- persist the active storage root in a user-level app config
+- add and remove ordinary files from the registry
+- list tracked files
+- back up tracked files into storage
+- restore one tracked file or all tracked files
+- run focused GoogleTest coverage through CTest
+
+The current version intentionally supports ordinary files only. Directory tracking, symlink tracking, snapshots, diffs, remote sync, encryption, and file watching are outside the v0 scope.
+
+## Prerequisites
+
+- CMake 3.31 or newer
+- A C++20-capable compiler
+- Git and network access during the first CMake configure, because dependencies are fetched with CMake `FetchContent`
+
+The project fetches these dependencies during configuration:
+
+- CLI11
+- fmt
+- spdlog
+- nlohmann/json
+- GoogleTest, when `CFGSYNC_BUILD_TESTS` is enabled
+
+## Build
+
+Configure and build from the repository root:
+
+```bash
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build --config Release
+```
+
+On single-config generators, such as Unix Makefiles or Ninja, the executable is usually written to:
+
+```text
+build/cfgsync
+```
+
+On multi-config generators, such as Visual Studio, the executable is usually written under the selected configuration directory, for example:
+
+```text
+build/Release/cfgsync.exe
+```
+
+Tests are enabled by default. To configure a smaller build without the GoogleTest suite:
+
+```bash
+cmake -S . -B build-no-tests -DCFGSYNC_BUILD_TESTS=OFF
+cmake --build build-no-tests
+```
+
+Optional clang-tidy checks can be enabled with:
+
+```bash
+cmake -S . -B build -DCFGSYNC_ENABLE_CLANG_TIDY=ON
+```
+
+## Test
+
+Build the project and run CTest:
+
+```bash
+cmake -S . -B build -DCFGSYNC_BUILD_TESTS=ON
+cmake --build build
+ctest --test-dir build --output-on-failure
+```
+
+The test suite uses temporary directories and is designed not to write to the real user home directory or real cfgsync app config.
+
+## Quick Start
+
+The examples below assume `cfgsync` is available on your `PATH`. If it is not, run the executable from your build directory instead.
+
+```bash
+cfgsync init --storage ~/cfgsync-store
+cfgsync add ~/.gitconfig
+cfgsync list
+cfgsync backup
+cfgsync restore ~/.gitconfig
+cfgsync restore --all
+cfgsync remove ~/.gitconfig
+```
+
+Typical flow:
+
+1. Run `cfgsync init --storage <dir>` once to create the storage directory and record it as the active storage root.
+2. Run `cfgsync add <file>` for each ordinary config file you want to track.
+3. Run `cfgsync backup` whenever you want to copy the current tracked files into storage.
+4. Run `cfgsync restore <file>` to restore one tracked file, or `cfgsync restore --all` to restore every tracked file.
+5. Run `cfgsync remove <file>` when a file should no longer be tracked.
+
+## Commands
+
+### `cfgsync init --storage <dir>`
+
+Initializes cfgsync storage at the given directory.
+
+This creates:
+
+- the storage root directory, if needed
+- `registry.json`
+- `files/`
+- a user-level cfgsync app config that records the active storage root
+
+After `init`, later commands do not need `--storage`. They load the active storage root from the app config.
+
+The app config is stored at:
+
+- Linux/macOS: `$HOME/.config/cfgsync/config.json`
+- Windows: `%APPDATA%/cfgsync/config.json`
+
+Running `init` again against an existing valid storage root preserves the registry and ensures the storage layout exists.
+
+### `cfgsync add <file>`
+
+Registers an existing ordinary file for tracking.
+
+The path is expanded for `~`, normalized, and stored in the registry. Directories, symlinks, missing paths, and special files are rejected in v0.
+
+Adding an already tracked file leaves the registry unchanged.
+
+### `cfgsync remove <file>`
+
+Removes a tracked file from the registry.
+
+This does not delete the original file and does not delete any previously stored backup copy.
+
+### `cfgsync list`
+
+Prints tracked original file paths, one per line.
+
+If no files are tracked, it prints:
+
+```text
+No files tracked.
+```
+
+### `cfgsync backup`
+
+Copies every tracked file from its original location into the storage `files/` tree.
+
+If one tracked file cannot be backed up, cfgsync reports that file, continues with the remaining entries, and exits with a failure after the batch finishes.
+
+### `cfgsync restore --all`
+
+Restores every tracked file from storage back to its original location.
+
+Parent directories are created before files are restored. Existing destination files are overwritten.
+
+If one tracked file cannot be restored, cfgsync reports that file, continues with the remaining entries, and exits with a failure after the batch finishes.
+
+### `cfgsync restore <file>`
+
+Restores one tracked file from storage back to its original location.
+
+The file path is normalized before lookup. The command fails if the file is not tracked or if no stored backup exists.
+
+## Storage Layout
+
+The storage root is intentionally readable in v0:
+
+```text
+storage/
+  registry.json
+  files/
+    home/
+      user/
+        .gitconfig
+        .config/
+          nvim/
+            init.lua
+```
+
+For POSIX paths, the absolute path is mapped under `files/` without the leading slash:
+
+```text
+/home/user/.gitconfig -> files/home/user/.gitconfig
+```
+
+For Windows-style drive paths, the drive letter becomes a directory segment:
+
+```text
+C:\Users\Oleksii\.gitconfig -> files/C/Users/Oleksii/.gitconfig
+```
+
+The layout favors readability over hashing for v0.
+
+## Registry Format
+
+The registry is stored as JSON at `<storage>/registry.json`.
+
+Example:
+
+```json
+{
+    "version": 1,
+    "storage_root": "/absolute/path/to/storage",
+    "tracked_files": [
+        {
+            "original_path": "/home/user/.gitconfig",
+            "stored_relative_path": "files/home/user/.gitconfig"
+        }
+    ]
+}
+```
+
+The registry records:
+
+- the registry format version
+- the storage root associated with the registry
+- each tracked original path
+- the relative path where that file is stored under the storage root
+
+Users normally do not need to edit this file manually, but it is kept readable for inspection and future migration.
+
+## v0 Limitations
+
+The v0 scope is intentionally small:
+
+- ordinary files only
+- no directory tracking
+- no symlink tracking
+- no special file handling
+- no snapshots or history
+- no diff support
+- no merge or conflict resolution
+- no remote sync
+- no encryption
+- no automatic file watching
+- no packaging or installer flow yet
+
+## Development Notes
+
+The codebase is organized around a small layered design:
+
+- `src/cli/` defines command-line structure and argument parsing
+- `src/commands/` contains thin command handlers
+- `src/core/` contains registry and app configuration logic
+- `src/storage/` maps tracked entries to storage paths and performs backup/restore copies
+- `src/utils/` contains path, filesystem, logging, and app config path helpers
+- `tests/` contains focused GoogleTest coverage and CLI-level tests
+
+The MVP prioritizes correctness, clear errors, cross-platform path handling through `std::filesystem`, and a maintainable structure before advanced features.
