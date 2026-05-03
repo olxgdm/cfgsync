@@ -285,6 +285,7 @@ gtest_discover_tests(cfgsync_add_command_tests)
 
 add_executable(cfgsync_add_command_cli_tests
     tests/AddCommandCliTests.cpp
+    tests/common/CliTestUtils.cpp
     tests/common/TestTempDirectory.cpp
     src/utils/FileUtils.cpp
     src/utils/PathUtils.cpp
@@ -347,6 +348,7 @@ gtest_discover_tests(cfgsync_list_command_tests)
 
 add_executable(cfgsync_list_command_cli_tests
     tests/ListCommandCliTests.cpp
+    tests/common/CliTestUtils.cpp
     tests/common/TestTempDirectory.cpp
     src/utils/FileUtils.cpp
     src/utils/PathUtils.cpp
