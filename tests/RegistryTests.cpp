@@ -1,4 +1,5 @@
 #include "common/TestTempDirectory.hpp"
+#include "Exceptions.hpp"
 #include "core/Registry.hpp"
 #include "gtest/gtest.h"
 #include "utils/FileUtils.hpp"
@@ -7,7 +8,6 @@
 #include <filesystem>
 #include <fstream>
 #include <nlohmann/json.hpp>
-#include <stdexcept>
 #include <string>
 
 namespace {
@@ -109,7 +109,7 @@ TEST_F(RegistryTest, MalformedJsonThrowsClearError) {
     try {
         registry.Load();
         FAIL() << "Malformed registry did not throw.";
-    } catch (const std::runtime_error& error) {
+    } catch (const cfgsync::RegistryError& error) {
         const std::string message = error.what();
         EXPECT_NE(message.find("Malformed cfgsync registry"), std::string::npos);
     }
@@ -121,7 +121,7 @@ TEST_F(RegistryTest, MissingRegistryFileThrowsClearError) {
     try {
         registry.Load();
         FAIL() << "Missing registry file did not throw.";
-    } catch (const std::runtime_error& error) {
+    } catch (const cfgsync::RegistryError& error) {
         const std::string message = error.what();
         EXPECT_NE(message.find("Unable to open cfgsync registry"), std::string::npos);
     }
@@ -138,7 +138,7 @@ TEST_F(RegistryTest, MissingTrackedFilesThrowsClearError) {
     try {
         registry.Load();
         FAIL() << "Registry without tracked_files did not throw.";
-    } catch (const std::runtime_error& error) {
+    } catch (const cfgsync::RegistryError& error) {
         const std::string message = error.what();
         EXPECT_NE(message.find("tracked_files must be an array"), std::string::npos);
     }
@@ -156,7 +156,7 @@ TEST_F(RegistryTest, UnsupportedVersionThrowsClearError) {
     try {
         registry.Load();
         FAIL() << "Unsupported registry version did not throw.";
-    } catch (const std::runtime_error& error) {
+    } catch (const cfgsync::RegistryError& error) {
         const std::string message = error.what();
         EXPECT_NE(message.find("Unsupported cfgsync registry version"), std::string::npos);
     }
@@ -186,7 +186,7 @@ TEST_F(RegistryTest, DuplicateOriginalPathsInFileThrowClearError) {
     try {
         registry.Load();
         FAIL() << "Duplicate registry entries did not throw.";
-    } catch (const std::runtime_error& error) {
+    } catch (const cfgsync::RegistryError& error) {
         const std::string message = error.what();
         EXPECT_NE(message.find("duplicate original_path"), std::string::npos);
     }

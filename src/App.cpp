@@ -1,5 +1,6 @@
 #include "App.hpp"
 
+#include "Exceptions.hpp"
 #include "cli/BuildCli.hpp"
 #include "utils/AppConfigPath.hpp"
 
@@ -23,6 +24,9 @@ int App::Run(int argc, char* argv[]) {
         return EXIT_SUCCESS;
     } catch (const CLI::ParseError& error) {
         return cli.exit(error);
+    } catch (const CfgsyncError& error) {
+        std::cerr << "error: " << error.what() << '\n';
+        return EXIT_FAILURE;
     } catch (const std::exception& error) {  // NOSONAR: top-level exception boundary
         std::cerr << "error: " << error.what() << '\n';
         return EXIT_FAILURE;

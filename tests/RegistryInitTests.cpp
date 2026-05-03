@@ -1,4 +1,5 @@
 #include "common/TestTempDirectory.hpp"
+#include "Exceptions.hpp"
 #include "core/Registry.hpp"
 #include "gtest/gtest.h"
 #include "utils/FileUtils.hpp"
@@ -7,7 +8,6 @@
 #include <filesystem>
 #include <fstream>
 #include <nlohmann/json.hpp>
-#include <stdexcept>
 #include <string>
 
 namespace {
@@ -133,7 +133,7 @@ TEST_F(RegistryInitTest, MalformedExistingRegistryThrowsClearError) {
     try {
         registry.Initialize(storageRoot);
         FAIL() << "Malformed registry did not throw.";
-    } catch (const std::runtime_error& error) {
+    } catch (const cfgsync::RegistryError& error) {
         const std::string message = error.what();
         EXPECT_NE(message.find("Malformed cfgsync registry"), std::string::npos);
     }
@@ -153,7 +153,7 @@ TEST_F(RegistryInitTest, MissingTrackedFilesThrowsClearError) {
     try {
         registry.Initialize(storageRoot);
         FAIL() << "Registry without tracked_files did not throw.";
-    } catch (const std::runtime_error& error) {
+    } catch (const cfgsync::RegistryError& error) {
         const std::string message = error.what();
         EXPECT_NE(message.find("tracked_files must be an array"), std::string::npos);
     }
@@ -174,7 +174,7 @@ TEST_F(RegistryInitTest, UnsupportedVersionThrowsClearError) {
     try {
         registry.Initialize(storageRoot);
         FAIL() << "Unsupported registry version did not throw.";
-    } catch (const std::runtime_error& error) {
+    } catch (const cfgsync::RegistryError& error) {
         const std::string message = error.what();
         EXPECT_NE(message.find("Unsupported cfgsync registry version"), std::string::npos);
     }
@@ -195,7 +195,7 @@ TEST_F(RegistryInitTest, MismatchedStorageRootThrowsClearError) {
     try {
         registry.Initialize(storageRoot);
         FAIL() << "Mismatched registry storage root did not throw.";
-    } catch (const std::runtime_error& error) {
+    } catch (const cfgsync::RegistryError& error) {
         const std::string message = error.what();
         EXPECT_NE(message.find("belongs to storage root"), std::string::npos);
     }

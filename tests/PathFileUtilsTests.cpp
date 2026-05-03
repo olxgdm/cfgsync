@@ -1,4 +1,5 @@
 #include "common/TestTempDirectory.hpp"
+#include "Exceptions.hpp"
 #include "gtest/gtest.h"
 #include "utils/FileUtils.hpp"
 #include "utils/PathUtils.hpp"
@@ -6,7 +7,6 @@
 #include <filesystem>
 #include <fstream>
 #include <iterator>
-#include <stdexcept>
 #include <string>
 
 #ifdef _WIN32
@@ -110,7 +110,7 @@ TEST_F(PathFileUtilsTest, OrdinaryFileValidationRejectsMissingPath) {
     const auto filePath = GetTestRoot() / "missing.conf";
 
     EXPECT_FALSE(cfgsync::utils::IsOrdinaryFile(filePath));
-    EXPECT_THROW(cfgsync::utils::RequireOrdinaryFile(filePath), std::runtime_error);
+    EXPECT_THROW(cfgsync::utils::RequireOrdinaryFile(filePath), cfgsync::FileError);
 }
 
 TEST_F(PathFileUtilsTest, OrdinaryFileValidationRejectsDirectory) {
@@ -118,7 +118,7 @@ TEST_F(PathFileUtilsTest, OrdinaryFileValidationRejectsDirectory) {
     cfgsync::utils::EnsureDirectoryExists(directoryPath);
 
     EXPECT_FALSE(cfgsync::utils::IsOrdinaryFile(directoryPath));
-    EXPECT_THROW(cfgsync::utils::RequireOrdinaryFile(directoryPath), std::runtime_error);
+    EXPECT_THROW(cfgsync::utils::RequireOrdinaryFile(directoryPath), cfgsync::FileError);
 }
 
 TEST_F(PathFileUtilsTest, OrdinaryFileValidationRejectsSymlink) {
@@ -133,7 +133,7 @@ TEST_F(PathFileUtilsTest, OrdinaryFileValidationRejectsSymlink) {
     }
 
     EXPECT_FALSE(cfgsync::utils::IsOrdinaryFile(symlinkPath));
-    EXPECT_THROW(cfgsync::utils::RequireOrdinaryFile(symlinkPath), std::runtime_error);
+    EXPECT_THROW(cfgsync::utils::RequireOrdinaryFile(symlinkPath), cfgsync::FileError);
 }
 
 TEST_F(PathFileUtilsTest, CopyFileCreatesDestinationParentDirectories) {

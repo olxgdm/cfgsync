@@ -3,13 +3,13 @@
 #include "common/RegistryCommandTestFixture.hpp"
 #include "common/TestFileUtils.hpp"
 #include "common/TestRegistryUtils.hpp"
+#include "Exceptions.hpp"
 #include "storage/StorageManager.hpp"
 #include "utils/PathUtils.hpp"
 
 #include "gtest/gtest.h"
 
 #include <filesystem>
-#include <stdexcept>
 #include <string>
 
 namespace {
@@ -87,7 +87,7 @@ TEST_F(RestoreCommandTest, SingleRestoreFailsForUntrackedFile) {
     try {
         command.ExecuteSingle(SourcePath());
         FAIL() << "Restore of an untracked file did not throw.";
-    } catch (const std::runtime_error& error) {
+    } catch (const cfgsync::CommandError& error) {
         const std::string message = error.what();
         EXPECT_NE(message.find("File is not tracked"), std::string::npos);
         EXPECT_NE(message.find(cfgsync::utils::NormalizePath(SourcePath()).string()), std::string::npos);
@@ -104,7 +104,7 @@ TEST_F(RestoreCommandTest, SingleRestoreFailsWhenStoredBackupIsMissing) {
     try {
         command.ExecuteSingle(sourcePath);
         FAIL() << "Restore with a missing stored backup did not throw.";
-    } catch (const std::runtime_error& error) {
+    } catch (const cfgsync::FileError& error) {
         const std::string message = error.what();
         EXPECT_NE(message.find("Path does not exist"), std::string::npos);
         EXPECT_NE(message.find((StorageRoot() / storedRelativePath.generic_string()).string()), std::string::npos);
@@ -126,7 +126,7 @@ TEST_F(RestoreCommandTest, RestoreAllContinuesAfterMissingStoredBackupAndReports
     try {
         command.ExecuteAll();
         FAIL() << "Restore with a missing stored backup did not throw.";
-    } catch (const std::runtime_error& error) {
+    } catch (const cfgsync::CommandError& error) {
         const std::string message = error.what();
         EXPECT_NE(message.find("Restore completed with 1 failure."), std::string::npos);
     }

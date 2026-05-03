@@ -1,5 +1,6 @@
 #include "commands/RemoveCommand.hpp"
 #include "common/RegistryCommandTestFixture.hpp"
+#include "Exceptions.hpp"
 #include "gtest/gtest.h"
 #include "utils/FileUtils.hpp"
 #include "utils/PathUtils.hpp"
@@ -7,7 +8,6 @@
 #include <filesystem>
 #include <fstream>
 #include <nlohmann/json.hpp>
-#include <stdexcept>
 #include <string>
 
 namespace {
@@ -117,7 +117,7 @@ TEST_F(RemoveCommandTest, MissingEntryFailsClearlyAndLeavesRegistryUnchanged) {
     try {
         command.Execute(SourcePath("missing.conf"));
         FAIL() << "Removing a missing tracked entry did not throw.";
-    } catch (const std::runtime_error& error) {
+    } catch (const cfgsync::CommandError& error) {
         const std::string message = error.what();
         EXPECT_NE(message.find("File is not tracked"), std::string::npos);
         EXPECT_NE(message.find("missing.conf"), std::string::npos);

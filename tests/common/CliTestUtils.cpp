@@ -1,10 +1,11 @@
 #include "CliTestUtils.hpp"
 
+#include "TestSupportError.hpp"
+
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
-#include <stdexcept>
 
 namespace cfgsync::tests {
 namespace fs = std::filesystem;
@@ -29,7 +30,7 @@ std::string ReadTextFile(const fs::path& path) {
 fs::path GetCfgsyncExecutablePath() {
     const auto* executablePath = std::getenv(CfgsyncExecutablePathVariable);
     if (executablePath == nullptr || std::string{executablePath}.empty()) {
-        throw std::runtime_error{"cfgsync executable path is not initialized for CLI tests."};
+        throw TestSupportError{"cfgsync executable path is not initialized for CLI tests."};
     }
 
     return fs::path{executablePath};

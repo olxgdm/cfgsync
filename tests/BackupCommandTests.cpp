@@ -3,12 +3,12 @@
 #include "common/RegistryCommandTestFixture.hpp"
 #include "common/TestFileUtils.hpp"
 #include "common/TestRegistryUtils.hpp"
+#include "Exceptions.hpp"
 #include "storage/StorageManager.hpp"
 
 #include "gtest/gtest.h"
 
 #include <filesystem>
-#include <stdexcept>
 #include <string>
 
 namespace {
@@ -90,7 +90,7 @@ TEST_F(BackupCommandTest, ContinuesAfterMissingSourceAndReportsPartialFailure) {
     try {
         command.Execute();
         FAIL() << "Backup with a missing source did not throw.";
-    } catch (const std::runtime_error& error) {
+    } catch (const cfgsync::CommandError& error) {
         const std::string message = error.what();
         EXPECT_NE(message.find("Backup completed with 1 failure."), std::string::npos);
     }

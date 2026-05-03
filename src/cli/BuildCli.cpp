@@ -1,5 +1,6 @@
 #include "cli/BuildCli.hpp"
 
+#include "Exceptions.hpp"
 #include "commands/AddCommand.hpp"
 #include "commands/BackupCommand.hpp"
 #include "commands/InitCommand.hpp"
@@ -10,7 +11,6 @@
 
 #include <filesystem>
 #include <memory>
-#include <stdexcept>
 #include <string>
 
 namespace cfgsync::cli {
@@ -24,7 +24,7 @@ void BuildCli(CLI::App& app, core::Registry& registry, storage::StorageManager& 
         registry.SetRegistryPath(storageManager.GetRegistryPath());
         registry.Load();
         if (registry.GetStorageRoot() != storageManager.GetStorageRoot()) {
-            throw std::runtime_error{"The active cfgsync storage root does not match the registry storage root."};
+            throw RegistryError{"The active cfgsync storage root does not match the registry storage root."};
         }
         utils::LogDebug(std::string{"Resolved active cfgsync storage root: "} +
                         storageManager.GetStorageRoot().string());

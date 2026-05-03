@@ -1,5 +1,6 @@
 #include "core/Registry.hpp"
 
+#include "Exceptions.hpp"
 #include "utils/FileUtils.hpp"
 #include "utils/LogUtils.hpp"
 #include "utils/PathUtils.hpp"
@@ -20,15 +21,15 @@ namespace {
 
 constexpr int CurrentRegistryVersion = 1;
 
-std::runtime_error MalformedRegistryError(const fs::path& registryPath, const std::string& message) {
-    return std::runtime_error{
+RegistryError MalformedRegistryError(const fs::path& registryPath, const std::string& message) {
+    return RegistryError{
         fmt::format(fmt::runtime("Malformed cfgsync registry '{}': {}"), registryPath.string(), message)};
 }
 
 nlohmann::json ReadRegistryDocument(const fs::path& registryPath) {
     std::ifstream input{registryPath};
     if (!input) {
-        throw std::runtime_error{
+        throw RegistryError{
             fmt::format(fmt::runtime("Unable to open cfgsync registry: {}"), registryPath.string())};
     }
 
@@ -36,7 +37,7 @@ nlohmann::json ReadRegistryDocument(const fs::path& registryPath) {
     try {
         input >> document;
     } catch (const nlohmann::json::parse_error& error) {
-        throw std::runtime_error{
+        throw RegistryError{
             fmt::format(fmt::runtime("Malformed cfgsync registry '{}': {}"), registryPath.string(), error.what())};
     }
 
@@ -50,8 +51,8 @@ void ValidateRegistryVersion(const nlohmann::json& document, const fs::path& reg
 
     const auto version = document["version"].get<int>();
     if (version != CurrentRegistryVersion) {
-        throw std::runtime_error{fmt::format(fmt::runtime("Unsupported cfgsync registry version {} in '{}'."), version,
-                                             registryPath.string())};
+        throw RegistryError{fmt::format(fmt::runtime("Unsupported cfgsync registry version {} in '{}'."), version,
+                                        registryPath.string())};
     }
 }
 
@@ -177,7 +178,7 @@ void Registry::Initialize(const fs::path& storageRoot) {
     if (fs::exists(RegistryPath_)) {
         Load();
         if (StorageRoot_ != utils::NormalizePath(storageRoot)) {
-            throw std::runtime_error{
+            throw RegistryError{
                 fmt::format(fmt::runtime("cfgsync registry '{}' belongs to storage root '{}', not '{}'."),
                             RegistryPath_.string(), StorageRoot_.string(), utils::NormalizePath(storageRoot).string())};
         }
@@ -197,7 +198,7 @@ const std::vector<TrackedEntry>& Registry::GetTrackedEntries() const { return Tr
 
 void Registry::Load() {
     if (RegistryPath_.empty()) {
-        throw std::runtime_error{"Registry path must be set before loading."};
+        throw RegistryError{"Registry path must be set before loading."};
     }
 
     const auto document = ReadRegistryDocument(RegistryPath_);
@@ -213,11 +214,11 @@ void Registry::Load() {
 
 void Registry::Save() const {
     if (RegistryPath_.empty()) {
-        throw std::runtime_error{"Registry path must be set before saving."};
+        throw RegistryError{"Registry path must be set before saving."};
     }
 
     if (StorageRoot_.empty()) {
-        throw std::runtime_error{"Storage root must be set before saving the registry."};
+        throw RegistryError{"Storage root must be set before saving the registry."};
     }
 
     if (RegistryPath_.has_parent_path()) {
@@ -226,7 +227,7 @@ void Registry::Save() const {
 
     std::ofstream output{RegistryPath_};
     if (!output) {
-        throw std::runtime_error{
+        throw RegistryError{
             fmt::format(fmt::runtime("Unable to write cfgsync registry: {}"), RegistryPath_.string())};
     }
 
