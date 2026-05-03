@@ -2,6 +2,11 @@
 
 # cfgsync
 
+[![CI](https://github.com/olxgdm/cfgsync/actions/workflows/cmake-multi-platform.yml/badge.svg?branch=main)](https://github.com/olxgdm/cfgsync/actions/workflows/cmake-multi-platform.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+![C++20](https://img.shields.io/badge/C%2B%2B-20-00599C.svg)
+![CMake](https://img.shields.io/badge/CMake-3.31%2B-064F8C.svg)
+
 `cfgsync` is a small cross-platform CLI utility for backing up and restoring text-based configuration files.
 
 It is designed for a simple local workflow: track important config files, save copies into a dedicated storage directory, and restore them later after a reinstall, migration, or accidental loss.
