@@ -118,7 +118,8 @@ TEST_F(RestoreCommandCliTest, SingleRestoreWithMissingStoredBackupReturnsNonZero
     EXPECT_NE(result.ExitCode, 0);
     EXPECT_TRUE(result.Output.empty());
     EXPECT_NE(result.Error.find("Path does not exist"), std::string::npos);
-    EXPECT_NE(result.Error.find(cfgsync::tests::StoredPathFor(StorageRoot(), sourcePath).string()), std::string::npos);
+    EXPECT_NE(result.Error.find(cfgsync::tests::StoredRegistryPathFor(StorageRoot(), sourcePath).string()),
+              std::string::npos);
 }
 
 TEST_F(RestoreCommandCliTest, RestoreAllContinuesAfterMissingStoredBackupAndReturnsNonZero) {
