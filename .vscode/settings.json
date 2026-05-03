@@ -127,7 +127,8 @@
     "variant": "cpp"
   },
   "cmake.configureSettings": {
-    "CFGSYNC_ENABLE_CLANG_TIDY": false
+    "CFGSYNC_ENABLE_CLANG_TIDY": false,
+    "CFGSYNC_BUILD_TESTS": true
   },
   "cmake.configureOnEdit": false,
   "cmake.configureOnOpen": false,
