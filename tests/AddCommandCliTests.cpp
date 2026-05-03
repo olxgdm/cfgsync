@@ -1,9 +1,9 @@
+#include "common/CliTestUtils.hpp"
 #include "common/TestTempDirectory.hpp"
 #include "gtest/gtest.h"
 #include "utils/FileUtils.hpp"
 #include "utils/PathUtils.hpp"
 
-#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <nlohmann/json.hpp>
@@ -11,8 +11,6 @@
 
 namespace {
 namespace fs = std::filesystem;
-
-fs::path CfgsyncExecutablePath;
 
 nlohmann::json ReadJsonFile(const fs::path& path) {
     std::ifstream input{path};
@@ -30,40 +28,14 @@ void WriteTextFile(const fs::path& path, const std::string& contents) {
     output << contents;
 }
 
-void SetEnvironmentVariable(const std::string& name, const std::string& value) {
-#ifdef _WIN32
-    _putenv_s(name.c_str(), value.c_str());
-#else
-    setenv(name.c_str(), value.c_str(), 1);
-#endif
-}
-
-fs::path ResolveCfgsyncExecutablePath(const char* testExecutablePath) {
-    auto executablePath = fs::absolute(fs::path{testExecutablePath}).parent_path() / "cfgsync";
-#ifdef _WIN32
-    executablePath += ".exe";
-#endif
-    return executablePath;
-}
-
-std::string QuoteForCommand(const fs::path& path) { return "\"" + path.string() + "\""; }
-
-bool CommandSucceeded(const std::string& arguments) {
-    auto command = QuoteForCommand(CfgsyncExecutablePath) + " " + arguments;
-#ifdef _WIN32
-    command = "\"" + command + "\"";
-#endif
-    return std::system(command.c_str()) == 0;  // NOSONAR
-}
-
 class AddCommandCliTest : public testing::Test {
 protected:
     void SetUp() override {
         TestRoot = cfgsync::tests::MakeTestRoot();
 #ifdef _WIN32
-        SetEnvironmentVariable("APPDATA", (TestRoot / "appdata").string());
+        cfgsync::tests::SetEnvironmentVariable("APPDATA", (TestRoot / "appdata").string());
 #else
-        SetEnvironmentVariable("HOME", (TestRoot / "home").string());
+        cfgsync::tests::SetEnvironmentVariable("HOME", (TestRoot / "home").string());
 #endif
     }
 
@@ -80,9 +52,11 @@ TEST_F(AddCommandCliTest, AddUsesActiveStorageRootPersistedByInit) {
     const auto sourcePath = GetTestRoot() / "configs" / ".gitconfig";
     WriteTextFile(sourcePath, "[user]\n");
 
-    ASSERT_TRUE(CommandSucceeded("init --storage " + QuoteForCommand(storageRoot)));
+    ASSERT_TRUE(cfgsync::tests::CfgsyncCommandSucceeded(
+        "init --storage " + cfgsync::tests::QuoteForCommand(storageRoot), GetTestRoot()));
 
-    ASSERT_TRUE(CommandSucceeded("add " + QuoteForCommand(sourcePath)));
+    ASSERT_TRUE(
+        cfgsync::tests::CfgsyncCommandSucceeded("add " + cfgsync::tests::QuoteForCommand(sourcePath), GetTestRoot()));
 
     const auto normalizedSourcePath = cfgsync::utils::NormalizePath(sourcePath);
     const auto document = ReadJsonFile(storageRoot / "registry.json");
@@ -97,11 +71,14 @@ TEST_F(AddCommandCliTest, DuplicateAddReturnsSuccessAndLeavesRegistryUnchanged) 
     const auto sourcePath = GetTestRoot() / "configs" / ".gitconfig";
     WriteTextFile(sourcePath, "[user]\n");
 
-    ASSERT_TRUE(CommandSucceeded("init --storage " + QuoteForCommand(storageRoot)));
-    ASSERT_TRUE(CommandSucceeded("add " + QuoteForCommand(sourcePath)));
+    ASSERT_TRUE(cfgsync::tests::CfgsyncCommandSucceeded(
+        "init --storage " + cfgsync::tests::QuoteForCommand(storageRoot), GetTestRoot()));
+    ASSERT_TRUE(
+        cfgsync::tests::CfgsyncCommandSucceeded("add " + cfgsync::tests::QuoteForCommand(sourcePath), GetTestRoot()));
     const auto documentAfterFirstAdd = ReadJsonFile(storageRoot / "registry.json");
 
-    EXPECT_TRUE(CommandSucceeded("add " + QuoteForCommand(sourcePath)));
+    EXPECT_TRUE(
+        cfgsync::tests::CfgsyncCommandSucceeded("add " + cfgsync::tests::QuoteForCommand(sourcePath), GetTestRoot()));
 
     EXPECT_EQ(ReadJsonFile(storageRoot / "registry.json"), documentAfterFirstAdd);
 }
@@ -110,7 +87,7 @@ TEST_F(AddCommandCliTest, DuplicateAddReturnsSuccessAndLeavesRegistryUnchanged) 
 
 int main(int argc, char** argv) {
     if (argc > 0) {
-        CfgsyncExecutablePath = ResolveCfgsyncExecutablePath(argv[0]);
+        cfgsync::tests::InitializeCfgsyncExecutablePath(argv[0]);
     }
 
     testing::InitGoogleTest(&argc, argv);
