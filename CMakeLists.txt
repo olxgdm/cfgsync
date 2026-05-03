@@ -296,10 +296,6 @@ target_compile_options(cfgsync_add_command_cli_tests BEFORE PRIVATE
     "$<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-iquote${googletest_SOURCE_DIR}/googletest/include>"
 )
 
-target_compile_definitions(cfgsync_add_command_cli_tests PRIVATE
-    CFGSYNC_EXECUTABLE_PATH="$<TARGET_FILE:cfgsync>"
-)
-
 target_link_libraries(cfgsync_add_command_cli_tests
     PRIVATE
     fmt::fmt
