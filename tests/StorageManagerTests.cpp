@@ -88,6 +88,4 @@ TEST_F(StorageManagerTest, RestoreCopiesStoredPathToOriginalDestination) {
 
 }  // namespace
 
-int main(int argc, char** argv) {
-    return cfgsync::tests::RunGoogleTests(argc, argv);
-}
+int main(int argc, char** argv) { return cfgsync::tests::RunGoogleTests(argc, argv); }

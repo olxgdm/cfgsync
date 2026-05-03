@@ -177,6 +177,4 @@ TEST_F(RestoreCommandCliTest, MalformedRegistryFailsClearly) {
 
 }  // namespace
 
-int main(int argc, char** argv) {
-    return cfgsync::tests::RunCfgsyncCliGoogleTests(argc, argv);
-}
+int main(int argc, char** argv) { return cfgsync::tests::RunCfgsyncCliGoogleTests(argc, argv); }

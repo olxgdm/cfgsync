@@ -108,6 +108,4 @@ TEST_F(BackupCommandTest, EmptyRegistrySucceedsWithoutCreatingStoredFiles) {
 
 }  // namespace
 
-int main(int argc, char** argv) {
-    return cfgsync::tests::RunGoogleTests(argc, argv);
-}
+int main(int argc, char** argv) { return cfgsync::tests::RunGoogleTests(argc, argv); }
