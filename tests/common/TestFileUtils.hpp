@@ -38,4 +38,10 @@ inline std::filesystem::path StoredPathFor(const std::filesystem::path& storageR
     return storageRoot / utils::MakeStorageRelativePath(normalizedSourcePath);
 }
 
+inline std::filesystem::path StoredRegistryPathFor(const std::filesystem::path& storageRoot,
+                                                   const std::filesystem::path& sourcePath) {
+    const auto normalizedSourcePath = utils::NormalizePath(sourcePath);
+    return storageRoot / utils::MakeStorageRelativePath(normalizedSourcePath).generic_string();
+}
+
 }  // namespace cfgsync::tests

@@ -1,8 +1,13 @@
 #include "commands/RestoreCommand.hpp"
 
+#include "utils/LogUtils.hpp"
 #include "utils/PathUtils.hpp"
 
+#include <cstddef>
+#include <exception>
+#include <format>
 #include <stdexcept>
+#include <string>
 
 namespace cfgsync::commands {
 
@@ -10,25 +15,38 @@ RestoreCommand::RestoreCommand(core::Registry& registry, storage::StorageManager
     : Registry_(registry), StorageManager_(storageManager) {}
 
 void RestoreCommand::ExecuteAll() const {
-    const auto registryPath =
-        Registry_.GetRegistryPath().empty() ? std::string{"<unset>"} : Registry_.GetRegistryPath().string();
-    const auto storageRoot =
-        StorageManager_.GetStorageRoot().empty() ? std::string{"<unset>"} : StorageManager_.GetStorageRoot().string();
-    throw std::logic_error(
-        "The 'restore --all' command is wired, but restore operations are not implemented yet. "
-        "Registry: " +
-        registryPath + ". Storage: " + storageRoot);
+    const auto& trackedEntries = Registry_.GetTrackedEntries();
+    if (trackedEntries.empty()) {
+        utils::LogInfo("No files tracked.");
+        return;
+    }
+
+    std::size_t failureCount = 0;
+    for (const auto& trackedEntry : trackedEntries) {
+        try {
+            StorageManager_.RestoreEntry(trackedEntry);
+            utils::LogInfo("Restored file: " + trackedEntry.OriginalPath);
+        } catch (const std::exception& error) {
+            ++failureCount;
+            utils::LogWarn("Failed to restore file: " + trackedEntry.OriginalPath + ": " + error.what());
+        }
+    }
+
+    if (failureCount > 0) {
+        throw std::runtime_error{std::format("Restore completed with {} failure{}.", failureCount,
+                                             failureCount == 1 ? "" : "s")};
+    }
 }
 
 void RestoreCommand::ExecuteSingle(const std::filesystem::path& filePath) const {
     const auto normalizedPath = utils::NormalizePath(filePath);
-    const auto registryPath =
-        Registry_.GetRegistryPath().empty() ? std::string{"<unset>"} : Registry_.GetRegistryPath().string();
-    const auto storageRoot =
-        StorageManager_.GetStorageRoot().empty() ? std::string{"<unset>"} : StorageManager_.GetStorageRoot().string();
+    const auto* trackedEntry = Registry_.FindEntryByOriginalPath(normalizedPath);
+    if (trackedEntry == nullptr) {
+        throw std::runtime_error{"File is not tracked: " + normalizedPath.string()};
+    }
 
-    throw std::logic_error("The 'restore' command is wired, but single-file restore is not implemented yet. File: " +
-                           normalizedPath.string() + ". Registry: " + registryPath + ". Storage: " + storageRoot);
+    StorageManager_.RestoreEntry(*trackedEntry);
+    utils::LogInfo("Restored file: " + trackedEntry->OriginalPath);
 }
 
 }  // namespace cfgsync::commands

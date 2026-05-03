@@ -71,3 +71,17 @@ jobs:
         # Execute tests defined by the CMake configuration. Note that --build-config is needed because the default Windows generator is a multi-config generator (Visual Studio generator).
         # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
         run: ctest --build-config ${{ matrix.build_type }}
+
+      - name: Collect CTest logs
+        if: failure()
+        shell: bash
+        run: |
+          mkdir -p ctest-logs
+          cp -f "${{ steps.strings.outputs.build-output-dir }}/Testing/Temporary/"*.log ctest-logs/ 2>/dev/null || true
+
+      - name: Upload CTest logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ctest-logs-${{ matrix.os }}-${{ matrix.c_compiler }}
+          path: ctest-logs
