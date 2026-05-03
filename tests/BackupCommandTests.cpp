@@ -1,41 +1,18 @@
 #include "commands/BackupCommand.hpp"
+#include "common/GoogleTestMain.hpp"
 #include "common/RegistryCommandTestFixture.hpp"
+#include "common/TestFileUtils.hpp"
 #include "storage/StorageManager.hpp"
-#include "utils/FileUtils.hpp"
 #include "utils/PathUtils.hpp"
 
 #include "gtest/gtest.h"
 
 #include <filesystem>
-#include <fstream>
-#include <iterator>
-#include <nlohmann/json.hpp>
 #include <stdexcept>
 #include <string>
 
 namespace {
 namespace fs = std::filesystem;
-
-void WriteTextFile(const fs::path& path, const std::string& contents) {
-    if (path.has_parent_path()) {
-        cfgsync::utils::EnsureDirectoryExists(path.parent_path());
-    }
-
-    std::ofstream output{path};
-    output << contents;
-}
-
-std::string ReadTextFile(const fs::path& path) {
-    std::ifstream input{path};
-    return std::string{std::istreambuf_iterator<char>{input}, std::istreambuf_iterator<char>{}};
-}
-
-nlohmann::json ReadJsonFile(const fs::path& path) {
-    std::ifstream input{path};
-    nlohmann::json document;
-    input >> document;
-    return document;
-}
 
 fs::path TrackFile(cfgsync::core::Registry& registry, const fs::path& sourcePath) {
     const auto normalizedSourcePath = cfgsync::utils::NormalizePath(sourcePath);
@@ -53,7 +30,7 @@ class BackupCommandTest : public cfgsync::tests::RegistryCommandTestFixture {};
 
 TEST_F(BackupCommandTest, BacksUpOneTrackedFile) {
     const auto sourcePath = SourcePath();
-    WriteTextFile(sourcePath, "[user]\n");
+    cfgsync::tests::WriteTextFile(sourcePath, "[user]\n");
     const auto storedRelativePath = TrackFile(Registry(), sourcePath);
 
     cfgsync::storage::StorageManager storageManager{StorageRoot()};
@@ -61,14 +38,14 @@ TEST_F(BackupCommandTest, BacksUpOneTrackedFile) {
 
     command.Execute();
 
-    EXPECT_EQ(ReadTextFile(StorageRoot() / storedRelativePath), "[user]\n");
+    EXPECT_EQ(cfgsync::tests::ReadTextFile(StorageRoot() / storedRelativePath), "[user]\n");
 }
 
 TEST_F(BackupCommandTest, BacksUpMultipleTrackedFiles) {
     const auto firstPath = SourcePath(".gitconfig");
     const auto secondPath = SourcePath("init.lua");
-    WriteTextFile(firstPath, "[user]\n");
-    WriteTextFile(secondPath, "vim.opt.number = true\n");
+    cfgsync::tests::WriteTextFile(firstPath, "[user]\n");
+    cfgsync::tests::WriteTextFile(secondPath, "vim.opt.number = true\n");
     const auto firstStoredRelativePath = TrackFile(Registry(), firstPath);
     const auto secondStoredRelativePath = TrackFile(Registry(), secondPath);
 
@@ -77,13 +54,13 @@ TEST_F(BackupCommandTest, BacksUpMultipleTrackedFiles) {
 
     command.Execute();
 
-    EXPECT_EQ(ReadTextFile(StorageRoot() / firstStoredRelativePath), "[user]\n");
-    EXPECT_EQ(ReadTextFile(StorageRoot() / secondStoredRelativePath), "vim.opt.number = true\n");
+    EXPECT_EQ(cfgsync::tests::ReadTextFile(StorageRoot() / firstStoredRelativePath), "[user]\n");
+    EXPECT_EQ(cfgsync::tests::ReadTextFile(StorageRoot() / secondStoredRelativePath), "vim.opt.number = true\n");
 }
 
 TEST_F(BackupCommandTest, CreatesDestinationParentDirectories) {
     const auto sourcePath = SourcePath(".config/nvim/init.lua");
-    WriteTextFile(sourcePath, "vim.opt.number = true\n");
+    cfgsync::tests::WriteTextFile(sourcePath, "vim.opt.number = true\n");
     const auto storedRelativePath = TrackFile(Registry(), sourcePath);
     ASSERT_FALSE(fs::exists((StorageRoot() / storedRelativePath).parent_path()));
 
@@ -93,30 +70,30 @@ TEST_F(BackupCommandTest, CreatesDestinationParentDirectories) {
     command.Execute();
 
     EXPECT_TRUE(fs::exists(StorageRoot() / storedRelativePath));
-    EXPECT_EQ(ReadTextFile(StorageRoot() / storedRelativePath), "vim.opt.number = true\n");
+    EXPECT_EQ(cfgsync::tests::ReadTextFile(StorageRoot() / storedRelativePath), "vim.opt.number = true\n");
 }
 
 TEST_F(BackupCommandTest, OverwritesExistingStoredCopy) {
     const auto sourcePath = SourcePath();
-    WriteTextFile(sourcePath, "new contents\n");
+    cfgsync::tests::WriteTextFile(sourcePath, "new contents\n");
     const auto storedRelativePath = TrackFile(Registry(), sourcePath);
-    WriteTextFile(StorageRoot() / storedRelativePath, "old contents\n");
+    cfgsync::tests::WriteTextFile(StorageRoot() / storedRelativePath, "old contents\n");
 
     cfgsync::storage::StorageManager storageManager{StorageRoot()};
     const cfgsync::commands::BackupCommand command{Registry(), storageManager};
 
     command.Execute();
 
-    EXPECT_EQ(ReadTextFile(StorageRoot() / storedRelativePath), "new contents\n");
+    EXPECT_EQ(cfgsync::tests::ReadTextFile(StorageRoot() / storedRelativePath), "new contents\n");
 }
 
 TEST_F(BackupCommandTest, ContinuesAfterMissingSourceAndReportsPartialFailure) {
     const auto existingPath = SourcePath(".gitconfig");
     const auto missingPath = SourcePath("missing.conf");
-    WriteTextFile(existingPath, "[user]\n");
+    cfgsync::tests::WriteTextFile(existingPath, "[user]\n");
     const auto existingStoredRelativePath = TrackFile(Registry(), existingPath);
     TrackFile(Registry(), missingPath);
-    const auto registryBeforeBackup = ReadJsonFile(RegistryPath());
+    const auto registryBeforeBackup = cfgsync::tests::ReadJsonFile(RegistryPath());
 
     cfgsync::storage::StorageManager storageManager{StorageRoot()};
     const cfgsync::commands::BackupCommand command{Registry(), storageManager};
@@ -129,8 +106,8 @@ TEST_F(BackupCommandTest, ContinuesAfterMissingSourceAndReportsPartialFailure) {
         EXPECT_NE(message.find("Backup completed with 1 failure."), std::string::npos);
     }
 
-    EXPECT_EQ(ReadTextFile(StorageRoot() / existingStoredRelativePath), "[user]\n");
-    EXPECT_EQ(ReadJsonFile(RegistryPath()), registryBeforeBackup);
+    EXPECT_EQ(cfgsync::tests::ReadTextFile(StorageRoot() / existingStoredRelativePath), "[user]\n");
+    EXPECT_EQ(cfgsync::tests::ReadJsonFile(RegistryPath()), registryBeforeBackup);
 }
 
 TEST_F(BackupCommandTest, EmptyRegistrySucceedsWithoutCreatingStoredFiles) {
@@ -144,6 +121,5 @@ TEST_F(BackupCommandTest, EmptyRegistrySucceedsWithoutCreatingStoredFiles) {
 }  // namespace
 
 int main(int argc, char** argv) {
-    testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
+    return cfgsync::tests::RunGoogleTests(argc, argv);
 }
