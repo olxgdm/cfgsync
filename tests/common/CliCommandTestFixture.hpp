@@ -29,6 +29,18 @@ protected:
 
     std::filesystem::path SourcePath(const std::string& filename) const { return TestRoot_ / "configs" / filename; }
 
+    bool RunInitCommand() const {
+        return CfgsyncCommandSucceeded("init --storage " + QuoteForCommand(StorageRoot()), GetTestRoot());
+    }
+
+    bool RunAddCommand(const std::filesystem::path& sourcePath) const {
+        return CfgsyncCommandSucceeded("add " + QuoteForCommand(sourcePath), GetTestRoot());
+    }
+
+    CommandResult RunCommand(const std::string& arguments) const {
+        return RunCfgsyncCommand(arguments, GetTestRoot() / "command.out", GetTestRoot() / "command.err");
+    }
+
 private:
     std::filesystem::path TestRoot_;
 };
