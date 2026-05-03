@@ -80,10 +80,9 @@ TEST_F(AddCommandCliTest, AddUsesActiveStorageRootPersistedByInit) {
     const auto sourcePath = GetTestRoot() / "configs" / ".gitconfig";
     WriteTextFile(sourcePath, "[user]\n");
 
-    ASSERT_TRUE(CommandSucceeded(QuoteForCommand(CfgsyncExecutablePath) + " init --storage " +
-                                 QuoteForCommand(storageRoot)));
+    ASSERT_TRUE(CommandSucceeded("init --storage " + QuoteForCommand(storageRoot)));
 
-    ASSERT_TRUE(CommandSucceeded(QuoteForCommand(CfgsyncExecutablePath) + " add " + QuoteForCommand(sourcePath)));
+    ASSERT_TRUE(CommandSucceeded("add " + QuoteForCommand(sourcePath)));
 
     const auto normalizedSourcePath = cfgsync::utils::NormalizePath(sourcePath);
     const auto document = ReadJsonFile(storageRoot / "registry.json");
@@ -98,12 +97,11 @@ TEST_F(AddCommandCliTest, DuplicateAddReturnsSuccessAndLeavesRegistryUnchanged) 
     const auto sourcePath = GetTestRoot() / "configs" / ".gitconfig";
     WriteTextFile(sourcePath, "[user]\n");
 
-    ASSERT_TRUE(CommandSucceeded(QuoteForCommand(CfgsyncExecutablePath) + " init --storage " +
-                                 QuoteForCommand(storageRoot)));
-    ASSERT_TRUE(CommandSucceeded(QuoteForCommand(CfgsyncExecutablePath) + " add " + QuoteForCommand(sourcePath)));
+    ASSERT_TRUE(CommandSucceeded("init --storage " + QuoteForCommand(storageRoot)));
+    ASSERT_TRUE(CommandSucceeded("add " + QuoteForCommand(sourcePath)));
     const auto documentAfterFirstAdd = ReadJsonFile(storageRoot / "registry.json");
 
-    EXPECT_TRUE(CommandSucceeded(QuoteForCommand(CfgsyncExecutablePath) + " add " + QuoteForCommand(sourcePath)));
+    EXPECT_TRUE(CommandSucceeded("add " + QuoteForCommand(sourcePath)));
 
     EXPECT_EQ(ReadJsonFile(storageRoot / "registry.json"), documentAfterFirstAdd);
 }
