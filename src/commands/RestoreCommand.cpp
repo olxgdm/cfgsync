@@ -1,12 +1,11 @@
 #include "commands/RestoreCommand.hpp"
 
+#include "Exceptions.hpp"
 #include "utils/LogUtils.hpp"
 #include "utils/PathUtils.hpp"
 
 #include <cstddef>
-#include <exception>
 #include <format>
-#include <stdexcept>
 #include <string>
 
 namespace cfgsync::commands {
@@ -26,15 +25,15 @@ void RestoreCommand::ExecuteAll() const {
         try {
             StorageManager_.RestoreEntry(trackedEntry);
             utils::LogInfo("Restored file: " + trackedEntry.OriginalPath);
-        } catch (const std::exception& error) {
+        } catch (const FileError& error) {
             ++failureCount;
             utils::LogWarn("Failed to restore file: " + trackedEntry.OriginalPath + ": " + error.what());
         }
     }
 
     if (failureCount > 0) {
-        throw std::runtime_error{std::format("Restore completed with {} failure{}.", failureCount,
-                                             failureCount == 1 ? "" : "s")};
+        throw CommandError{
+            std::format("Restore completed with {} failure{}.", failureCount, failureCount == 1 ? "" : "s")};
     }
 }
 
@@ -42,7 +41,7 @@ void RestoreCommand::ExecuteSingle(const std::filesystem::path& filePath) const 
     const auto normalizedPath = utils::NormalizePath(filePath);
     const auto* trackedEntry = Registry_.FindEntryByOriginalPath(normalizedPath);
     if (trackedEntry == nullptr) {
-        throw std::runtime_error{"File is not tracked: " + normalizedPath.string()};
+        throw CommandError{"File is not tracked: " + normalizedPath.string()};
     }
 
     StorageManager_.RestoreEntry(*trackedEntry);

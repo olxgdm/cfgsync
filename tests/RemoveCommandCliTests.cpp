@@ -42,9 +42,8 @@ TEST_F(RemoveCommandCliTest, RemoveUsesActiveStorageRootPersistedByInit) {
     ASSERT_TRUE(
         cfgsync::tests::CfgsyncCommandSucceeded("add " + cfgsync::tests::QuoteForCommand(secondPath), GetTestRoot()));
 
-    const auto result = cfgsync::tests::RunCfgsyncCommand(
-        "remove " + cfgsync::tests::QuoteForCommand(firstPath), GetTestRoot() / "remove.out",
-        GetTestRoot() / "remove.err");
+    const auto result = cfgsync::tests::RunCfgsyncCommand("remove " + cfgsync::tests::QuoteForCommand(firstPath),
+                                                          GetTestRoot() / "remove.out", GetTestRoot() / "remove.err");
 
     const auto normalizedFirstPath = cfgsync::utils::NormalizePath(firstPath);
     const auto normalizedSecondPath = cfgsync::utils::NormalizePath(secondPath);
@@ -67,9 +66,8 @@ TEST_F(RemoveCommandCliTest, RemoveWorksWhenOriginalFileNoLongerExists) {
         cfgsync::tests::CfgsyncCommandSucceeded("add " + cfgsync::tests::QuoteForCommand(sourcePath), GetTestRoot()));
     fs::remove(sourcePath);
 
-    const auto result = cfgsync::tests::RunCfgsyncCommand(
-        "remove " + cfgsync::tests::QuoteForCommand(sourcePath), GetTestRoot() / "remove.out",
-        GetTestRoot() / "remove.err");
+    const auto result = cfgsync::tests::RunCfgsyncCommand("remove " + cfgsync::tests::QuoteForCommand(sourcePath),
+                                                          GetTestRoot() / "remove.out", GetTestRoot() / "remove.err");
 
     EXPECT_EQ(result.ExitCode, 0);
     EXPECT_NE(result.Output.find("Removed file from tracking"), std::string::npos);
@@ -89,9 +87,8 @@ TEST_F(RemoveCommandCliTest, RemoveDoesNotDeleteStoredBackupFile) {
     const auto storedPath = StorageRoot() / cfgsync::utils::MakeStorageRelativePath(normalizedSourcePath);
     WriteTextFile(storedPath, "[user]\n");
 
-    const auto result = cfgsync::tests::RunCfgsyncCommand(
-        "remove " + cfgsync::tests::QuoteForCommand(sourcePath), GetTestRoot() / "remove.out",
-        GetTestRoot() / "remove.err");
+    const auto result = cfgsync::tests::RunCfgsyncCommand("remove " + cfgsync::tests::QuoteForCommand(sourcePath),
+                                                          GetTestRoot() / "remove.out", GetTestRoot() / "remove.err");
 
     EXPECT_EQ(result.ExitCode, 0);
     EXPECT_TRUE(fs::exists(storedPath));
@@ -107,9 +104,9 @@ TEST_F(RemoveCommandCliTest, MissingTrackedEntryFailsClearlyAndLeavesRegistryUnc
         cfgsync::tests::CfgsyncCommandSucceeded("add " + cfgsync::tests::QuoteForCommand(sourcePath), GetTestRoot()));
     const auto registryBeforeRemove = ReadJsonFile(StorageRoot() / "registry.json");
 
-    const auto result = cfgsync::tests::RunCfgsyncCommand(
-        "remove " + cfgsync::tests::QuoteForCommand(SourcePath("missing.conf")), GetTestRoot() / "remove.out",
-        GetTestRoot() / "remove.err");
+    const auto result =
+        cfgsync::tests::RunCfgsyncCommand("remove " + cfgsync::tests::QuoteForCommand(SourcePath("missing.conf")),
+                                          GetTestRoot() / "remove.out", GetTestRoot() / "remove.err");
 
     EXPECT_NE(result.ExitCode, 0);
     EXPECT_TRUE(result.Output.empty());
@@ -119,9 +116,9 @@ TEST_F(RemoveCommandCliTest, MissingTrackedEntryFailsClearlyAndLeavesRegistryUnc
 }
 
 TEST_F(RemoveCommandCliTest, MissingAppConfigFailsWithInitGuidance) {
-    const auto result = cfgsync::tests::RunCfgsyncCommand(
-        "remove " + cfgsync::tests::QuoteForCommand(SourcePath(".gitconfig")), GetTestRoot() / "remove.out",
-        GetTestRoot() / "remove.err");
+    const auto result =
+        cfgsync::tests::RunCfgsyncCommand("remove " + cfgsync::tests::QuoteForCommand(SourcePath(".gitconfig")),
+                                          GetTestRoot() / "remove.out", GetTestRoot() / "remove.err");
 
     EXPECT_NE(result.ExitCode, 0);
     EXPECT_TRUE(result.Output.empty());
@@ -136,9 +133,8 @@ TEST_F(RemoveCommandCliTest, MalformedRegistryFailsClearly) {
         "init --storage " + cfgsync::tests::QuoteForCommand(StorageRoot()), GetTestRoot()));
     WriteTextFile(StorageRoot() / "registry.json", "{ invalid json");
 
-    const auto result = cfgsync::tests::RunCfgsyncCommand(
-        "remove " + cfgsync::tests::QuoteForCommand(sourcePath), GetTestRoot() / "remove.out",
-        GetTestRoot() / "remove.err");
+    const auto result = cfgsync::tests::RunCfgsyncCommand("remove " + cfgsync::tests::QuoteForCommand(sourcePath),
+                                                          GetTestRoot() / "remove.out", GetTestRoot() / "remove.err");
 
     EXPECT_NE(result.ExitCode, 0);
     EXPECT_TRUE(result.Output.empty());

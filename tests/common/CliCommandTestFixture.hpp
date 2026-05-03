@@ -2,7 +2,6 @@
 
 #include "CliTestUtils.hpp"
 #include "TestTempDirectory.hpp"
-
 #include "gtest/gtest.h"
 
 #include <filesystem>

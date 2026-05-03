@@ -1,9 +1,8 @@
 #pragma once
 
 #include "core/Registry.hpp"
-#include "utils/PathUtils.hpp"
-
 #include "gtest/gtest.h"
+#include "utils/PathUtils.hpp"
 
 #include <filesystem>
 

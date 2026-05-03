@@ -1,3 +1,4 @@
+#include "Exceptions.hpp"
 #include "common/TestTempDirectory.hpp"
 #include "core/AppConfig.hpp"
 #include "gtest/gtest.h"
@@ -8,7 +9,6 @@
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
-#include <stdexcept>
 #include <string>
 
 namespace {
@@ -57,7 +57,7 @@ TEST_F(AppConfigTest, MissingConfigThrowsActionableError) {
     try {
         config.Load();
         FAIL() << "Missing app config did not throw.";
-    } catch (const std::runtime_error& error) {
+    } catch (const cfgsync::ConfigError& error) {
         const std::string message = error.what();
         EXPECT_NE(message.find("cfgsync has not been initialized"), std::string::npos);
         EXPECT_NE(message.find("cfgsync init --storage <dir>"), std::string::npos);
@@ -76,7 +76,7 @@ TEST_F(AppConfigTest, MalformedConfigThrowsClearError) {
     try {
         config.Load();
         FAIL() << "Malformed app config did not throw.";
-    } catch (const std::runtime_error& error) {
+    } catch (const cfgsync::ConfigError& error) {
         const std::string message = error.what();
         EXPECT_NE(message.find("Malformed cfgsync app config"), std::string::npos);
     }
@@ -97,7 +97,7 @@ TEST_F(AppConfigTest, NonIntegerVersionThrowsClearError) {
     try {
         config.Load();
         FAIL() << "Invalid app config version did not throw.";
-    } catch (const std::runtime_error& error) {
+    } catch (const cfgsync::ConfigError& error) {
         const std::string message = error.what();
         EXPECT_NE(message.find("version must be an integer"), std::string::npos);
     }

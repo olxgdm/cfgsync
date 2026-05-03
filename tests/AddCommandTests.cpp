@@ -1,3 +1,4 @@
+#include "Exceptions.hpp"
 #include "commands/AddCommand.hpp"
 #include "common/RegistryCommandTestFixture.hpp"
 #include "gtest/gtest.h"
@@ -7,7 +8,6 @@
 #include <filesystem>
 #include <fstream>
 #include <nlohmann/json.hpp>
-#include <stdexcept>
 #include <string>
 
 namespace {
@@ -72,7 +72,7 @@ TEST_F(AddCommandTest, MissingFileFailsClearly) {
     try {
         command.Execute(SourcePath());
         FAIL() << "Missing file did not throw.";
-    } catch (const std::runtime_error& error) {
+    } catch (const cfgsync::FileError& error) {
         const std::string message = error.what();
         EXPECT_NE(message.find("Path does not exist"), std::string::npos);
         EXPECT_NE(message.find(SourcePath().filename().string()), std::string::npos);
@@ -89,7 +89,7 @@ TEST_F(AddCommandTest, DirectoryFailsClearly) {
     try {
         command.Execute(directoryPath);
         FAIL() << "Directory path did not throw.";
-    } catch (const std::runtime_error& error) {
+    } catch (const cfgsync::FileError& error) {
         const std::string message = error.what();
         EXPECT_NE(message.find("Path is not an ordinary file"), std::string::npos);
         EXPECT_NE(message.find(directoryPath.filename().string()), std::string::npos);
@@ -114,7 +114,7 @@ TEST_F(AddCommandTest, SymlinkFailsClearly) {
     try {
         command.Execute(symlinkPath);
         FAIL() << "Symlink path did not throw.";
-    } catch (const std::runtime_error& error) {
+    } catch (const cfgsync::FileError& error) {
         const std::string message = error.what();
         EXPECT_NE(message.find("Path is not an ordinary file"), std::string::npos);
         EXPECT_NE(message.find(symlinkPath.filename().string()), std::string::npos);

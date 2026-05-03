@@ -1,8 +1,9 @@
 #include "TestTempDirectory.hpp"
 
+#include "TestSupportError.hpp"
+
 #include <chrono>
 #include <filesystem>
-#include <stdexcept>
 #include <string>
 
 #ifdef _WIN32
@@ -44,7 +45,7 @@ std::filesystem::path MakeTestRoot() {
         return candidate;
     }
 
-    throw std::runtime_error{"Failed to create private temporary test directory"};
+    throw TestSupportError{"Failed to create private temporary test directory"};
 }
 
 }  // namespace cfgsync::tests

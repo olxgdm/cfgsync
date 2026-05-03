@@ -1,7 +1,6 @@
 #pragma once
 
 #include "CliTestUtils.hpp"
-
 #include "gtest/gtest.h"
 
 namespace cfgsync::tests {

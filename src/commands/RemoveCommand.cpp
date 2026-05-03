@@ -1,9 +1,8 @@
 #include "commands/RemoveCommand.hpp"
 
+#include "Exceptions.hpp"
 #include "utils/LogUtils.hpp"
 #include "utils/PathUtils.hpp"
-
-#include <stdexcept>
 
 namespace cfgsync::commands {
 
@@ -13,7 +12,7 @@ void RemoveCommand::Execute(const std::filesystem::path& filePath) {
     const auto normalizedPath = utils::NormalizePath(filePath);
     const auto removed = Registry_.RemoveEntry(normalizedPath);
     if (!removed) {
-        throw std::runtime_error{"File is not tracked: " + normalizedPath.string()};
+        throw CommandError{"File is not tracked: " + normalizedPath.string()};
     }
 
     Registry_.Save();

@@ -1,11 +1,10 @@
 #include "commands/BackupCommand.hpp"
 
+#include "Exceptions.hpp"
 #include "utils/LogUtils.hpp"
 
 #include <cstddef>
-#include <exception>
 #include <format>
-#include <stdexcept>
 #include <string>
 
 namespace cfgsync::commands {
@@ -25,15 +24,15 @@ void BackupCommand::Execute() const {
         try {
             StorageManager_.BackupEntry(trackedEntry);
             utils::LogInfo("Backed up file: " + trackedEntry.OriginalPath);
-        } catch (const std::exception& error) {
+        } catch (const FileError& error) {
             ++failureCount;
             utils::LogWarn("Failed to back up file: " + trackedEntry.OriginalPath + ": " + error.what());
         }
     }
 
     if (failureCount > 0) {
-        throw std::runtime_error{std::format("Backup completed with {} failure{}.", failureCount,
-                                             failureCount == 1 ? "" : "s")};
+        throw CommandError{
+            std::format("Backup completed with {} failure{}.", failureCount, failureCount == 1 ? "" : "s")};
     }
 }
 

@@ -2,9 +2,8 @@
 #include "common/TestFileUtils.hpp"
 #include "common/TestTempDirectory.hpp"
 #include "core/TrackedEntry.hpp"
-#include "storage/StorageManager.hpp"
-
 #include "gtest/gtest.h"
+#include "storage/StorageManager.hpp"
 
 #include <filesystem>
 #include <string>
@@ -89,6 +88,4 @@ TEST_F(StorageManagerTest, RestoreCopiesStoredPathToOriginalDestination) {
 
 }  // namespace
 
-int main(int argc, char** argv) {
-    return cfgsync::tests::RunGoogleTests(argc, argv);
-}
+int main(int argc, char** argv) { return cfgsync::tests::RunGoogleTests(argc, argv); }

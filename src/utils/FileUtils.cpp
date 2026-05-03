@@ -1,5 +1,7 @@
 #include "utils/FileUtils.hpp"
 
+#include "Exceptions.hpp"
+
 #include <fmt/format.h>
 #include <stdexcept>
 
@@ -14,7 +16,7 @@ void EnsureDirectoryExists(const fs::path& path) {
     std::error_code errorCode;
     fs::create_directories(path, errorCode);
     if (errorCode) {
-        throw std::runtime_error{
+        throw FileError{
             fmt::format(fmt::runtime("Unable to create directory '{}': {}"), path.string(), errorCode.message())};
     }
 }
@@ -42,19 +44,19 @@ void RequireOrdinaryFile(const fs::path& path) {
     const auto status = fs::symlink_status(path, errorCode);
     if (errorCode) {
         if (errorCode == std::errc::no_such_file_or_directory) {
-            throw std::runtime_error{fmt::format(fmt::runtime("Path does not exist: {}"), path.string())};
+            throw FileError{fmt::format(fmt::runtime("Path does not exist: {}"), path.string())};
         }
 
-        throw std::runtime_error{
+        throw FileError{
             fmt::format(fmt::runtime("Unable to inspect file '{}': {}"), path.string(), errorCode.message())};
     }
 
     if (!fs::exists(status)) {
-        throw std::runtime_error{fmt::format(fmt::runtime("Path does not exist: {}"), path.string())};
+        throw FileError{fmt::format(fmt::runtime("Path does not exist: {}"), path.string())};
     }
 
     if (status.type() != fs::file_type::regular) {
-        throw std::runtime_error{fmt::format(fmt::runtime("Path is not an ordinary file: {}"), path.string())};
+        throw FileError{fmt::format(fmt::runtime("Path is not an ordinary file: {}"), path.string())};
     }
 }
 
@@ -74,8 +76,8 @@ void CopyFile(const fs::path& source, const fs::path& destination) {
     std::error_code errorCode;
     fs::copy_file(source, destination, fs::copy_options::overwrite_existing, errorCode);
     if (errorCode) {
-        throw std::runtime_error{fmt::format(fmt::runtime("Unable to copy '{}' to '{}': {}"), source.string(),
-                                             destination.string(), errorCode.message())};
+        throw FileError{fmt::format(fmt::runtime("Unable to copy '{}' to '{}': {}"), source.string(),
+                                    destination.string(), errorCode.message())};
     }
 }
 

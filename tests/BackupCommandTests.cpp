@@ -1,14 +1,13 @@
+#include "Exceptions.hpp"
 #include "commands/BackupCommand.hpp"
 #include "common/GoogleTestMain.hpp"
 #include "common/RegistryCommandTestFixture.hpp"
 #include "common/TestFileUtils.hpp"
 #include "common/TestRegistryUtils.hpp"
+#include "gtest/gtest.h"
 #include "storage/StorageManager.hpp"
 
-#include "gtest/gtest.h"
-
 #include <filesystem>
-#include <stdexcept>
 #include <string>
 
 namespace {
@@ -90,7 +89,7 @@ TEST_F(BackupCommandTest, ContinuesAfterMissingSourceAndReportsPartialFailure) {
     try {
         command.Execute();
         FAIL() << "Backup with a missing source did not throw.";
-    } catch (const std::runtime_error& error) {
+    } catch (const cfgsync::CommandError& error) {
         const std::string message = error.what();
         EXPECT_NE(message.find("Backup completed with 1 failure."), std::string::npos);
     }
@@ -109,6 +108,4 @@ TEST_F(BackupCommandTest, EmptyRegistrySucceedsWithoutCreatingStoredFiles) {
 
 }  // namespace
 
-int main(int argc, char** argv) {
-    return cfgsync::tests::RunGoogleTests(argc, argv);
-}
+int main(int argc, char** argv) { return cfgsync::tests::RunGoogleTests(argc, argv); }

@@ -2,9 +2,8 @@
 #include "common/CliTestUtils.hpp"
 #include "common/GoogleTestMain.hpp"
 #include "common/TestFileUtils.hpp"
-#include "utils/PathUtils.hpp"
-
 #include "gtest/gtest.h"
+#include "utils/PathUtils.hpp"
 
 #include <filesystem>
 #include <string>
@@ -178,6 +177,4 @@ TEST_F(RestoreCommandCliTest, MalformedRegistryFailsClearly) {
 
 }  // namespace
 
-int main(int argc, char** argv) {
-    return cfgsync::tests::RunCfgsyncCliGoogleTests(argc, argv);
-}
+int main(int argc, char** argv) { return cfgsync::tests::RunCfgsyncCliGoogleTests(argc, argv); }
