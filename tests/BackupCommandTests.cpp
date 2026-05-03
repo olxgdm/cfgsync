@@ -2,8 +2,8 @@
 #include "common/GoogleTestMain.hpp"
 #include "common/RegistryCommandTestFixture.hpp"
 #include "common/TestFileUtils.hpp"
+#include "common/TestRegistryUtils.hpp"
 #include "storage/StorageManager.hpp"
-#include "utils/PathUtils.hpp"
 
 #include "gtest/gtest.h"
 
@@ -13,18 +13,7 @@
 
 namespace {
 namespace fs = std::filesystem;
-
-fs::path TrackFile(cfgsync::core::Registry& registry, const fs::path& sourcePath) {
-    const auto normalizedSourcePath = cfgsync::utils::NormalizePath(sourcePath);
-    const auto storedRelativePath = cfgsync::utils::MakeStorageRelativePath(normalizedSourcePath);
-    const auto added = registry.AddEntry({
-        .OriginalPath = normalizedSourcePath.string(),
-        .StoredRelativePath = storedRelativePath.generic_string(),
-    });
-    EXPECT_TRUE(added);
-    registry.Save();
-    return storedRelativePath;
-}
+using cfgsync::tests::TrackFile;
 
 class BackupCommandTest : public cfgsync::tests::RegistryCommandTestFixture {};
 
