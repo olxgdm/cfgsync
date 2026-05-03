@@ -2,12 +2,15 @@
 
 #include "core/Registry.hpp"
 
+#include <iosfwd>
+
 namespace cfgsync::commands {
 
 class ListCommand {
 public:
     explicit ListCommand(core::Registry& registry);
 
+    void Execute(std::ostream& output) const;
     void Execute() const;
 
 private:
