@@ -1,5 +1,7 @@
 #include "storage/StorageManager.hpp"
 
+#include "utils/FileUtils.hpp"
+
 #include <utility>
 
 namespace cfgsync::storage {
@@ -24,6 +26,14 @@ std::filesystem::path StorageManager::ResolveStoredPath(const core::TrackedEntry
     }
 
     return StorageRoot_ / entry.StoredRelativePath;
+}
+
+void StorageManager::BackupEntry(const core::TrackedEntry& entry) const {
+    const std::filesystem::path sourcePath{entry.OriginalPath};
+    const auto destinationPath = ResolveStoredPath(entry);
+
+    utils::RequireOrdinaryFile(sourcePath);
+    utils::CopyFile(sourcePath, destinationPath);
 }
 
 }  // namespace cfgsync::storage
