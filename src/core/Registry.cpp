@@ -29,8 +29,7 @@ RegistryError MalformedRegistryError(const fs::path& registryPath, const std::st
 nlohmann::json ReadRegistryDocument(const fs::path& registryPath) {
     std::ifstream input{registryPath};
     if (!input) {
-        throw RegistryError{
-            fmt::format(fmt::runtime("Unable to open cfgsync registry: {}"), registryPath.string())};
+        throw RegistryError{fmt::format(fmt::runtime("Unable to open cfgsync registry: {}"), registryPath.string())};
     }
 
     nlohmann::json document;
@@ -227,8 +226,7 @@ void Registry::Save() const {
 
     std::ofstream output{RegistryPath_};
     if (!output) {
-        throw RegistryError{
-            fmt::format(fmt::runtime("Unable to write cfgsync registry: {}"), RegistryPath_.string())};
+        throw RegistryError{fmt::format(fmt::runtime("Unable to write cfgsync registry: {}"), RegistryPath_.string())};
     }
 
     output << BuildRegistryDocument(StorageRoot_, TrackedEntries_).dump(4) << '\n';

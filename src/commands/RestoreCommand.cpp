@@ -32,8 +32,8 @@ void RestoreCommand::ExecuteAll() const {
     }
 
     if (failureCount > 0) {
-        throw CommandError{std::format("Restore completed with {} failure{}.", failureCount,
-                                       failureCount == 1 ? "" : "s")};
+        throw CommandError{
+            std::format("Restore completed with {} failure{}.", failureCount, failureCount == 1 ? "" : "s")};
     }
 }
 

@@ -31,8 +31,8 @@ void BackupCommand::Execute() const {
     }
 
     if (failureCount > 0) {
-        throw CommandError{std::format("Backup completed with {} failure{}.", failureCount,
-                                       failureCount == 1 ? "" : "s")};
+        throw CommandError{
+            std::format("Backup completed with {} failure{}.", failureCount, failureCount == 1 ? "" : "s")};
     }
 }
 

@@ -47,8 +47,7 @@ void AppConfig::Load() {
 
     std::ifstream input{ConfigPath_};
     if (!input) {
-        throw ConfigError{
-            fmt::format(fmt::runtime("Unable to open cfgsync app config: {}"), ConfigPath_.string())};
+        throw ConfigError{fmt::format(fmt::runtime("Unable to open cfgsync app config: {}"), ConfigPath_.string())};
     }
 
     nlohmann::json document;
@@ -60,24 +59,24 @@ void AppConfig::Load() {
     }
 
     if (!document.is_object()) {
-        throw ConfigError{fmt::format(
-            fmt::runtime("Malformed cfgsync app config '{}': root value must be an object."), ConfigPath_.string())};
+        throw ConfigError{fmt::format(fmt::runtime("Malformed cfgsync app config '{}': root value must be an object."),
+                                      ConfigPath_.string())};
     }
 
     if (!document.contains("version") || !document["version"].is_number_integer()) {
-        throw ConfigError{fmt::format(
-            fmt::runtime("Malformed cfgsync app config '{}': version must be an integer."), ConfigPath_.string())};
+        throw ConfigError{fmt::format(fmt::runtime("Malformed cfgsync app config '{}': version must be an integer."),
+                                      ConfigPath_.string())};
     }
 
     const auto version = document["version"].get<int>();
     if (version != CurrentConfigVersion) {
-        throw ConfigError{fmt::format(fmt::runtime("Unsupported cfgsync app config version {} in '{}'."),
-                                      version, ConfigPath_.string())};
+        throw ConfigError{fmt::format(fmt::runtime("Unsupported cfgsync app config version {} in '{}'."), version,
+                                      ConfigPath_.string())};
     }
 
     if (!document.contains("storage_root") || !document["storage_root"].is_string()) {
-        throw ConfigError{fmt::format(
-            fmt::runtime("Malformed cfgsync app config '{}': storage_root must be a string."), ConfigPath_.string())};
+        throw ConfigError{fmt::format(fmt::runtime("Malformed cfgsync app config '{}': storage_root must be a string."),
+                                      ConfigPath_.string())};
     }
 
     SetStorageRoot(fs::path{document["storage_root"].get<std::string>()});
@@ -109,8 +108,7 @@ void AppConfig::Save() const {
 
     std::ofstream output{ConfigPath_};
     if (!output) {
-        throw ConfigError{
-            fmt::format(fmt::runtime("Unable to write cfgsync app config: {}"), ConfigPath_.string())};
+        throw ConfigError{fmt::format(fmt::runtime("Unable to write cfgsync app config: {}"), ConfigPath_.string())};
     }
 
     output << document.dump(4) << '\n';
