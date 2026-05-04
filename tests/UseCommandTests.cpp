@@ -128,77 +128,27 @@ TEST_F(UseCommandTest, RecreatesMissingFilesDirectory) {
 }
 
 TEST_F(UseCommandTest, MissingStorageDirectoryFailsWithoutSavingAppConfig) {
-    cfgsync::core::Registry registry;
-    cfgsync::storage::StorageManager storageManager;
-    cfgsync::core::AppConfig appConfig{AppConfigPath()};
-    cfgsync::commands::UseCommand command{registry, storageManager, appConfig};
-
-    try {
-        command.Execute(StorageRoot());
-        FAIL() << "Missing storage directory did not throw.";
-    } catch (const cfgsync::CommandError& error) {
-        const std::string message = error.what();
-        EXPECT_NE(message.find("cfgsync storage directory does not exist"), std::string::npos);
-    }
-
-    EXPECT_FALSE(fs::exists(AppConfigPath()));
+    ExpectUseFailsWithoutSavingAppConfig<cfgsync::CommandError>("Missing storage directory",
+                                                                "cfgsync storage directory does not exist");
 }
 
 TEST_F(UseCommandTest, StoragePathThatIsNotDirectoryFailsWithoutSavingAppConfig) {
     cfgsync::tests::WriteTextFile(StorageRoot(), "not a directory\n");
 
-    cfgsync::core::Registry registry;
-    cfgsync::storage::StorageManager storageManager;
-    cfgsync::core::AppConfig appConfig{AppConfigPath()};
-    cfgsync::commands::UseCommand command{registry, storageManager, appConfig};
-
-    try {
-        command.Execute(StorageRoot());
-        FAIL() << "Storage path that is not a directory did not throw.";
-    } catch (const cfgsync::CommandError& error) {
-        const std::string message = error.what();
-        EXPECT_NE(message.find("cfgsync storage path is not a directory"), std::string::npos);
-    }
-
-    EXPECT_FALSE(fs::exists(AppConfigPath()));
+    ExpectUseFailsWithoutSavingAppConfig<cfgsync::CommandError>("Storage path that is not a directory",
+                                                                "cfgsync storage path is not a directory");
 }
 
 TEST_F(UseCommandTest, MissingRegistryFailsWithoutSavingAppConfig) {
     cfgsync::utils::EnsureDirectoryExists(StorageRoot());
 
-    cfgsync::core::Registry registry;
-    cfgsync::storage::StorageManager storageManager;
-    cfgsync::core::AppConfig appConfig{AppConfigPath()};
-    cfgsync::commands::UseCommand command{registry, storageManager, appConfig};
-
-    try {
-        command.Execute(StorageRoot());
-        FAIL() << "Missing registry did not throw.";
-    } catch (const cfgsync::RegistryError& error) {
-        const std::string message = error.what();
-        EXPECT_NE(message.find("does not contain a registry"), std::string::npos);
-    }
-
-    EXPECT_FALSE(fs::exists(AppConfigPath()));
+    ExpectUseFailsWithoutSavingAppConfig<cfgsync::RegistryError>("Missing registry", "does not contain a registry");
 }
 
 TEST_F(UseCommandTest, MalformedRegistryFailsWithoutSavingAppConfig) {
     cfgsync::tests::WriteTextFile(StorageRoot() / "registry.json", "{ invalid json");
 
-    cfgsync::core::Registry registry;
-    cfgsync::storage::StorageManager storageManager;
-    cfgsync::core::AppConfig appConfig{AppConfigPath()};
-    cfgsync::commands::UseCommand command{registry, storageManager, appConfig};
-
-    try {
-        command.Execute(StorageRoot());
-        FAIL() << "Malformed registry did not throw.";
-    } catch (const cfgsync::RegistryError& error) {
-        const std::string message = error.what();
-        EXPECT_NE(message.find("Malformed cfgsync registry"), std::string::npos);
-    }
-
-    EXPECT_FALSE(fs::exists(AppConfigPath()));
+    ExpectUseFailsWithoutSavingAppConfig<cfgsync::RegistryError>("Malformed registry", "Malformed cfgsync registry");
 }
 
 TEST_F(UseCommandTest, UnsupportedRegistryFailsWithoutSavingAppConfig) {
@@ -209,20 +159,8 @@ TEST_F(UseCommandTest, UnsupportedRegistryFailsWithoutSavingAppConfig) {
     };
     WriteRegistryDocument(StorageRoot(), registryDocument);
 
-    cfgsync::core::Registry registry;
-    cfgsync::storage::StorageManager storageManager;
-    cfgsync::core::AppConfig appConfig{AppConfigPath()};
-    cfgsync::commands::UseCommand command{registry, storageManager, appConfig};
-
-    try {
-        command.Execute(StorageRoot());
-        FAIL() << "Unsupported registry version did not throw.";
-    } catch (const cfgsync::RegistryError& error) {
-        const std::string message = error.what();
-        EXPECT_NE(message.find("Unsupported cfgsync registry version"), std::string::npos);
-    }
-
-    EXPECT_FALSE(fs::exists(AppConfigPath()));
+    ExpectUseFailsWithoutSavingAppConfig<cfgsync::RegistryError>("Unsupported registry version",
+                                                                 "Unsupported cfgsync registry version");
 }
 
 }  // namespace
