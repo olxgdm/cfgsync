@@ -34,6 +34,14 @@ protected:
     cfgsync::tests::CommandResult RunBackupCommand() const { return RunCommand("backup"); }
 
     cfgsync::tests::CommandResult RunRestoreAllCommand() const { return RunCommand("restore --all"); }
+
+    void ExpectFailedUseDoesNotWriteAppConfig(const cfgsync::tests::CommandResult& result,
+                                              const std::string& expectedErrorFragment) const {
+        EXPECT_NE(result.ExitCode, 0);
+        EXPECT_TRUE(result.Output.empty());
+        EXPECT_NE(result.Error.find(expectedErrorFragment), std::string::npos);
+        EXPECT_FALSE(fs::exists(AppConfigPath()));
+    }
 };
 
 TEST_F(UseCommandCliTest, UseAdoptsStorageWithoutExistingAppConfigAndListWorks) {
@@ -113,14 +121,39 @@ TEST_F(UseCommandCliTest, MissingStorageOptionReturnsCliValidationFailure) {
     EXPECT_NE(result.Error.find("--storage"), std::string::npos);
 }
 
+TEST_F(UseCommandCliTest, MissingStorageDirectoryFailsClearlyWithoutWritingAppConfig) {
+    const auto result = RunUseCommand(StorageRoot());
+
+    ExpectFailedUseDoesNotWriteAppConfig(result, "cfgsync storage directory does not exist");
+}
+
+TEST_F(UseCommandCliTest, MissingRegistryFailsClearlyWithoutWritingAppConfig) {
+    cfgsync::utils::EnsureDirectoryExists(StorageRoot());
+
+    const auto result = RunUseCommand(StorageRoot());
+
+    ExpectFailedUseDoesNotWriteAppConfig(result, "does not contain a registry");
+}
+
 TEST_F(UseCommandCliTest, MalformedRegistryFailsClearly) {
     cfgsync::tests::WriteTextFile(StorageRoot() / "registry.json", "{ invalid json");
 
     const auto result = RunUseCommand(StorageRoot());
 
-    EXPECT_NE(result.ExitCode, 0);
-    EXPECT_TRUE(result.Output.empty());
-    EXPECT_NE(result.Error.find("Malformed cfgsync registry"), std::string::npos);
+    ExpectFailedUseDoesNotWriteAppConfig(result, "Malformed cfgsync registry");
+}
+
+TEST_F(UseCommandCliTest, UnsupportedRegistryFailsClearlyWithoutWritingAppConfig) {
+    const nlohmann::json registryDocument = {
+        {"version", 999},
+        {"storage_root", cfgsync::utils::NormalizePath(StorageRoot()).string()},
+        {"tracked_files", nlohmann::json::array()},
+    };
+    cfgsync::tests::WriteTextFile(StorageRoot() / "registry.json", registryDocument.dump(4) + "\n");
+
+    const auto result = RunUseCommand(StorageRoot());
+
+    ExpectFailedUseDoesNotWriteAppConfig(result, "Unsupported cfgsync registry version");
 }
 
 }  // namespace
