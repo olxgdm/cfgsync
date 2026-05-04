@@ -15,7 +15,7 @@ This project is not a Git replacement. It focuses on local configuration synchro
 
 ## Status
 
-The v0.1.0 MVP workflow is implemented:
+The v0.1.1 MVP workflow is implemented:
 
 - initialize a cfgsync storage directory
 - persist the active storage root in a user-level app config
