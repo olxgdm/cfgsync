@@ -37,5 +37,7 @@ function(cfgsync_add_gtest_target target_name)
         add_dependencies(${target_name} cfgsync)
     endif()
 
-    gtest_discover_tests(${target_name})
+    gtest_discover_tests(${target_name}
+        DISCOVERY_TIMEOUT 30
+    )
 endfunction()

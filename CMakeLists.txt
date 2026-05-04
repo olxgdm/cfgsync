@@ -82,6 +82,7 @@ add_executable(cfgsync
     src/core/Registry.cpp
     src/storage/StorageManager.cpp
     src/commands/InitCommand.cpp
+    src/commands/UseCommand.cpp
     src/commands/AddCommand.cpp
     src/commands/RemoveCommand.cpp
     src/commands/ListCommand.cpp
@@ -197,6 +198,32 @@ if(CFGSYNC_BUILD_TESTS)
             tests/common/TestTempDirectory.cpp
             src/commands/AddCommand.cpp
             src/core/Registry.cpp
+            src/utils/FileUtils.cpp
+            src/utils/PathUtils.cpp
+        LIBRARIES
+            nlohmann_json::nlohmann_json
+    )
+
+    cfgsync_add_gtest_target(cfgsync_use_command_tests
+        SOURCES
+            tests/UseCommandTests.cpp
+            tests/common/TestTempDirectory.cpp
+            src/commands/UseCommand.cpp
+            src/storage/StorageManager.cpp
+            src/core/AppConfig.cpp
+            src/core/Registry.cpp
+            src/utils/AppConfigPath.cpp
+            src/utils/FileUtils.cpp
+            src/utils/PathUtils.cpp
+        LIBRARIES
+            nlohmann_json::nlohmann_json
+    )
+
+    cfgsync_add_gtest_target(cfgsync_use_command_cli_tests CLI
+        SOURCES
+            tests/UseCommandCliTests.cpp
+            tests/common/CliTestUtils.cpp
+            tests/common/TestTempDirectory.cpp
             src/utils/FileUtils.cpp
             src/utils/PathUtils.cpp
         LIBRARIES
