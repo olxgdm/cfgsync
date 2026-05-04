@@ -22,6 +22,7 @@ The v0.1.0 MVP workflow is implemented:
 - add and remove ordinary files from the registry
 - list tracked files
 - back up tracked files into storage
+- adopt an existing storage directory on a fresh system
 - restore one tracked file or all tracked files
 - run focused GoogleTest coverage through CTest
 
@@ -109,6 +110,22 @@ Typical flow:
 4. Run `cfgsync restore <file>` to restore one tracked file, or `cfgsync restore --all` to restore every tracked file.
 5. Run `cfgsync remove <file>` when a file should no longer be tracked.
 
+Fresh-system restore flow:
+
+```bash
+cfgsync use --storage ~/cfgsync-store
+cfgsync list
+cfgsync restore --all
+```
+
+Use `cfgsync use --storage <dir>` when a cfgsync storage directory already exists, for example after reinstalling an operating system or copying storage onto a new machine. The command validates the storage, records it as active in the app config, and does not restore files by itself.
+
+After `use`, inspect tracked paths with `cfgsync list`, then restore everything with `cfgsync restore --all` or restore one tracked file with:
+
+```bash
+cfgsync restore ~/.gitconfig
+```
+
 ## Commands
 
 ### `cfgsync init --storage <dir>`
@@ -130,6 +147,22 @@ The app config is stored at:
 - Windows: `%APPDATA%/cfgsync/config.json`
 
 Running `init` again against an existing valid storage root preserves the registry and ensures the storage layout exists.
+
+### `cfgsync use --storage <dir>`
+
+Uses an existing cfgsync storage directory as the active storage root.
+
+This validates:
+
+- the storage directory exists
+- `registry.json` exists
+- the registry format is valid and supported
+
+If the storage directory was copied or moved, `use` updates the registry `storage_root` to the selected storage path and saves the app config. It also ensures the storage `files/` directory exists.
+
+The command does not restore files. Run `cfgsync list` to inspect tracked original paths, then run `cfgsync restore --all` or `cfgsync restore <file>` when you are ready to overwrite destination files.
+
+In v0, restore uses the exact original paths recorded in the registry. `cfgsync use` does not remap paths across different usernames, home directories, or operating systems.
 
 ### `cfgsync add <file>`
 
@@ -244,6 +277,7 @@ The v0 scope is intentionally small:
 - no snapshots or history
 - no diff support
 - no merge or conflict resolution
+- no original-path remapping across users, home directories, or operating systems
 - no remote sync
 - no encryption
 - no automatic file watching
