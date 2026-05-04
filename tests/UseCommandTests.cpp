@@ -46,6 +46,25 @@ protected:
         cfgsync::tests::WriteTextFile(storageRoot / "registry.json", document.dump(4) + "\n");
     }
 
+    template <typename ErrorType>
+    void ExpectUseFailsWithoutSavingAppConfig(const std::string& failureDescription,
+                                              const std::string& expectedMessageFragment) const {
+        cfgsync::core::Registry registry;
+        cfgsync::storage::StorageManager storageManager;
+        cfgsync::core::AppConfig appConfig{AppConfigPath()};
+        cfgsync::commands::UseCommand command{registry, storageManager, appConfig};
+
+        try {
+            command.Execute(StorageRoot());
+            FAIL() << failureDescription << " did not throw.";
+        } catch (const ErrorType& error) {
+            const std::string message = error.what();
+            EXPECT_NE(message.find(expectedMessageFragment), std::string::npos);
+        }
+
+        EXPECT_FALSE(fs::exists(AppConfigPath()));
+    }
+
 private:
     fs::path TestRoot_;
 };
