@@ -7,6 +7,7 @@
 #include "commands/ListCommand.hpp"
 #include "commands/RemoveCommand.hpp"
 #include "commands/RestoreCommand.hpp"
+#include "commands/UseCommand.hpp"
 #include "utils/LogUtils.hpp"
 
 #include <filesystem>
@@ -36,6 +37,14 @@ void BuildCli(CLI::App& app, core::Registry& registry, storage::StorageManager& 
     initCommand->callback([&registry, &storageManager, &appConfig, storageRoot]() {
         commands::InitCommand command{registry, storageManager, appConfig};
         command.Execute(std::filesystem::path{*storageRoot});
+    });
+
+    auto* useCommand = app.add_subcommand("use", "Use an existing cfgsync storage directory.");
+    auto useStorageRoot = std::make_shared<std::string>();
+    useCommand->add_option("--storage", *useStorageRoot, "Existing cfgsync storage directory to use.")->required();
+    useCommand->callback([&registry, &storageManager, &appConfig, useStorageRoot]() {
+        commands::UseCommand command{registry, storageManager, appConfig};
+        command.Execute(std::filesystem::path{*useStorageRoot});
     });
 
     auto* addCommand = app.add_subcommand("add", "Register a file for tracking.");

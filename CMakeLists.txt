@@ -82,6 +82,7 @@ add_executable(cfgsync
     src/core/Registry.cpp
     src/storage/StorageManager.cpp
     src/commands/InitCommand.cpp
+    src/commands/UseCommand.cpp
     src/commands/AddCommand.cpp
     src/commands/RemoveCommand.cpp
     src/commands/ListCommand.cpp
