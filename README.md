@@ -24,7 +24,6 @@ The v0.1.1 MVP workflow is implemented:
 - back up tracked files into storage
 - adopt an existing storage directory on a fresh system
 - restore one tracked file or all tracked files
-- run focused GoogleTest coverage through CTest
 
 The current version intentionally supports ordinary files only. Directory tracking, symlink tracking, snapshots, diffs, remote sync, encryption, and file watching are outside the v0 scope.
 
