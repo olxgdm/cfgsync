@@ -87,7 +87,8 @@ bool HaveMatchingBytes(const fs::path& originalPath, const fs::path& storedPath)
             return false;
         }
 
-        if (!std::equal(originalBuffer.begin(), originalBuffer.begin() + originalInput.gcount(), storedBuffer.begin())) {
+        if (!std::equal(originalBuffer.begin(), originalBuffer.begin() + originalInput.gcount(),
+                        storedBuffer.begin())) {
             return false;
         }
     }
