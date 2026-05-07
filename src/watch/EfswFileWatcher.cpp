@@ -17,15 +17,17 @@ namespace fs = std::filesystem;
 namespace {
 
 FileWatchAction MapAction(efsw::Action action) {
+    using enum FileWatchAction;
+
     switch (action) {
         case efsw::Actions::Add:
-            return FileWatchAction::Added;
+            return Added;
         case efsw::Actions::Delete:
-            return FileWatchAction::Deleted;
+            return Deleted;
         case efsw::Actions::Modified:
-            return FileWatchAction::Modified;
+            return Modified;
         case efsw::Actions::Moved:
-            return FileWatchAction::Moved;
+            return Moved;
     }
 
     throw WatchError{"Received unsupported efsw file action."};
