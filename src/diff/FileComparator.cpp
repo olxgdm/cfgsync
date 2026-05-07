@@ -100,25 +100,27 @@ bool HaveMatchingBytes(const fs::path& originalPath, const fs::path& storedPath)
 FileComparator::FileComparator(const storage::StorageManager& storageManager) : StorageManager_(storageManager) {}
 
 FileStatusResult FileComparator::Compare(const core::TrackedEntry& entry) const {
+    using enum FileStatus;
+
     const fs::path originalPath{entry.OriginalPath};
     const auto storedPath = StorageManager_.ResolveStoredPath(entry);
 
     if (InspectPath(originalPath) == PathState::Missing) {
         return {
-            .Status = FileStatus::MissingOriginal,
+            .Status = MissingOriginal,
             .Entry = entry,
         };
     }
 
     if (InspectPath(storedPath) == PathState::Missing) {
         return {
-            .Status = FileStatus::MissingBackup,
+            .Status = MissingBackup,
             .Entry = entry,
         };
     }
 
     return {
-        .Status = HaveMatchingBytes(originalPath, storedPath) ? FileStatus::Clean : FileStatus::Modified,
+        .Status = HaveMatchingBytes(originalPath, storedPath) ? Clean : Modified,
         .Entry = entry,
     };
 }
