@@ -109,6 +109,7 @@ add_executable(cfgsync
     src/core/AppConfig.cpp
     src/core/Registry.cpp
     src/storage/StorageManager.cpp
+    src/watch/EfswFileWatcher.cpp
     src/commands/InitCommand.cpp
     src/commands/UseCommand.cpp
     src/commands/AddCommand.cpp
@@ -141,6 +142,7 @@ target_link_libraries(cfgsync
     spdlog::spdlog
     CLI11::CLI11
     nlohmann_json::nlohmann_json
+    efsw-static
 )
 
 if(MSVC)
