@@ -193,6 +193,14 @@ Copies every tracked file from its original location into the storage `files/` t
 
 If one tracked file cannot be backed up, cfgsync reports that file, continues with the remaining entries, and exits with a failure after the batch finishes.
 
+### `cfgsync diff <file>`
+
+Shows a unified text diff between a tracked file's stored backup and its current original file.
+
+The stored backup is shown as the old side and the current original file is shown as the new side. Identical files produce no output and still exit successfully.
+
+The file path is normalized before lookup. The command fails if the file is not tracked, if the original file is missing, if the tracked file has no stored backup yet, or if the file contains unsupported binary content.
+
 ### `cfgsync restore --all`
 
 Restores every tracked file from storage back to its original location.

@@ -110,6 +110,7 @@ add_executable(cfgsync
     src/core/Registry.cpp
     src/storage/StorageManager.cpp
     src/diff/FileComparator.cpp
+    src/diff/UnifiedDiff.cpp
     src/watch/EfswFileWatcher.cpp
     src/commands/InitCommand.cpp
     src/commands/UseCommand.cpp
@@ -118,10 +119,12 @@ add_executable(cfgsync
     src/commands/ListCommand.cpp
     src/commands/BackupCommand.cpp
     src/commands/StatusCommand.cpp
+    src/commands/DiffCommand.cpp
     src/commands/RestoreCommand.cpp
     src/utils/AppConfigPath.cpp
     src/utils/PathUtils.cpp
     src/utils/FileUtils.cpp
+    src/utils/TerminalStyle.cpp
 )
 
 # Enable clang-tidy only for project sources.
@@ -213,6 +216,12 @@ if(CFGSYNC_BUILD_TESTS)
             src/utils/PathUtils.cpp
     )
 
+    cfgsync_add_gtest_target(cfgsync_terminal_style_tests
+        SOURCES
+            tests/TerminalStyleTests.cpp
+            src/utils/TerminalStyle.cpp
+    )
+
     cfgsync_add_gtest_target(cfgsync_storage_manager_tests
         SOURCES
             tests/StorageManagerTests.cpp
@@ -237,6 +246,18 @@ if(CFGSYNC_BUILD_TESTS)
             src/storage/StorageManager.cpp
             src/utils/FileUtils.cpp
             src/utils/PathUtils.cpp
+        LIBRARIES
+            nlohmann_json::nlohmann_json
+    )
+
+    cfgsync_add_gtest_target(cfgsync_unified_diff_tests
+        SOURCES
+            tests/UnifiedDiffTests.cpp
+            tests/common/TestTempDirectory.cpp
+            src/diff/UnifiedDiff.cpp
+            src/utils/FileUtils.cpp
+            src/utils/PathUtils.cpp
+            src/utils/TerminalStyle.cpp
         LIBRARIES
             nlohmann_json::nlohmann_json
     )
@@ -381,6 +402,34 @@ if(CFGSYNC_BUILD_TESTS)
             tests/common/TestTempDirectory.cpp
             src/utils/FileUtils.cpp
             src/utils/PathUtils.cpp
+        LIBRARIES
+            nlohmann_json::nlohmann_json
+    )
+
+    cfgsync_add_gtest_target(cfgsync_diff_command_tests
+        SOURCES
+            tests/DiffCommandTests.cpp
+            tests/common/TestTempDirectory.cpp
+            src/commands/DiffCommand.cpp
+            src/diff/FileComparator.cpp
+            src/diff/UnifiedDiff.cpp
+            src/storage/StorageManager.cpp
+            src/core/Registry.cpp
+            src/utils/FileUtils.cpp
+            src/utils/PathUtils.cpp
+            src/utils/TerminalStyle.cpp
+        LIBRARIES
+            nlohmann_json::nlohmann_json
+    )
+
+    cfgsync_add_gtest_target(cfgsync_diff_command_cli_tests CLI
+        SOURCES
+            tests/DiffCommandCliTests.cpp
+            tests/common/CliTestUtils.cpp
+            tests/common/TestTempDirectory.cpp
+            src/utils/FileUtils.cpp
+            src/utils/PathUtils.cpp
+            src/utils/TerminalStyle.cpp
         LIBRARIES
             nlohmann_json::nlohmann_json
     )
