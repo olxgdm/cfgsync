@@ -25,9 +25,7 @@ protected:
     }
 };
 
-TEST_F(StatusCommandTest, EmptyRegistryPrintsClean) {
-    EXPECT_EQ(RunStatusCommand(), "Clean.\n");
-}
+TEST_F(StatusCommandTest, EmptyRegistryPrintsClean) { EXPECT_EQ(RunStatusCommand(), "Clean.\n"); }
 
 TEST_F(StatusCommandTest, CleanTrackedFilePrintsClean) {
     const auto sourcePath = SourcePath();
