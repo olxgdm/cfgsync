@@ -117,6 +117,7 @@ add_executable(cfgsync
     src/commands/RemoveCommand.cpp
     src/commands/ListCommand.cpp
     src/commands/BackupCommand.cpp
+    src/commands/StatusCommand.cpp
     src/commands/RestoreCommand.cpp
     src/utils/AppConfigPath.cpp
     src/utils/PathUtils.cpp
@@ -351,6 +352,31 @@ if(CFGSYNC_BUILD_TESTS)
     cfgsync_add_gtest_target(cfgsync_backup_command_cli_tests CLI
         SOURCES
             tests/BackupCommandCliTests.cpp
+            tests/common/CliTestUtils.cpp
+            tests/common/TestTempDirectory.cpp
+            src/utils/FileUtils.cpp
+            src/utils/PathUtils.cpp
+        LIBRARIES
+            nlohmann_json::nlohmann_json
+    )
+
+    cfgsync_add_gtest_target(cfgsync_status_command_tests
+        SOURCES
+            tests/StatusCommandTests.cpp
+            tests/common/TestTempDirectory.cpp
+            src/commands/StatusCommand.cpp
+            src/diff/FileComparator.cpp
+            src/storage/StorageManager.cpp
+            src/core/Registry.cpp
+            src/utils/FileUtils.cpp
+            src/utils/PathUtils.cpp
+        LIBRARIES
+            nlohmann_json::nlohmann_json
+    )
+
+    cfgsync_add_gtest_target(cfgsync_status_command_cli_tests CLI
+        SOURCES
+            tests/StatusCommandCliTests.cpp
             tests/common/CliTestUtils.cpp
             tests/common/TestTempDirectory.cpp
             src/utils/FileUtils.cpp

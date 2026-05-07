@@ -7,6 +7,7 @@
 #include "commands/ListCommand.hpp"
 #include "commands/RemoveCommand.hpp"
 #include "commands/RestoreCommand.hpp"
+#include "commands/StatusCommand.hpp"
 #include "commands/UseCommand.hpp"
 #include "utils/LogUtils.hpp"
 
@@ -76,6 +77,13 @@ void BuildCli(CLI::App& app, core::Registry& registry, storage::StorageManager& 
     backupCommand->callback([&registry, &storageManager, loadActiveStorage]() {
         loadActiveStorage();
         const commands::BackupCommand command{registry, storageManager};
+        command.Execute();
+    });
+
+    auto* statusCommand = app.add_subcommand("status", "Show tracked files that differ from stored backups.");
+    statusCommand->callback([&registry, &storageManager, loadActiveStorage]() {
+        loadActiveStorage();
+        const commands::StatusCommand command{registry, storageManager};
         command.Execute();
     });
 
