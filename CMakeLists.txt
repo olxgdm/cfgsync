@@ -222,6 +222,11 @@ if(CFGSYNC_BUILD_TESTS)
             nlohmann_json::nlohmann_json
     )
 
+    cfgsync_add_gtest_target(cfgsync_file_watcher_tests
+        SOURCES
+            tests/FileWatcherTests.cpp
+    )
+
     cfgsync_add_gtest_target(cfgsync_add_command_tests
         SOURCES
             tests/AddCommandTests.cpp
