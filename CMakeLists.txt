@@ -109,6 +109,7 @@ add_executable(cfgsync
     src/core/AppConfig.cpp
     src/core/Registry.cpp
     src/storage/StorageManager.cpp
+    src/diff/FileComparator.cpp
     src/watch/EfswFileWatcher.cpp
     src/commands/InitCommand.cpp
     src/commands/UseCommand.cpp
@@ -225,6 +226,18 @@ if(CFGSYNC_BUILD_TESTS)
     cfgsync_add_gtest_target(cfgsync_file_watcher_tests
         SOURCES
             tests/FileWatcherTests.cpp
+    )
+
+    cfgsync_add_gtest_target(cfgsync_file_comparator_tests
+        SOURCES
+            tests/FileComparatorTests.cpp
+            tests/common/TestTempDirectory.cpp
+            src/diff/FileComparator.cpp
+            src/storage/StorageManager.cpp
+            src/utils/FileUtils.cpp
+            src/utils/PathUtils.cpp
+        LIBRARIES
+            nlohmann_json::nlohmann_json
     )
 
     cfgsync_add_gtest_target(cfgsync_add_command_tests
