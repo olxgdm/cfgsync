@@ -47,6 +47,7 @@ cfgsync_use_cached_fetchcontent(CLI11 cli11-src)
 cfgsync_use_cached_fetchcontent(fmt fmt-src)
 cfgsync_use_cached_fetchcontent(spdlog spdlog-src)
 cfgsync_use_cached_fetchcontent(nlohmann_json nlohmann_json-src)
+cfgsync_use_cached_fetchcontent(efsw efsw-src)
 
 FetchContent_Declare(
     CLI11
@@ -74,6 +75,33 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(CLI11 fmt spdlog nlohmann_json)
 
+# efsw uses the global BUILD_SHARED_LIBS option. Keep it static so cfgsync
+# does not need shared library runtime handling for the watcher backend.
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build shared libraries" FORCE)
+set(BUILD_STATIC_LIBS ON CACHE BOOL "Build efsw static library" FORCE)
+set(BUILD_TEST_APP OFF CACHE BOOL "Build efsw test application" FORCE)
+set(EFSW_INSTALL OFF CACHE BOOL "Add efsw install targets" FORCE)
+
+FetchContent_Declare(
+    efsw
+    GIT_REPOSITORY https://github.com/SpartanJ/efsw.git
+    GIT_TAG 1.6.0
+)
+
+FetchContent_MakeAvailable(efsw)
+
+if(TARGET efsw)
+    set_target_properties(efsw PROPERTIES EXCLUDE_FROM_ALL TRUE)
+endif()
+
+if(TARGET efsw-static)
+    get_target_property(EFSW_STATIC_INCLUDE_DIRECTORIES efsw-static INTERFACE_INCLUDE_DIRECTORIES)
+    if(EFSW_STATIC_INCLUDE_DIRECTORIES)
+        set_target_properties(efsw-static PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "")
+        target_include_directories(efsw-static SYSTEM INTERFACE ${EFSW_STATIC_INCLUDE_DIRECTORIES})
+    endif()
+endif()
+
 add_executable(cfgsync
     src/main.cpp
     src/App.cpp
@@ -81,6 +109,7 @@ add_executable(cfgsync
     src/core/AppConfig.cpp
     src/core/Registry.cpp
     src/storage/StorageManager.cpp
+    src/watch/EfswFileWatcher.cpp
     src/commands/InitCommand.cpp
     src/commands/UseCommand.cpp
     src/commands/AddCommand.cpp
@@ -113,6 +142,7 @@ target_link_libraries(cfgsync
     spdlog::spdlog
     CLI11::CLI11
     nlohmann_json::nlohmann_json
+    efsw-static
 )
 
 if(MSVC)
@@ -190,6 +220,11 @@ if(CFGSYNC_BUILD_TESTS)
             src/utils/PathUtils.cpp
         LIBRARIES
             nlohmann_json::nlohmann_json
+    )
+
+    cfgsync_add_gtest_target(cfgsync_file_watcher_tests
+        SOURCES
+            tests/FileWatcherTests.cpp
     )
 
     cfgsync_add_gtest_target(cfgsync_add_command_tests

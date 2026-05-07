@@ -24,6 +24,11 @@ public:
     using CfgsyncError::CfgsyncError;
 };
 
+class WatchError : public CfgsyncError {
+public:
+    using CfgsyncError::CfgsyncError;
+};
+
 class CommandError : public CfgsyncError {
 public:
     using CfgsyncError::CfgsyncError;
