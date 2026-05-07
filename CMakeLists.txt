@@ -109,6 +109,7 @@ add_executable(cfgsync
     src/core/AppConfig.cpp
     src/core/Registry.cpp
     src/storage/StorageManager.cpp
+    src/diff/FileComparator.cpp
     src/watch/EfswFileWatcher.cpp
     src/commands/InitCommand.cpp
     src/commands/UseCommand.cpp
@@ -116,6 +117,7 @@ add_executable(cfgsync
     src/commands/RemoveCommand.cpp
     src/commands/ListCommand.cpp
     src/commands/BackupCommand.cpp
+    src/commands/StatusCommand.cpp
     src/commands/RestoreCommand.cpp
     src/utils/AppConfigPath.cpp
     src/utils/PathUtils.cpp
@@ -225,6 +227,18 @@ if(CFGSYNC_BUILD_TESTS)
     cfgsync_add_gtest_target(cfgsync_file_watcher_tests
         SOURCES
             tests/FileWatcherTests.cpp
+    )
+
+    cfgsync_add_gtest_target(cfgsync_file_comparator_tests
+        SOURCES
+            tests/FileComparatorTests.cpp
+            tests/common/TestTempDirectory.cpp
+            src/diff/FileComparator.cpp
+            src/storage/StorageManager.cpp
+            src/utils/FileUtils.cpp
+            src/utils/PathUtils.cpp
+        LIBRARIES
+            nlohmann_json::nlohmann_json
     )
 
     cfgsync_add_gtest_target(cfgsync_add_command_tests
@@ -338,6 +352,31 @@ if(CFGSYNC_BUILD_TESTS)
     cfgsync_add_gtest_target(cfgsync_backup_command_cli_tests CLI
         SOURCES
             tests/BackupCommandCliTests.cpp
+            tests/common/CliTestUtils.cpp
+            tests/common/TestTempDirectory.cpp
+            src/utils/FileUtils.cpp
+            src/utils/PathUtils.cpp
+        LIBRARIES
+            nlohmann_json::nlohmann_json
+    )
+
+    cfgsync_add_gtest_target(cfgsync_status_command_tests
+        SOURCES
+            tests/StatusCommandTests.cpp
+            tests/common/TestTempDirectory.cpp
+            src/commands/StatusCommand.cpp
+            src/diff/FileComparator.cpp
+            src/storage/StorageManager.cpp
+            src/core/Registry.cpp
+            src/utils/FileUtils.cpp
+            src/utils/PathUtils.cpp
+        LIBRARIES
+            nlohmann_json::nlohmann_json
+    )
+
+    cfgsync_add_gtest_target(cfgsync_status_command_cli_tests CLI
+        SOURCES
+            tests/StatusCommandCliTests.cpp
             tests/common/CliTestUtils.cpp
             tests/common/TestTempDirectory.cpp
             src/utils/FileUtils.cpp
