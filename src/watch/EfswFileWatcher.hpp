@@ -10,7 +10,7 @@ namespace cfgsync::watch {
 class EfswFileWatcher final : public FileWatcher {
 public:
     EfswFileWatcher();
-    ~EfswFileWatcher() override;
+    ~EfswFileWatcher() noexcept override;
 
     EfswFileWatcher(const EfswFileWatcher&) = delete;
     EfswFileWatcher& operator=(const EfswFileWatcher&) = delete;
@@ -22,7 +22,7 @@ public:
 
 private:
     class Impl;
-    std::unique_ptr<Impl> Impl_;
+    std::unique_ptr<Impl> Impl_ = std::make_unique<Impl>();
 };
 
 }  // namespace cfgsync::watch
