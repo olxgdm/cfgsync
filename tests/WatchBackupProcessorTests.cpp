@@ -121,13 +121,14 @@ TEST_F(WatchBackupProcessorTest, MovedEventBacksUpWhenNewPathIsTracked) {
     cfgsync::storage::StorageManager storageManager{StorageRoot()};
     WatchBackupProcessor processor{Registry().GetTrackedEntries(), storageManager};
 
-    processor.OnFileChangedAt({
-                                   .Action = FileWatchAction::Moved,
-                                   .Directory = sourcePath.parent_path(),
-                                   .Path = sourcePath,
-                                   .OldPath = sourcePath.parent_path() / ".gitconfig.tmp",
-                               },
-                               At(std::chrono::milliseconds{0}));
+    processor.OnFileChangedAt(
+        {
+            .Action = FileWatchAction::Moved,
+            .Directory = sourcePath.parent_path(),
+            .Path = sourcePath,
+            .OldPath = sourcePath.parent_path() / ".gitconfig.tmp",
+        },
+        At(std::chrono::milliseconds{0}));
 
     EXPECT_EQ(processor.ProcessDueBackupsAt(At(std::chrono::milliseconds{500})), 1U);
     EXPECT_EQ(cfgsync::tests::ReadTextFile(StorageRoot() / storedRelativePath), "moved into place\n");
