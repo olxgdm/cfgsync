@@ -1,36 +1,16 @@
 #include "common/CliCommandTestFixture.hpp"
 #include "common/CliTestUtils.hpp"
 #include "common/GoogleTestMain.hpp"
+#include "common/StyledDiffTestUtils.hpp"
 #include "common/TestFileUtils.hpp"
 #include "gtest/gtest.h"
 #include "utils/PathUtils.hpp"
-#include "utils/TerminalStyle.hpp"
 
 #include <filesystem>
 #include <string>
 
 namespace {
 namespace fs = std::filesystem;
-
-std::string StyledHeader(const std::string& text) {
-    return cfgsync::utils::Colorizer::Enabled().Apply(
-        text, cfgsync::utils::TerminalStyle::Foreground(cfgsync::utils::TerminalColor::Cyan).Bold());
-}
-
-std::string StyledHunk(const std::string& text) {
-    return cfgsync::utils::Colorizer::Enabled().Apply(
-        text, cfgsync::utils::TerminalStyle::Foreground(cfgsync::utils::TerminalColor::Yellow));
-}
-
-std::string StyledRemoved(const std::string& text) {
-    return cfgsync::utils::Colorizer::Enabled().Apply(
-        text, cfgsync::utils::TerminalStyle::Foreground(cfgsync::utils::TerminalColor::Red));
-}
-
-std::string StyledAdded(const std::string& text) {
-    return cfgsync::utils::Colorizer::Enabled().Apply(
-        text, cfgsync::utils::TerminalStyle::Foreground(cfgsync::utils::TerminalColor::Green));
-}
 
 class DiffCommandCliTest : public cfgsync::tests::CliCommandTestFixture {
 protected:
@@ -54,20 +34,22 @@ protected:
 
 TEST_F(DiffCommandCliTest, ModifiedTrackedFilePrintsUnifiedDiff) {
     const auto sourcePath = SourcePath(".gitconfig");
-    cfgsync::tests::WriteTextFile(sourcePath, "stored contents\n");
+    cfgsync::tests::WriteBinaryFile(sourcePath, "stored contents\n");
     ASSERT_TRUE(RunInitCommand());
     ASSERT_TRUE(RunAddCommand(sourcePath));
     ASSERT_EQ(RunBackupCommand().ExitCode, 0);
-    cfgsync::tests::WriteTextFile(sourcePath, "local changes\n");
+    cfgsync::tests::WriteBinaryFile(sourcePath, "local changes\n");
 
     const auto result = RunDiffCommand(sourcePath);
     const auto displayPath = DisplayPathFor(sourcePath);
 
     EXPECT_EQ(result.ExitCode, 0);
-    EXPECT_EQ(result.Output, StyledHeader("--- stored/" + displayPath) + "\n" +
-                                 StyledHeader("+++ original/" + displayPath) + "\n" + StyledHunk("@@ -1,1 +1,1 @@") +
-                                 "\n" + StyledRemoved("-stored contents") + "\n" + StyledAdded("+local changes") +
-                                 "\n");
+    EXPECT_EQ(result.Output,
+              cfgsync::tests::StyledDiffHeader("--- stored/" + displayPath) + "\n" +
+                  cfgsync::tests::StyledDiffHeader("+++ original/" + displayPath) + "\n" +
+                  cfgsync::tests::StyledDiffHunk("@@ -1,1 +1,1 @@") + "\n" +
+                  cfgsync::tests::StyledDiffRemoved("-stored contents") + "\n" +
+                  cfgsync::tests::StyledDiffAdded("+local changes") + "\n");
     EXPECT_TRUE(result.Error.empty());
 }
 

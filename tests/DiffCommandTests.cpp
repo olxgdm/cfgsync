@@ -2,12 +2,12 @@
 #include "commands/DiffCommand.hpp"
 #include "common/GoogleTestMain.hpp"
 #include "common/RegistryCommandTestFixture.hpp"
+#include "common/StyledDiffTestUtils.hpp"
 #include "common/TestFileUtils.hpp"
 #include "common/TestRegistryUtils.hpp"
 #include "gtest/gtest.h"
 #include "storage/StorageManager.hpp"
 #include "utils/PathUtils.hpp"
-#include "utils/TerminalStyle.hpp"
 
 #include <filesystem>
 #include <sstream>
@@ -27,26 +27,6 @@ std::string DisplayPathFor(const cfgsync::core::TrackedEntry& entry) {
     return storedRelativePath;
 }
 
-std::string StyledHeader(const std::string& text) {
-    return cfgsync::utils::Colorizer::Enabled().Apply(
-        text, cfgsync::utils::TerminalStyle::Foreground(cfgsync::utils::TerminalColor::Cyan).Bold());
-}
-
-std::string StyledHunk(const std::string& text) {
-    return cfgsync::utils::Colorizer::Enabled().Apply(
-        text, cfgsync::utils::TerminalStyle::Foreground(cfgsync::utils::TerminalColor::Yellow));
-}
-
-std::string StyledRemoved(const std::string& text) {
-    return cfgsync::utils::Colorizer::Enabled().Apply(
-        text, cfgsync::utils::TerminalStyle::Foreground(cfgsync::utils::TerminalColor::Red));
-}
-
-std::string StyledAdded(const std::string& text) {
-    return cfgsync::utils::Colorizer::Enabled().Apply(
-        text, cfgsync::utils::TerminalStyle::Foreground(cfgsync::utils::TerminalColor::Green));
-}
-
 class DiffCommandTest : public cfgsync::tests::RegistryCommandTestFixture {
 protected:
     std::string RunDiffCommand(const fs::path& sourcePath) {
@@ -61,14 +41,16 @@ protected:
 TEST_F(DiffCommandTest, ModifiedTrackedFilePrintsUnifiedDiff) {
     const auto sourcePath = SourcePath();
     const auto storedRelativePath = TrackFile(Registry(), sourcePath);
-    cfgsync::tests::WriteTextFile(StorageRoot() / storedRelativePath, "stored contents\n");
-    cfgsync::tests::WriteTextFile(sourcePath, "local changes\n");
+    cfgsync::tests::WriteBinaryFile(StorageRoot() / storedRelativePath, "stored contents\n");
+    cfgsync::tests::WriteBinaryFile(sourcePath, "local changes\n");
     const auto& entry = Registry().GetTrackedEntries().front();
 
-    EXPECT_EQ(RunDiffCommand(sourcePath), StyledHeader("--- stored/" + DisplayPathFor(entry)) + "\n" +
-                                              StyledHeader("+++ original/" + DisplayPathFor(entry)) + "\n" +
-                                              StyledHunk("@@ -1,1 +1,1 @@") + "\n" + StyledRemoved("-stored contents") +
-                                              "\n" + StyledAdded("+local changes") + "\n");
+    EXPECT_EQ(RunDiffCommand(sourcePath),
+              cfgsync::tests::StyledDiffHeader("--- stored/" + DisplayPathFor(entry)) + "\n" +
+                  cfgsync::tests::StyledDiffHeader("+++ original/" + DisplayPathFor(entry)) + "\n" +
+                  cfgsync::tests::StyledDiffHunk("@@ -1,1 +1,1 @@") + "\n" +
+                  cfgsync::tests::StyledDiffRemoved("-stored contents") + "\n" +
+                  cfgsync::tests::StyledDiffAdded("+local changes") + "\n");
 }
 
 TEST_F(DiffCommandTest, IdenticalTrackedFilePrintsNothing) {
@@ -108,7 +90,7 @@ TEST_F(DiffCommandTest, MissingOriginalFailsClearly) {
 
 TEST_F(DiffCommandTest, MissingBackupFailsClearly) {
     const auto sourcePath = SourcePath();
-    const auto storedRelativePath = TrackFile(Registry(), sourcePath);
+    TrackFile(Registry(), sourcePath);
     cfgsync::tests::WriteTextFile(sourcePath, "local contents\n");
 
     try {
@@ -116,8 +98,10 @@ TEST_F(DiffCommandTest, MissingBackupFailsClearly) {
         FAIL() << "Diff with a missing backup did not throw.";
     } catch (const cfgsync::CommandError& error) {
         const std::string message = error.what();
+        const cfgsync::storage::StorageManager storageManager{StorageRoot()};
+        const auto expectedStoredPath = storageManager.ResolveStoredPath(Registry().GetTrackedEntries().front());
         EXPECT_NE(message.find("no stored backup yet"), std::string::npos);
-        EXPECT_NE(message.find((StorageRoot() / storedRelativePath).string()), std::string::npos);
+        EXPECT_NE(message.find(expectedStoredPath.string()), std::string::npos);
     }
 }
 
