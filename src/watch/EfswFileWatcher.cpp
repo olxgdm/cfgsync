@@ -16,6 +16,10 @@ namespace fs = std::filesystem;
 
 namespace {
 
+// The polling backend gives cfgsync deterministic foreground watch behavior across platforms.
+constexpr bool UseGenericPollingWatcher = true;
+constexpr unsigned int PollingFrequencyMs = 250;
+
 FileWatchAction MapAction(efsw::Action action) {
     using enum FileWatchAction;
 
@@ -58,7 +62,7 @@ std::string FormatWatchError(efsw::WatchID watchId, const fs::path& directory) {
 
 class EfswFileWatcher::Impl final : public efsw::FileWatchListener {
 public:
-    Impl() {
+    Impl() : Watcher_(UseGenericPollingWatcher, PollingFrequencyMs) {
         Watcher_.followSymlinks(false);
         Watcher_.allowOutOfScopeLinks(false);
     }
