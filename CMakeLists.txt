@@ -112,6 +112,7 @@ add_executable(cfgsync
     src/diff/FileComparator.cpp
     src/diff/UnifiedDiff.cpp
     src/watch/EfswFileWatcher.cpp
+    src/watch/WatchBackupProcessor.cpp
     src/commands/InitCommand.cpp
     src/commands/UseCommand.cpp
     src/commands/AddCommand.cpp
@@ -120,6 +121,7 @@ add_executable(cfgsync
     src/commands/BackupCommand.cpp
     src/commands/StatusCommand.cpp
     src/commands/DiffCommand.cpp
+    src/commands/WatchCommand.cpp
     src/commands/RestoreCommand.cpp
     src/utils/AppConfigPath.cpp
     src/utils/PathUtils.cpp
@@ -236,6 +238,19 @@ if(CFGSYNC_BUILD_TESTS)
     cfgsync_add_gtest_target(cfgsync_file_watcher_tests
         SOURCES
             tests/FileWatcherTests.cpp
+    )
+
+    cfgsync_add_gtest_target(cfgsync_watch_backup_processor_tests
+        SOURCES
+            tests/WatchBackupProcessorTests.cpp
+            tests/common/TestTempDirectory.cpp
+            src/watch/WatchBackupProcessor.cpp
+            src/storage/StorageManager.cpp
+            src/core/Registry.cpp
+            src/utils/FileUtils.cpp
+            src/utils/PathUtils.cpp
+        LIBRARIES
+            nlohmann_json::nlohmann_json
     )
 
     cfgsync_add_gtest_target(cfgsync_file_comparator_tests
@@ -373,6 +388,31 @@ if(CFGSYNC_BUILD_TESTS)
     cfgsync_add_gtest_target(cfgsync_backup_command_cli_tests CLI
         SOURCES
             tests/BackupCommandCliTests.cpp
+            tests/common/CliTestUtils.cpp
+            tests/common/TestTempDirectory.cpp
+            src/utils/FileUtils.cpp
+            src/utils/PathUtils.cpp
+        LIBRARIES
+            nlohmann_json::nlohmann_json
+    )
+
+    cfgsync_add_gtest_target(cfgsync_watch_command_tests
+        SOURCES
+            tests/WatchCommandTests.cpp
+            tests/common/TestTempDirectory.cpp
+            src/commands/WatchCommand.cpp
+            src/watch/WatchBackupProcessor.cpp
+            src/storage/StorageManager.cpp
+            src/core/Registry.cpp
+            src/utils/FileUtils.cpp
+            src/utils/PathUtils.cpp
+        LIBRARIES
+            nlohmann_json::nlohmann_json
+    )
+
+    cfgsync_add_gtest_target(cfgsync_watch_command_cli_tests CLI
+        SOURCES
+            tests/WatchCommandCliTests.cpp
             tests/common/CliTestUtils.cpp
             tests/common/TestTempDirectory.cpp
             src/utils/FileUtils.cpp

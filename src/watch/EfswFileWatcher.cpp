@@ -16,6 +16,10 @@ namespace fs = std::filesystem;
 
 namespace {
 
+// The polling backend gives cfgsync deterministic foreground watch behavior across platforms.
+constexpr bool UseGenericPollingWatcher = true;
+constexpr unsigned int PollingFrequencyMs = 250;
+
 FileWatchAction MapAction(efsw::Action action) {
     using enum FileWatchAction;
 
@@ -58,7 +62,7 @@ std::string FormatWatchError(efsw::WatchID watchId, const fs::path& directory) {
 
 class EfswFileWatcher::Impl final : public efsw::FileWatchListener {
 public:
-    Impl() {
+    Impl() : Watcher_(UseGenericPollingWatcher, PollingFrequencyMs) {
         Watcher_.followSymlinks(false);
         Watcher_.allowOutOfScopeLinks(false);
     }
@@ -94,7 +98,8 @@ public:
 
     void Start() { Watcher_.watch(); }
 
-    void handleFileAction(efsw::WatchID watchId, const std::string& dir, const std::string& filename,
+    void handleFileAction(efsw::WatchID watchId, const std::string& dir,  // NOLINT(bugprone-easily-swappable-parameters): efsw owns this override signature with adjacent parameters.
+                          const std::string& filename,
                           efsw::Action action, const std::string& oldFilename) override {
         FileWatchObserver* observer = nullptr;
         {
@@ -123,7 +128,7 @@ private:
     std::vector<efsw::WatchID> WatchIds_;
 };
 
-EfswFileWatcher::EfswFileWatcher() = default;
+EfswFileWatcher::EfswFileWatcher() { Impl_ = std::make_unique<Impl>(); }
 
 EfswFileWatcher::~EfswFileWatcher() noexcept { Impl_.reset(); }
 

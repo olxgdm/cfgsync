@@ -10,7 +10,9 @@
 #include "commands/RestoreCommand.hpp"
 #include "commands/StatusCommand.hpp"
 #include "commands/UseCommand.hpp"
+#include "commands/WatchCommand.hpp"
 #include "utils/LogUtils.hpp"
+#include "watch/EfswFileWatcher.hpp"
 
 #include <filesystem>
 #include <memory>
@@ -95,6 +97,14 @@ void BuildCli(CLI::App& app, core::Registry& registry, storage::StorageManager& 
         loadActiveStorage();
         const commands::DiffCommand command{registry, storageManager};
         command.Execute(std::filesystem::path{*diffFile});
+    });
+
+    auto* watchCommand = app.add_subcommand("watch", "Watch tracked files and back up changes.");
+    watchCommand->callback([&registry, &storageManager, loadActiveStorage]() {
+        loadActiveStorage();
+        watch::EfswFileWatcher watcher;
+        const commands::WatchCommand command{registry, storageManager};
+        command.Execute(watcher);
     });
 
     auto* restoreCommand = app.add_subcommand("restore", "Restore one tracked file or all tracked files.");

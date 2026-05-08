@@ -43,12 +43,11 @@ TEST_F(DiffCommandCliTest, ModifiedTrackedFilePrintsUnifiedDiff) {
     const auto displayPath = DisplayPathFor(sourcePath);
 
     EXPECT_EQ(result.ExitCode, 0);
-    EXPECT_EQ(result.Output,
-              cfgsync::tests::StyledDiffHeader("--- stored/" + displayPath) + "\n" +
-                  cfgsync::tests::StyledDiffHeader("+++ original/" + displayPath) + "\n" +
-                  cfgsync::tests::StyledDiffHunk("@@ -1,1 +1,1 @@") + "\n" +
-                  cfgsync::tests::StyledDiffRemoved("-stored contents") + "\n" +
-                  cfgsync::tests::StyledDiffAdded("+local changes") + "\n");
+    EXPECT_EQ(result.Output, cfgsync::tests::StyledDiffHeader("--- stored/" + displayPath) + "\n" +
+                                 cfgsync::tests::StyledDiffHeader("+++ original/" + displayPath) + "\n" +
+                                 cfgsync::tests::StyledDiffHunk("@@ -1,1 +1,1 @@") + "\n" +
+                                 cfgsync::tests::StyledDiffRemoved("-stored contents") + "\n" +
+                                 cfgsync::tests::StyledDiffAdded("+local changes") + "\n");
     EXPECT_TRUE(result.Error.empty());
 }
 

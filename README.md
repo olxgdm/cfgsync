@@ -22,10 +22,11 @@ The v0.1.1 MVP workflow is implemented:
 - add and remove ordinary files from the registry
 - list tracked files
 - back up tracked files into storage
+- watch tracked files and automatically back up changes
 - adopt an existing storage directory on a fresh system
 - restore one tracked file or all tracked files
 
-The current version intentionally supports ordinary files only. Directory tracking, symlink tracking, snapshots, diffs, remote sync, encryption, and file watching are outside the v0 scope.
+The current version intentionally supports ordinary files only. Directory tracking, symlink tracking, snapshots, remote sync, and encryption are outside the v0 scope.
 
 ## Prerequisites
 
@@ -39,6 +40,7 @@ The project fetches these dependencies during configuration:
 - fmt
 - spdlog
 - nlohmann/json
+- efsw
 - GoogleTest, when `CFGSYNC_BUILD_TESTS` is enabled
 
 ## Build
@@ -96,6 +98,7 @@ cfgsync init --storage ~/cfgsync-store
 cfgsync add ~/.gitconfig
 cfgsync list
 cfgsync backup
+cfgsync watch
 cfgsync restore ~/.gitconfig
 cfgsync restore --all
 cfgsync remove ~/.gitconfig
@@ -106,8 +109,9 @@ Typical flow:
 1. Run `cfgsync init --storage <dir>` once to create the storage directory and record it as the active storage root.
 2. Run `cfgsync add <file>` for each ordinary config file you want to track.
 3. Run `cfgsync backup` whenever you want to copy the current tracked files into storage.
-4. Run `cfgsync restore <file>` to restore one tracked file, or `cfgsync restore --all` to restore every tracked file.
-5. Run `cfgsync remove <file>` when a file should no longer be tracked.
+4. Optionally run `cfgsync watch` to keep backing up tracked files as they change until you stop it.
+5. Run `cfgsync restore <file>` to restore one tracked file, or `cfgsync restore --all` to restore every tracked file.
+6. Run `cfgsync remove <file>` when a file should no longer be tracked.
 
 Fresh-system restore flow:
 
@@ -200,6 +204,14 @@ Shows a unified text diff between a tracked file's stored backup and its current
 The stored backup is shown as the old side and the current original file is shown as the new side. Identical files produce no output and still exit successfully.
 
 The file path is normalized before lookup. The command fails if the file is not tracked, if the original file is missing, if the tracked file has no stored backup yet, or if the file contains unsupported binary content.
+
+### `cfgsync watch`
+
+Runs in the foreground and watches tracked original files for changes.
+
+The command watches tracked files' parent directories, ignores untracked files in those directories, and backs up a tracked file when it is added, modified, or moved into place. Duplicate events for the same file are debounced with a short delay. The command does not perform an initial backup on startup.
+
+If a tracked file is deleted, becomes non-ordinary, or cannot be backed up, cfgsync reports a warning and keeps watching. Press Ctrl+C to stop watching.
 
 ### `cfgsync restore --all`
 
