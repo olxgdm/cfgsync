@@ -128,7 +128,7 @@ private:
     std::vector<efsw::WatchID> WatchIds_;
 };
 
-EfswFileWatcher::EfswFileWatcher() : Impl_(std::make_unique<Impl>()) {}
+EfswFileWatcher::EfswFileWatcher() { Impl_ = std::make_unique<Impl>(); }
 
 EfswFileWatcher::~EfswFileWatcher() noexcept { Impl_.reset(); }
 
