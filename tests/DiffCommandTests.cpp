@@ -19,8 +19,7 @@ using cfgsync::tests::TrackFile;
 
 std::string DisplayPathFor(const cfgsync::core::TrackedEntry& entry) {
     const std::string storedRelativePath = fs::path{entry.StoredRelativePath}.generic_string();
-    constexpr std::string_view storagePrefix = "files/";
-    if (storedRelativePath.starts_with(storagePrefix)) {
+    if (constexpr std::string_view storagePrefix = "files/"; storedRelativePath.starts_with(storagePrefix)) {
         return storedRelativePath.substr(storagePrefix.size());
     }
 

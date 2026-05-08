@@ -8,12 +8,20 @@ namespace cfgsync::utils {
 
 namespace {
 
-constexpr std::string_view ResetSequence = "\x1b[0m";
-constexpr std::string_view BoldSequence = "\x1b[1m";
-constexpr std::string_view RedSequence = "\x1b[31m";
-constexpr std::string_view GreenSequence = "\x1b[32m";
-constexpr std::string_view YellowSequence = "\x1b[33m";
-constexpr std::string_view CyanSequence = "\x1b[36m";
+constexpr char Escape = static_cast<char>(27);
+constexpr char ResetSequenceText[] = {Escape, '[', '0', 'm'};
+constexpr char BoldSequenceText[] = {Escape, '[', '1', 'm'};
+constexpr char RedSequenceText[] = {Escape, '[', '3', '1', 'm'};
+constexpr char GreenSequenceText[] = {Escape, '[', '3', '2', 'm'};
+constexpr char YellowSequenceText[] = {Escape, '[', '3', '3', 'm'};
+constexpr char CyanSequenceText[] = {Escape, '[', '3', '6', 'm'};
+
+constexpr std::string_view ResetSequence{ResetSequenceText, 4};
+constexpr std::string_view BoldSequence{BoldSequenceText, 4};
+constexpr std::string_view RedSequence{RedSequenceText, 5};
+constexpr std::string_view GreenSequence{GreenSequenceText, 5};
+constexpr std::string_view YellowSequence{YellowSequenceText, 5};
+constexpr std::string_view CyanSequence{CyanSequenceText, 5};
 
 std::string_view ColorSequence(TerminalColor color) {
     switch (color) {

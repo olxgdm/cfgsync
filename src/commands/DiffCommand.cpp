@@ -44,6 +44,8 @@ DiffCommand::DiffCommand(core::Registry& registry, storage::StorageManager& stor
     : Registry_(registry), StorageManager_(storageManager) {}
 
 void DiffCommand::Execute(const fs::path& filePath, std::ostream& output) const {
+    using enum diff::FileStatus;
+
     const auto normalizedPath = utils::NormalizePath(filePath);
     const auto* trackedEntry = Registry_.FindEntryByOriginalPath(normalizedPath);
     if (trackedEntry == nullptr) {
@@ -55,13 +57,13 @@ void DiffCommand::Execute(const fs::path& filePath, std::ostream& output) const 
     const auto storedPath = StorageManager_.ResolveStoredPath(*trackedEntry);
 
     switch (status.Status) {
-        case diff::FileStatus::Clean:
+        case Clean:
             return;
-        case diff::FileStatus::MissingOriginal:
+        case MissingOriginal:
             throw CommandError{"Original file is missing: " + trackedEntry->OriginalPath};
-        case diff::FileStatus::MissingBackup:
+        case MissingBackup:
             throw MissingBackupError(*trackedEntry, storedPath);
-        case diff::FileStatus::Modified:
+        case Modified:
             break;
     }
 

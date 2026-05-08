@@ -4,15 +4,22 @@
 
 #include <sstream>
 #include <string>
+#include <string_view>
 
 namespace {
+
+std::string EscapeSequence(std::string_view suffix) {
+    std::string sequence{static_cast<char>(27)};
+    sequence.append(suffix);
+    return sequence;
+}
 
 TEST(TerminalStyleTest, AppliesForegroundColorAndResetWhenEnabled) {
     const auto colorizer = cfgsync::utils::Colorizer::Enabled();
     const auto styledText =
         colorizer.Apply("removed", cfgsync::utils::TerminalStyle::Foreground(cfgsync::utils::TerminalColor::Red));
 
-    EXPECT_EQ(styledText, "\x1b[31mremoved\x1b[0m");
+    EXPECT_EQ(styledText, EscapeSequence("[31m") + "removed" + EscapeSequence("[0m"));
 }
 
 TEST(TerminalStyleTest, ComposesBoldWithForegroundColor) {
@@ -20,7 +27,7 @@ TEST(TerminalStyleTest, ComposesBoldWithForegroundColor) {
     const auto styledText = colorizer.Apply(
         "header", cfgsync::utils::TerminalStyle::Foreground(cfgsync::utils::TerminalColor::Cyan).Bold());
 
-    EXPECT_EQ(styledText, "\x1b[1m\x1b[36mheader\x1b[0m");
+    EXPECT_EQ(styledText, EscapeSequence("[1m") + EscapeSequence("[36m") + "header" + EscapeSequence("[0m"));
 }
 
 TEST(TerminalStyleTest, DisabledColorizerReturnsPlainText) {
@@ -42,7 +49,7 @@ TEST(TerminalStyleTest, WriteStyledWritesThroughColorizer) {
     cfgsync::utils::WriteStyled(output, "hunk",
                                 cfgsync::utils::TerminalStyle::Foreground(cfgsync::utils::TerminalColor::Yellow));
 
-    EXPECT_EQ(output.str(), "\x1b[33mhunk\x1b[0m");
+    EXPECT_EQ(output.str(), EscapeSequence("[33m") + "hunk" + EscapeSequence("[0m"));
 }
 
 }  // namespace

@@ -30,11 +30,13 @@ StatusCommand::StatusCommand(core::Registry& registry, storage::StorageManager& 
     : Registry_(registry), StorageManager_(storageManager) {}
 
 void StatusCommand::Execute(std::ostream& output) const {
+    using enum diff::FileStatus;
+
     const diff::FileComparator comparator{StorageManager_};
     bool hasChanges = false;
 
     for (const auto& result : comparator.CompareAll(Registry_.GetTrackedEntries())) {
-        if (result.Status == diff::FileStatus::Clean) {
+        if (result.Status == Clean) {
             continue;
         }
 

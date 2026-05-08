@@ -23,8 +23,7 @@ protected:
     std::string DisplayPathFor(const fs::path& sourcePath) const {
         const auto storedRelativePath =
             cfgsync::utils::MakeStorageRelativePath(cfgsync::utils::NormalizePath(sourcePath)).generic_string();
-        constexpr std::string_view storagePrefix = "files/";
-        if (storedRelativePath.starts_with(storagePrefix)) {
+        if (constexpr std::string_view storagePrefix = "files/"; storedRelativePath.starts_with(storagePrefix)) {
             return storedRelativePath.substr(storagePrefix.size());
         }
 
