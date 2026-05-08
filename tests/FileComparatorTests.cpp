@@ -11,6 +11,7 @@
 
 namespace {
 namespace fs = std::filesystem;
+using enum cfgsync::diff::FileStatus;
 
 class FileComparatorTest : public testing::Test {
 protected:
@@ -46,7 +47,7 @@ TEST_F(FileComparatorTest, ReportsCleanWhenOriginalAndBackupBytesMatch) {
     const cfgsync::diff::FileComparator comparator{storageManager};
     const auto result = comparator.Compare(entry);
 
-    EXPECT_EQ(result.Status, cfgsync::diff::FileStatus::Clean);
+    EXPECT_EQ(result.Status, Clean);
     EXPECT_EQ(result.Entry.OriginalPath, entry.OriginalPath);
 }
 
@@ -60,7 +61,7 @@ TEST_F(FileComparatorTest, ReportsModifiedWhenBytesDiffer) {
     const cfgsync::diff::FileComparator comparator{storageManager};
     const auto result = comparator.Compare(entry);
 
-    EXPECT_EQ(result.Status, cfgsync::diff::FileStatus::Modified);
+    EXPECT_EQ(result.Status, Modified);
 }
 
 TEST_F(FileComparatorTest, ReportsMissingOriginalWhenOriginalFileDoesNotExist) {
@@ -72,7 +73,7 @@ TEST_F(FileComparatorTest, ReportsMissingOriginalWhenOriginalFileDoesNotExist) {
     const cfgsync::diff::FileComparator comparator{storageManager};
     const auto result = comparator.Compare(entry);
 
-    EXPECT_EQ(result.Status, cfgsync::diff::FileStatus::MissingOriginal);
+    EXPECT_EQ(result.Status, MissingOriginal);
 }
 
 TEST_F(FileComparatorTest, ReportsMissingBackupWhenStoredFileDoesNotExist) {
@@ -84,7 +85,7 @@ TEST_F(FileComparatorTest, ReportsMissingBackupWhenStoredFileDoesNotExist) {
     const cfgsync::diff::FileComparator comparator{storageManager};
     const auto result = comparator.Compare(entry);
 
-    EXPECT_EQ(result.Status, cfgsync::diff::FileStatus::MissingBackup);
+    EXPECT_EQ(result.Status, MissingBackup);
 }
 
 TEST_F(FileComparatorTest, BothFilesMissingPrefersMissingOriginal) {
@@ -94,7 +95,7 @@ TEST_F(FileComparatorTest, BothFilesMissingPrefersMissingOriginal) {
     const cfgsync::diff::FileComparator comparator{storageManager};
     const auto result = comparator.Compare(entry);
 
-    EXPECT_EQ(result.Status, cfgsync::diff::FileStatus::MissingOriginal);
+    EXPECT_EQ(result.Status, MissingOriginal);
 }
 
 TEST_F(FileComparatorTest, MultipleEntriesRetainInputOrder) {
@@ -113,9 +114,9 @@ TEST_F(FileComparatorTest, MultipleEntriesRetainInputOrder) {
 
     ASSERT_EQ(results.size(), 2U);
     EXPECT_EQ(results[0].Entry.OriginalPath, firstEntry.OriginalPath);
-    EXPECT_EQ(results[0].Status, cfgsync::diff::FileStatus::Modified);
+    EXPECT_EQ(results[0].Status, Modified);
     EXPECT_EQ(results[1].Entry.OriginalPath, secondEntry.OriginalPath);
-    EXPECT_EQ(results[1].Status, cfgsync::diff::FileStatus::Clean);
+    EXPECT_EQ(results[1].Status, Clean);
 }
 
 }  // namespace

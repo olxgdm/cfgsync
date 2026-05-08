@@ -20,6 +20,15 @@ inline void WriteTextFile(const std::filesystem::path& path, const std::string& 
     output << contents;
 }
 
+inline void WriteBinaryFile(const std::filesystem::path& path, const std::string& contents) {
+    if (path.has_parent_path()) {
+        utils::EnsureDirectoryExists(path.parent_path());
+    }
+
+    std::ofstream output{path, std::ios::binary};
+    output.write(contents.data(), static_cast<std::streamsize>(contents.size()));
+}
+
 inline std::string ReadTextFile(const std::filesystem::path& path) {
     std::ifstream input{path};
     return std::string{std::istreambuf_iterator<char>{input}, std::istreambuf_iterator<char>{}};

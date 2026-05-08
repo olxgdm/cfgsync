@@ -3,6 +3,7 @@
 #include "Exceptions.hpp"
 #include "commands/AddCommand.hpp"
 #include "commands/BackupCommand.hpp"
+#include "commands/DiffCommand.hpp"
 #include "commands/InitCommand.hpp"
 #include "commands/ListCommand.hpp"
 #include "commands/RemoveCommand.hpp"
@@ -85,6 +86,15 @@ void BuildCli(CLI::App& app, core::Registry& registry, storage::StorageManager& 
         loadActiveStorage();
         const commands::StatusCommand command{registry, storageManager};
         command.Execute();
+    });
+
+    auto* diffCommand = app.add_subcommand("diff", "Show a unified diff for one tracked file.");
+    auto diffFile = std::make_shared<std::string>();
+    diffCommand->add_option("file", *diffFile, "Tracked file path to diff.")->required();
+    diffCommand->callback([&registry, &storageManager, loadActiveStorage, diffFile]() {
+        loadActiveStorage();
+        const commands::DiffCommand command{registry, storageManager};
+        command.Execute(std::filesystem::path{*diffFile});
     });
 
     auto* restoreCommand = app.add_subcommand("restore", "Restore one tracked file or all tracked files.");
