@@ -7,9 +7,11 @@
 #include <chrono>
 #include <cstddef>
 #include <filesystem>
+#include <functional>
 #include <mutex>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <vector>
 
@@ -35,6 +37,16 @@ public:
     [[nodiscard]] bool HasPendingBackups() const;
 
 private:
+    struct TransparentStringHash {
+        using is_transparent = void;
+
+        std::size_t operator()(std::string_view value) const noexcept { return std::hash<std::string_view>{}(value); }
+
+        std::size_t operator()(const std::string& value) const noexcept { return (*this)(std::string_view{value}); }
+
+        std::size_t operator()(const char* value) const noexcept { return (*this)(std::string_view{value}); }
+    };
+
     struct PendingBackup {
         core::TrackedEntry Entry;
         TimePoint DueAt;
@@ -42,11 +54,11 @@ private:
 
     std::optional<core::TrackedEntry> FindTrackedEntry(const std::filesystem::path& path) const;
 
-    std::unordered_map<std::string, core::TrackedEntry> TrackedEntriesByPath_;
+    std::unordered_map<std::string, core::TrackedEntry, TransparentStringHash, std::equal_to<>> TrackedEntriesByPath_;
     storage::StorageManager& StorageManager_;  // NOLINT(cppcoreguidelines-avoid-const-or-ref-data-members)
     std::chrono::milliseconds DebounceDelay_;
     mutable std::mutex Mutex_;
-    std::unordered_map<std::string, PendingBackup> PendingBackups_;
+    std::unordered_map<std::string, PendingBackup, TransparentStringHash, std::equal_to<>> PendingBackups_;
 };
 
 }  // namespace cfgsync::watch

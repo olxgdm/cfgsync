@@ -38,7 +38,7 @@ WatchBackupProcessor::WatchBackupProcessor(std::vector<core::TrackedEntry> track
                                            std::chrono::milliseconds debounceDelay)
     : StorageManager_(storageManager), DebounceDelay_(debounceDelay) {
     for (auto& entry : trackedEntries) {
-        TrackedEntriesByPath_.emplace(NormalizeLookupKey(entry.OriginalPath), std::move(entry));
+        TrackedEntriesByPath_.try_emplace(NormalizeLookupKey(entry.OriginalPath), std::move(entry));
     }
 }
 
@@ -109,9 +109,7 @@ std::optional<WatchBackupProcessor::TimePoint> WatchBackupProcessor::GetNextDueT
     }
 
     return std::min_element(PendingBackups_.begin(), PendingBackups_.end(),
-                            [](const auto& left, const auto& right) {
-                                return left.second.DueAt < right.second.DueAt;
-                            })
+                            [](const auto& left, const auto& right) { return left.second.DueAt < right.second.DueAt; })
         ->second.DueAt;
 }
 

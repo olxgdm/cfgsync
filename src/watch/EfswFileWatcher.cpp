@@ -98,7 +98,8 @@ public:
 
     void Start() { Watcher_.watch(); }
 
-    void handleFileAction(efsw::WatchID watchId, const std::string& dir, const std::string& filename,
+    void handleFileAction(efsw::WatchID watchId, const std::string& dir,  // NOLINT(bugprone-easily-swappable-parameters): efsw owns this override signature with adjacent parameters.
+                          const std::string& filename,
                           efsw::Action action, const std::string& oldFilename) override {
         FileWatchObserver* observer = nullptr;
         {

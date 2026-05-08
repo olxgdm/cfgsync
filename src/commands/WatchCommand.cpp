@@ -6,9 +6,13 @@
 
 #include <chrono>
 #include <csignal>
+#include <cstddef>
 #include <filesystem>
+#include <format>
+#include <functional>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <system_error>
 #include <thread>
 #include <unordered_set>
@@ -21,16 +25,29 @@ namespace {
 
 constexpr auto PollInterval = std::chrono::milliseconds{50};
 
-volatile std::sig_atomic_t StopSignalReceived = 0;
+struct TransparentStringHash {
+    using is_transparent = void;
 
-void HandleStopSignal(int /*signal*/) { StopSignalReceived = 1; }
+    std::size_t operator()(std::string_view value) const noexcept { return std::hash<std::string_view>{}(value); }
+
+    std::size_t operator()(const std::string& value) const noexcept { return (*this)(std::string_view{value}); }
+
+    std::size_t operator()(const char* value) const noexcept { return (*this)(std::string_view{value}); }
+};
+
+volatile std::sig_atomic_t& StopSignalReceived() {
+    static volatile std::sig_atomic_t signalReceived = 0;
+    return signalReceived;
+}
+
+void HandleStopSignal(int /*signal*/) { StopSignalReceived() = 1; }
 
 class ScopedStopSignalHandlers {
 public:
-    ScopedStopSignalHandlers()
-        : PreviousIntHandler_(std::signal(SIGINT, HandleStopSignal)),
-          PreviousTermHandler_(std::signal(SIGTERM, HandleStopSignal)) {
-        StopSignalReceived = 0;
+    ScopedStopSignalHandlers() {
+        StopSignalReceived() = 0;
+        PreviousIntHandler_ = std::signal(SIGINT, HandleStopSignal);
+        PreviousTermHandler_ = std::signal(SIGTERM, HandleStopSignal);
     }
 
     ~ScopedStopSignalHandlers() {
@@ -44,11 +61,11 @@ public:
 private:
     using SignalHandler = void (*)(int);
 
-    SignalHandler PreviousIntHandler_;
-    SignalHandler PreviousTermHandler_;
+    SignalHandler PreviousIntHandler_ = SIG_DFL;
+    SignalHandler PreviousTermHandler_ = SIG_DFL;
 };
 
-bool SignalStopRequested() { return StopSignalReceived != 0; }
+bool SignalStopRequested() { return StopSignalReceived() != 0; }
 
 bool IsExistingDirectory(const fs::path& path) {
     std::error_code errorCode;
@@ -62,13 +79,13 @@ std::vector<core::TrackedEntry> CopyTrackedEntries(const core::Registry& registr
 
 std::vector<fs::path> CollectWatchDirectories(const std::vector<core::TrackedEntry>& trackedEntries) {
     std::vector<fs::path> directories;
-    std::unordered_set<std::string> seenDirectories;
+    std::unordered_set<std::string, TransparentStringHash, std::equal_to<>> seenDirectories;
 
     for (const auto& entry : trackedEntries) {
         const fs::path originalPath{entry.OriginalPath};
         const auto parentDirectory = originalPath.parent_path().lexically_normal();
         if (!IsExistingDirectory(parentDirectory)) {
-            utils::LogWarn("Tracked file parent directory does not exist: " + entry.OriginalPath);
+            utils::LogWarn(std::format("Tracked file parent directory does not exist: {}", entry.OriginalPath));
             continue;
         }
 
@@ -104,7 +121,8 @@ void WatchCommand::Execute(watch::FileWatcher& watcher) const {
     Execute(watcher, SignalStopRequested);
 }
 
-void WatchCommand::Execute(watch::FileWatcher& watcher, const StopRequested& stopRequested) const {
+void WatchCommand::ExecuteWithStopRequested(watch::FileWatcher& watcher,
+                                            const StopRequestedCallback& stopRequested) const {
     const auto trackedEntries = CopyTrackedEntries(Registry_);
     if (trackedEntries.empty()) {
         utils::LogInfo("No files tracked.");
@@ -128,10 +146,10 @@ void WatchCommand::Execute(watch::FileWatcher& watcher, const StopRequested& sto
         throw CommandError{"Unable to start cfgsync watch: no tracked file parent directories could be watched."};
     }
 
-    utils::LogInfo("Watching " + std::to_string(trackedEntries.size()) + " tracked files. Press Ctrl+C to stop.");
+    utils::LogInfo(std::format("Watching {} tracked files. Press Ctrl+C to stop.", trackedEntries.size()));
     watcher.Start();
 
-    while (!stopRequested()) {
+    while (!stopRequested.IsStopRequested()) {
         processor.ProcessDueBackups();
         const auto sleepDuration = SleepDurationUntil(processor.GetNextDueTime());
         if (sleepDuration > std::chrono::milliseconds{0}) {

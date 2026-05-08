@@ -8,14 +8,27 @@
 #include "utils/PathUtils.hpp"
 #include "watch/FileWatcher.hpp"
 
+#include <cstddef>
 #include <filesystem>
+#include <functional>
 #include <string>
+#include <string_view>
 #include <unordered_set>
 #include <vector>
 
 namespace {
 namespace fs = std::filesystem;
 using cfgsync::tests::TrackFile;
+
+struct TransparentStringHash {
+    using is_transparent = void;
+
+    std::size_t operator()(std::string_view value) const noexcept { return std::hash<std::string_view>{}(value); }
+
+    std::size_t operator()(const std::string& value) const noexcept { return (*this)(std::string_view{value}); }
+
+    std::size_t operator()(const char* value) const noexcept { return (*this)(std::string_view{value}); }
+};
 
 class FakeFileWatcher final : public cfgsync::watch::FileWatcher {
 public:
@@ -33,7 +46,7 @@ public:
     bool Started = false;
     std::vector<fs::path> WatchedDirectories;
     cfgsync::watch::FileWatchObserver* Observer = nullptr;
-    std::unordered_set<std::string> FailingDirectories;
+    std::unordered_set<std::string, TransparentStringHash, std::equal_to<>> FailingDirectories;
 };
 
 class WatchCommandTest : public cfgsync::tests::RegistryCommandTestFixture {
