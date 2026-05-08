@@ -22,7 +22,7 @@ public:
 
 private:
     class Impl;
-    std::unique_ptr<Impl> Impl_ = std::make_unique<Impl>();
+    std::unique_ptr<Impl> Impl_;
 };
 
 }  // namespace cfgsync::watch
