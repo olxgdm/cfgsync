@@ -42,8 +42,7 @@ The project fetches these dependencies during configuration:
 - fmt
 - spdlog
 - nlohmann/json
-- efsw 1.6.0, built as the watcher backend through CMake `FetchContent`
-- GoogleTest, when `CFGSYNC_BUILD_TESTS` is enabled
+- efsw
 
 ## Build
 
