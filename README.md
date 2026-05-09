@@ -15,13 +15,15 @@ This project is not a Git replacement. It focuses on local configuration synchro
 
 ## Status
 
-The v0.1.1 MVP workflow is implemented:
+The v0.2.0 workflow is implemented:
 
 - initialize a cfgsync storage directory
 - persist the active storage root in a user-level app config
 - add and remove ordinary files from the registry
 - list tracked files
 - back up tracked files into storage
+- show tracked file status
+- show unified text diffs for tracked files
 - watch tracked files and automatically back up changes
 - adopt an existing storage directory on a fresh system
 - restore one tracked file or all tracked files
@@ -40,7 +42,7 @@ The project fetches these dependencies during configuration:
 - fmt
 - spdlog
 - nlohmann/json
-- efsw
+- efsw 1.6.0, built as the watcher backend through CMake `FetchContent`
 - GoogleTest, when `CFGSYNC_BUILD_TESTS` is enabled
 
 ## Build
@@ -98,6 +100,8 @@ cfgsync init --storage ~/cfgsync-store
 cfgsync add ~/.gitconfig
 cfgsync list
 cfgsync backup
+cfgsync status
+cfgsync diff ~/.gitconfig
 cfgsync watch
 cfgsync restore ~/.gitconfig
 cfgsync restore --all
@@ -109,9 +113,11 @@ Typical flow:
 1. Run `cfgsync init --storage <dir>` once to create the storage directory and record it as the active storage root.
 2. Run `cfgsync add <file>` for each ordinary config file you want to track.
 3. Run `cfgsync backup` whenever you want to copy the current tracked files into storage.
-4. Optionally run `cfgsync watch` to keep backing up tracked files as they change until you stop it.
-5. Run `cfgsync restore <file>` to restore one tracked file, or `cfgsync restore --all` to restore every tracked file.
-6. Run `cfgsync remove <file>` when a file should no longer be tracked.
+4. Run `cfgsync status` to check which tracked files differ from stored backups.
+5. Run `cfgsync diff <file>` to inspect a tracked file's text changes.
+6. Optionally run `cfgsync watch` as a long-running foreground watch that keeps backing up tracked files as they change until you stop it.
+7. Run `cfgsync restore <file>` to restore one tracked file, or `cfgsync restore --all` to restore every tracked file.
+8. Run `cfgsync remove <file>` when a file should no longer be tracked.
 
 Fresh-system restore flow:
 
@@ -197,21 +203,41 @@ Copies every tracked file from its original location into the storage `files/` t
 
 If one tracked file cannot be backed up, cfgsync reports that file, continues with the remaining entries, and exits with a failure after the batch finishes.
 
+### `cfgsync status`
+
+Shows tracked files whose current original content differs from the stored backup.
+
+The command is read-only. It byte-compares each tracked original file against its stored backup and prints only changed or problem files in registry order:
+
+```text
+modified <path>
+missing-original <path>
+missing-backup <path>
+```
+
+If every tracked file has an existing original, an existing backup, and matching bytes, it prints:
+
+```text
+Clean.
+```
+
 ### `cfgsync diff <file>`
 
 Shows a unified text diff between a tracked file's stored backup and its current original file.
 
-The stored backup is shown as the old side and the current original file is shown as the new side. Identical files produce no output and still exit successfully.
+The stored backup is shown as the old side and the current original file is shown as the new side. The diff is generated internally; cfgsync does not require Git, system `diff`, or any external diff tool at runtime. Identical files produce no output and still exit successfully.
 
 The file path is normalized before lookup. The command fails if the file is not tracked, if the original file is missing, if the tracked file has no stored backup yet, or if the file contains unsupported binary content.
 
 ### `cfgsync watch`
 
-Runs in the foreground and watches tracked original files for changes.
+Runs as a long-running foreground watch for tracked original files. It is not a daemon or background service.
 
-The command watches tracked files' parent directories, ignores untracked files in those directories, and backs up a tracked file when it is added, modified, or moved into place. Duplicate events for the same file are debounced with a short delay. The command does not perform an initial backup on startup.
+The command runs until interrupted with Ctrl+C/SIGTERM, watches tracked files' parent directories, ignores untracked files in those directories, and backs up tracked files on add/modify/move-into-place events. Duplicate events for the same file are debounced with a short delay. The command does not perform an initial backup on startup.
 
-If a tracked file is deleted, becomes non-ordinary, or cannot be backed up, cfgsync reports a warning and keeps watching. Press Ctrl+C to stop watching.
+If a tracked file is deleted, becomes non-ordinary, or cannot be backed up, cfgsync warns and continues watching. Press Ctrl+C to stop watching.
+
+The production watcher uses `efsw` through cfgsync's local watcher adapter. It is configured with the generic polling backend for predictable cross-platform foreground behavior.
 
 ### `cfgsync restore --all`
 
@@ -294,12 +320,11 @@ The v0 scope is intentionally small:
 - no symlink tracking
 - no special file handling
 - no snapshots or history
-- no diff support
 - no merge or conflict resolution
+- no background service or daemon lifecycle for watch
 - no original-path remapping across users, home directories, or operating systems
 - no remote sync
 - no encryption
-- no automatic file watching
 - no packaging or installer flow yet
 
 ## Development Notes
@@ -309,7 +334,9 @@ The codebase is organized around a small layered design:
 - `src/cli/` defines command-line structure and argument parsing
 - `src/commands/` contains thin command handlers
 - `src/core/` contains registry and app configuration logic
+- `src/diff/` contains byte comparison and internal unified diff rendering
 - `src/storage/` maps tracked entries to storage paths and performs backup/restore copies
+- `src/watch/` contains the watcher abstraction, `efsw` adapter, and debounced watch backup processing
 - `src/utils/` contains path, filesystem, logging, and app config path helpers
 - `tests/` contains focused GoogleTest coverage and CLI-level tests
 
