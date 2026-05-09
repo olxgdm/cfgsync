@@ -15,7 +15,7 @@ int App::Run(int argc, char* argv[]) {
     CLI::App cli{"cfgsync keeps local backups of text-based configuration files."};
     cli.require_subcommand(1);
     cli.set_help_all_flag("--help-all", "Show help for all commands.");
-    cli.set_version_flag("-v,--version", "cfgsync 0.1.1");
+    cli.set_version_flag("-v,--version", "cfgsync 0.2.0");
 
     try {
         AppConfig_.SetConfigPath(utils::GetDefaultAppConfigPath());
