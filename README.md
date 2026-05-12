@@ -78,6 +78,20 @@ Optional clang-tidy checks can be enabled with:
 cmake -S . -B build -DCFGSYNC_ENABLE_CLANG_TIDY=ON
 ```
 
+### Install
+
+After building, install the executable and basic project documentation with:
+
+```bash
+cmake --install build --config Release
+```
+
+To install into a local test prefix instead of the system default prefix:
+
+```bash
+cmake --install build --config Release --prefix /tmp/cfgsync-install
+```
+
 ## Test
 
 Build the project and run CTest:
@@ -324,7 +338,7 @@ The v0 scope is intentionally small:
 - no original-path remapping across users, home directories, or operating systems
 - no remote sync
 - no encryption
-- no packaging or installer flow yet
+- no packaged installer flow yet; CMake install is supported
 
 ## Development Notes
 
