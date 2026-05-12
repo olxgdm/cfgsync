@@ -20,6 +20,8 @@ set(CMAKE_LINK_LIBRARIES_STRATEGY REORDER_FREELY)
 
 project(cfgsync VERSION 0.2.0 LANGUAGES CXX)
 
+include(GNUInstallDirs)
+
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -158,6 +160,16 @@ else()
     target_compile_options(cfgsync PRIVATE -Wall -Wextra -Wpedantic)
 endif()
 
+install(TARGETS cfgsync
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+)
+
+install(FILES
+    README.md
+    LICENSE
+    DESTINATION ${CMAKE_INSTALL_DOCDIR}
+)
+
 if(CFGSYNC_BUILD_TESTS)
     enable_testing()
 
@@ -165,6 +177,7 @@ if(CFGSYNC_BUILD_TESTS)
 
     set(gtest_force_shared_crt ON CACHE BOOL "Use shared CRT for GoogleTest on Windows" FORCE)
     set(BUILD_GMOCK OFF CACHE BOOL "Build GoogleMock" FORCE)
+    set(INSTALL_GTEST OFF CACHE BOOL "Install GoogleTest" FORCE)
 
     FetchContent_Declare(
         googletest
