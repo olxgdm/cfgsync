@@ -50,7 +50,7 @@ class C_0004578940656653356480 {
 +Start() : void
 +WatchDirectory(const fs::pa...) : void
 +handleFileAction(efsw::WatchI...) : void
-+~Impl() : void
++~Impl() noexcept : void
 __
 }
 class "vector<cfgsync::core::TrackedEntry>" as C_0008224020844101552744
