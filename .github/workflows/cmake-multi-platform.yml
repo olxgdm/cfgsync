@@ -215,7 +215,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: llvm-coverage-html
-          path: ${{ steps.strings.outputs.build-output-dir }}/coverage/html
+          path: ${{ steps.strings.outputs.coverage-output-dir }}/html
 
       - name: SonarQube Cloud scan
         uses: SonarSource/sonarqube-scan-action@v6
@@ -224,7 +224,8 @@ jobs:
           SONAR_HOST_URL: https://sonarcloud.io
         with:
           args: >
-            -Dsonar.cfamily.build-wrapper-output=bw-output
+            -Dsonar.cfamily.compile-commands=bw-output/compile_commands.json
+            -Dsonar.cfamily.llvm-cov.reportPath=${{ steps.strings.outputs.coverage-output-dir }}/llvm-cov.txt
             -Dsonar.qualitygate.wait=true
 
   build:
