@@ -72,17 +72,94 @@ jobs:
       - name: Configure CMake for SonarQube
         run: >
           cmake -B ${{ steps.strings.outputs.build-output-dir }}
-          -DCMAKE_CXX_COMPILER=g++
-          -DCMAKE_C_COMPILER=gcc
-          -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_CXX_COMPILER=clang++
+          -DCMAKE_C_COMPILER=clang
+          -DCMAKE_BUILD_TYPE=Debug
           -DCFGSYNC_BUILD_TESTS=ON
+          -DCFGSYNC_ENABLE_COVERAGE=ON
           -S ${{ github.workspace }}
 
       - name: Build with SonarQube Build Wrapper
         run: >
           build-wrapper-linux-x86-64
           --out-dir bw-output
-          cmake --build ${{ steps.strings.outputs.build-output-dir }} --config Release
+          cmake --build ${{ steps.strings.outputs.build-output-dir }} --config Debug
+
+      - name: Test with LLVM coverage
+        shell: bash
+        run: |
+          mkdir -p "${{ steps.strings.outputs.build-output-dir }}/coverage/profiles"
+          LLVM_PROFILE_FILE="${{ steps.strings.outputs.build-output-dir }}/coverage/profiles/%m-%p.profraw" \
+            ctest --test-dir "${{ steps.strings.outputs.build-output-dir }}" --build-config Debug --output-on-failure
+
+      - name: Generate LLVM coverage reports
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          build_dir="${{ steps.strings.outputs.build-output-dir }}"
+          coverage_dir="${build_dir}/coverage"
+          profile_data="${coverage_dir}/coverage.profdata"
+
+          raw_profiles=()
+          while IFS= read -r profile; do
+            raw_profiles+=("${profile}")
+          done < <(find "${coverage_dir}/profiles" -type f -name '*.profraw' | sort)
+
+          if [[ ${#raw_profiles[@]} -eq 0 ]]; then
+            echo "No LLVM raw profile files were generated." >&2
+            exit 1
+          fi
+
+          llvm-profdata merge -sparse "${raw_profiles[@]}" -o "${profile_data}"
+
+          coverage_binaries=()
+          while IFS= read -r binary; do
+            coverage_binaries+=("${binary}")
+          done < <(find "${build_dir}" -maxdepth 1 -type f -perm -111 \( -name 'cfgsync' -o -name 'cfgsync_*_tests' \) | sort)
+
+          if [[ ${#coverage_binaries[@]} -eq 0 ]]; then
+            echo "No cfgsync coverage binaries were found." >&2
+            exit 1
+          fi
+
+          source_files=()
+          while IFS= read -r source_file; do
+            source_files+=("${source_file}")
+          done < <(find "${{ github.workspace }}/src" -type f \( -name '*.cpp' -o -name '*.hpp' \) | sort)
+
+          if [[ ${#source_files[@]} -eq 0 ]]; then
+            echo "No cfgsync source files were found." >&2
+            exit 1
+          fi
+
+          primary_binary="${coverage_binaries[0]}"
+          object_args=()
+          for binary in "${coverage_binaries[@]:1}"; do
+            object_args+=("-object" "${binary}")
+          done
+
+          llvm-cov show "${primary_binary}" "${object_args[@]}" \
+            -instr-profile="${profile_data}" \
+            -format=text \
+            -use-color=0 \
+            "${source_files[@]}" > "${coverage_dir}/llvm-cov.txt"
+
+          llvm-cov show "${primary_binary}" "${object_args[@]}" \
+            -instr-profile="${profile_data}" \
+            -format=html \
+            -output-dir="${coverage_dir}/html" \
+            "${source_files[@]}"
+
+          llvm-cov report "${primary_binary}" "${object_args[@]}" \
+            -instr-profile="${profile_data}" \
+            "${source_files[@]}"
+
+      - name: Upload LLVM coverage HTML report
+        uses: actions/upload-artifact@v4
+        with:
+          name: llvm-coverage-html
+          path: ${{ steps.strings.outputs.build-output-dir }}/coverage/html
 
       - name: SonarQube Cloud scan
         uses: SonarSource/sonarqube-scan-action@v6
