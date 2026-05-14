@@ -4,9 +4,11 @@
 #include "utils/FileUtils.hpp"
 #include "utils/PathUtils.hpp"
 
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
+#include <optional>
 #include <string>
 
 #ifdef _WIN32
@@ -38,6 +40,32 @@ void SetEnvironmentVariable(const char* name, const std::string& value) {
 #else
     setenv(name, value.c_str(), 1);
 #endif
+}
+
+void UnsetEnvironmentVariable(const char* name) {
+#ifdef _WIN32
+    _putenv_s(name, "");
+#else
+    unsetenv(name);
+#endif
+}
+
+std::optional<std::string> GetEnvironmentVariable(const char* name) {
+    const char* value = std::getenv(name);
+    if (value == nullptr) {
+        return std::nullopt;
+    }
+
+    return std::string{value};
+}
+
+void RestoreEnvironmentVariable(const char* name, const std::optional<std::string>& value) {
+    if (value.has_value()) {
+        SetEnvironmentVariable(name, value.value());
+        return;
+    }
+
+    UnsetEnvironmentVariable(name);
 }
 
 class PathFileUtilsTest : public testing::Test {
