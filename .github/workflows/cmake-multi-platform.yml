@@ -67,32 +67,51 @@ jobs:
         shell: bash
         run: |
           echo "build-output-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
+          echo "coverage-output-dir=${{ github.workspace }}/build/coverage" >> "$GITHUB_OUTPUT"
+
+      - name: Install LLVM tools
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-18 llvm-18
+
+          echo "CC=clang-18" >> "$GITHUB_ENV"
+          echo "CXX=clang++-18" >> "$GITHUB_ENV"
+          echo "LLVM_PROFDATA=llvm-profdata-18" >> "$GITHUB_ENV"
+          echo "LLVM_COV=llvm-cov-18" >> "$GITHUB_ENV"
 
       - name: Install SonarQube Build Wrapper
         uses: SonarSource/sonarqube-scan-action/install-build-wrapper@v6
 
       - name: Configure CMake for SonarQube
-        run: >
-          cmake -B ${{ steps.strings.outputs.build-output-dir }}
-          -DCMAKE_CXX_COMPILER=clang++
-          -DCMAKE_C_COMPILER=clang
-          -DCMAKE_BUILD_TYPE=Debug
-          -DCFGSYNC_BUILD_TESTS=ON
-          -DCFGSYNC_ENABLE_COVERAGE=ON
-          -S ${{ github.workspace }}
+        shell: bash
+        run: |
+          cmake -B "${{ steps.strings.outputs.build-output-dir }}" \
+            -DCMAKE_CXX_COMPILER="${CXX}" \
+            -DCMAKE_C_COMPILER="${CC}" \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCFGSYNC_BUILD_TESTS=ON \
+            -DCFGSYNC_ENABLE_COVERAGE=ON \
+            -S "${{ github.workspace }}"
 
       - name: Build with SonarQube Build Wrapper
-        run: >
-          build-wrapper-linux-x86-64
-          --out-dir bw-output
-          cmake --build ${{ steps.strings.outputs.build-output-dir }} --config Debug
+        shell: bash
+        run: |
+          build-wrapper-linux-x86-64 \
+            --out-dir bw-output \
+            cmake --build "${{ steps.strings.outputs.build-output-dir }}" --config Debug
 
       - name: Test with LLVM coverage
         shell: bash
         run: |
-          mkdir -p "${{ steps.strings.outputs.build-output-dir }}/coverage/profiles"
-          LLVM_PROFILE_FILE="${{ steps.strings.outputs.build-output-dir }}/coverage/profiles/%m-%p.profraw" \
-            ctest --test-dir "${{ steps.strings.outputs.build-output-dir }}" --build-config Debug --output-on-failure
+          set -euo pipefail
+
+          mkdir -p "${{ steps.strings.outputs.coverage-output-dir }}/profiles"
+
+          LLVM_PROFILE_FILE="${{ steps.strings.outputs.coverage-output-dir }}/profiles/%m-%p.profraw" \
+            ctest --test-dir "${{ steps.strings.outputs.build-output-dir }}" \
+              --build-config Debug \
+              --output-on-failure
 
       - name: Generate LLVM coverage reports
         shell: bash
