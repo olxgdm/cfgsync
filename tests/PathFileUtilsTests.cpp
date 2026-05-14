@@ -172,11 +172,10 @@ TEST_F(PathFileUtilsTest, MakeStorageRelativePathNormalizesRelativeInputUnderFil
     const auto rootName = normalizedPath.root_name().generic_string();
     if (!rootName.empty()) {
         std::string sanitizedRoot = rootName;
-        sanitizedRoot.erase(std::remove_if(sanitizedRoot.begin(), sanitizedRoot.end(),
-                                           [](char character) {
-                                               return character == ':' || character == '/' || character == '\\';
-                                           }),
-                            sanitizedRoot.end());
+        sanitizedRoot.erase(
+            std::remove_if(sanitizedRoot.begin(), sanitizedRoot.end(),
+                           [](char character) { return character == ':' || character == '/' || character == '\\'; }),
+            sanitizedRoot.end());
         if (!sanitizedRoot.empty()) {
             expectedPath /= sanitizedRoot;
         }
