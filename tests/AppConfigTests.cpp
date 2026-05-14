@@ -103,6 +103,105 @@ TEST_F(AppConfigTest, NonIntegerVersionThrowsClearError) {
     }
 }
 
+TEST_F(AppConfigTest, NonObjectConfigThrowsClearError) {
+    const auto configPath = GetTestRoot() / "non-object" / "config.json";
+    cfgsync::utils::EnsureDirectoryExists(configPath.parent_path());
+
+    std::ofstream output{configPath};
+    output << R"(["not", "an", "object"])";
+    output.close();
+
+    cfgsync::core::AppConfig config{configPath};
+
+    try {
+        config.Load();
+        FAIL() << "Non-object app config did not throw.";
+    } catch (const cfgsync::ConfigError& error) {
+        const std::string message = error.what();
+        EXPECT_NE(message.find("root value must be an object"), std::string::npos);
+    }
+}
+
+TEST_F(AppConfigTest, UnsupportedVersionThrowsClearError) {
+    const auto configPath = GetTestRoot() / "unsupported-version" / "config.json";
+    cfgsync::utils::EnsureDirectoryExists(configPath.parent_path());
+
+    std::ofstream output{configPath};
+    output << R"({
+        "version": 99,
+        "storage_root": "/tmp/cfgsync-storage"
+    })";
+    output.close();
+
+    cfgsync::core::AppConfig config{configPath};
+
+    try {
+        config.Load();
+        FAIL() << "Unsupported app config version did not throw.";
+    } catch (const cfgsync::ConfigError& error) {
+        const std::string message = error.what();
+        EXPECT_NE(message.find("Unsupported cfgsync app config version 99"), std::string::npos);
+    }
+}
+
+TEST_F(AppConfigTest, MissingStorageRootThrowsClearError) {
+    const auto configPath = GetTestRoot() / "missing-storage-root" / "config.json";
+    cfgsync::utils::EnsureDirectoryExists(configPath.parent_path());
+
+    std::ofstream output{configPath};
+    output << R"({
+        "version": 1
+    })";
+    output.close();
+
+    cfgsync::core::AppConfig config{configPath};
+
+    try {
+        config.Load();
+        FAIL() << "Missing storage_root did not throw.";
+    } catch (const cfgsync::ConfigError& error) {
+        const std::string message = error.what();
+        EXPECT_NE(message.find("storage_root must be a string"), std::string::npos);
+    }
+}
+
+TEST_F(AppConfigTest, EmptyStorageRootThrowsClearError) {
+    const auto configPath = GetTestRoot() / "empty-storage-root" / "config.json";
+    cfgsync::utils::EnsureDirectoryExists(configPath.parent_path());
+
+    std::ofstream output{configPath};
+    output << R"({
+        "version": 1,
+        "storage_root": ""
+    })";
+    output.close();
+
+    cfgsync::core::AppConfig config{configPath};
+
+    try {
+        config.Load();
+        FAIL() << "Empty storage_root did not throw.";
+    } catch (const cfgsync::ConfigError& error) {
+        const std::string message = error.what();
+        EXPECT_NE(message.find("storage_root must not be empty"), std::string::npos);
+    }
+}
+
+TEST_F(AppConfigTest, EmptyConfigPathFailsLoadAndSaveClearly) {
+    cfgsync::core::AppConfig config;
+
+    EXPECT_THROW(config.Load(), cfgsync::ConfigError);
+
+    config.SetStorageRoot(GetTestRoot() / "storage");
+    EXPECT_THROW(config.Save(), cfgsync::ConfigError);
+}
+
+TEST_F(AppConfigTest, SaveWithoutStorageRootFailsClearly) {
+    cfgsync::core::AppConfig config{GetTestRoot() / "config.json"};
+
+    EXPECT_THROW(config.Save(), cfgsync::ConfigError);
+}
+
 TEST_F(AppConfigTest, ResolvesDefaultConfigPathFromPlatformEnvironment) {
 #ifdef _WIN32
     SetEnvironmentVariable("APPDATA", GetTestRoot().string());
