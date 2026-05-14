@@ -24,6 +24,7 @@ on:
       - "scripts/**"
       - ".clang-format"
       - ".clang-tidy"
+      - "sonar-project.properties"
       - ".github/actions/**"
       - ".github/workflows/cmake-multi-platform.yml"
 
@@ -48,6 +49,7 @@ on:
       - "scripts/**"
       - ".clang-format"
       - ".clang-tidy"
+      - "sonar-project.properties"
       - ".github/actions/**"
       - ".github/workflows/cmake-multi-platform.yml"
 
