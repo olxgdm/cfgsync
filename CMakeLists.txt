@@ -275,6 +275,7 @@ if(CFGSYNC_BUILD_TESTS)
     cfgsync_add_gtest_target(cfgsync_file_watcher_tests
         SOURCES
             tests/FileWatcherTests.cpp
+            tests/common/TestTempDirectory.cpp
             src/watch/EfswFileWatcher.cpp
         LIBRARIES
             efsw-static
