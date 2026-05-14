@@ -108,6 +108,44 @@ TEST_F(PathFileUtilsTest, NormalizePathExpandsUserHomeWhenAvailable) {
     EXPECT_EQ(normalizedPath, (home / "config" / "file.conf").lexically_normal());
 }
 
+TEST_F(PathFileUtilsTest, NormalizePathExpandsBareUserHomeWhenAvailable) {
+    const auto home = GetTestRoot() / "home";
+    cfgsync::utils::EnsureDirectoryExists(home);
+
+#ifdef _WIN32
+    SetEnvironmentVariable("USERPROFILE", home.string());
+#else
+    SetEnvironmentVariable("HOME", home.string());
+#endif
+
+    const auto normalizedPath = cfgsync::utils::NormalizePath("~");
+
+    EXPECT_EQ(normalizedPath, home.lexically_normal());
+}
+
+TEST_F(PathFileUtilsTest, NormalizePathLeavesTildeUserPathUnexpanded) {
+    const auto normalizedPath = cfgsync::utils::NormalizePath("~other/config");
+
+    EXPECT_TRUE(normalizedPath.is_absolute());
+    EXPECT_NE(normalizedPath.string().find("~other"), std::string::npos);
+}
+
+TEST_F(PathFileUtilsTest, NormalizePathLeavesHomePathUnexpandedWhenHomeIsUnavailable) {
+#ifndef _WIN32
+    const auto previousHome = GetEnvironmentVariable("HOME");
+    UnsetEnvironmentVariable("HOME");
+
+    const auto normalizedPath = cfgsync::utils::NormalizePath("~/config/file.conf");
+
+    EXPECT_TRUE(normalizedPath.is_absolute());
+    EXPECT_NE(normalizedPath.string().find("~"), std::string::npos);
+
+    RestoreEnvironmentVariable("HOME", previousHome);
+#else
+    GTEST_SKIP() << "Windows home fallback uses multiple environment variables.";
+#endif
+}
+
 TEST_F(PathFileUtilsTest, MakeStorageRelativePathMapsPosixPathUnderFiles) {
     const auto storagePath = cfgsync::utils::MakeStorageRelativePath("/home/user/.gitconfig");
 
@@ -126,12 +164,52 @@ TEST_F(PathFileUtilsTest, MakeStorageRelativePathMapsWindowsDrivePathUnderFiles)
     EXPECT_EQ(storagePath.generic_string(), "files/C/Users/Oleksii/.gitconfig");
 }
 
+TEST_F(PathFileUtilsTest, MakeStorageRelativePathNormalizesRelativeInputUnderFiles) {
+    const auto inputPath = fs::path{"relative"} / ".." / "cfgsync-relative.conf";
+    const auto normalizedPath = cfgsync::utils::NormalizePath(inputPath);
+
+    fs::path expectedPath{"files"};
+    const auto rootName = normalizedPath.root_name().generic_string();
+    if (!rootName.empty()) {
+        std::string sanitizedRoot = rootName;
+        sanitizedRoot.erase(std::remove_if(sanitizedRoot.begin(), sanitizedRoot.end(),
+                                           [](char character) {
+                                               return character == ':' || character == '/' || character == '\\';
+                                           }),
+                            sanitizedRoot.end());
+        if (!sanitizedRoot.empty()) {
+            expectedPath /= sanitizedRoot;
+        }
+    }
+
+    for (const auto& component : normalizedPath) {
+        if (!normalizedPath.root_name().empty() && component == normalizedPath.root_name()) {
+            continue;
+        }
+
+        if (component == normalizedPath.root_directory()) {
+            continue;
+        }
+
+        expectedPath /= component;
+    }
+
+    const auto storagePath = cfgsync::utils::MakeStorageRelativePath(inputPath);
+
+    EXPECT_EQ(storagePath, expectedPath);
+}
+
 TEST_F(PathFileUtilsTest, OrdinaryFileValidationAcceptsRegularFile) {
     const auto filePath = GetTestRoot() / "source.conf";
     WriteTextFile(filePath, "value=true\n");
 
     EXPECT_TRUE(cfgsync::utils::IsOrdinaryFile(filePath));
     EXPECT_NO_THROW(cfgsync::utils::RequireOrdinaryFile(filePath));
+}
+
+TEST_F(PathFileUtilsTest, EmptyPathValidationFailsClearly) {
+    EXPECT_FALSE(cfgsync::utils::IsOrdinaryFile({}));
+    EXPECT_THROW(cfgsync::utils::RequireOrdinaryFile({}), std::invalid_argument);
 }
 
 TEST_F(PathFileUtilsTest, OrdinaryFileValidationRejectsMissingPath) {
@@ -173,6 +251,33 @@ TEST_F(PathFileUtilsTest, CopyFileCreatesDestinationParentDirectories) {
 
     EXPECT_TRUE(fs::exists(destinationPath));
     EXPECT_EQ(ReadTextFile(destinationPath), "value=true\n");
+}
+
+TEST_F(PathFileUtilsTest, EnsureDirectoryExistsAllowsEmptyPath) {
+    EXPECT_NO_THROW(cfgsync::utils::EnsureDirectoryExists({}));
+}
+
+TEST_F(PathFileUtilsTest, CopyFileRejectsEmptySourceAndDestination) {
+    const auto sourcePath = GetTestRoot() / "source.conf";
+    const auto destinationPath = GetTestRoot() / "destination.conf";
+    WriteTextFile(sourcePath, "value=true\n");
+
+    EXPECT_THROW(cfgsync::utils::CopyFile({}, destinationPath), std::invalid_argument);
+    EXPECT_THROW(cfgsync::utils::CopyFile(sourcePath, {}), std::invalid_argument);
+}
+
+TEST_F(PathFileUtilsTest, CopyFileFailureReportsContext) {
+    const auto missingSourcePath = GetTestRoot() / "missing.conf";
+    const auto destinationPath = GetTestRoot() / "destination.conf";
+
+    try {
+        cfgsync::utils::CopyFile(missingSourcePath, destinationPath);
+        FAIL() << "Copying a missing source did not throw.";
+    } catch (const cfgsync::FileError& error) {
+        const std::string message = error.what();
+        EXPECT_NE(message.find(missingSourcePath.string()), std::string::npos);
+        EXPECT_NE(message.find(destinationPath.string()), std::string::npos);
+    }
 }
 
 }  // namespace
