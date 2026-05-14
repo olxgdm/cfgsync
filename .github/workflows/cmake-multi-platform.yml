@@ -166,6 +166,7 @@ jobs:
 
       - name: Install
         run: cmake --install ${{ steps.strings.outputs.build-output-dir }} --config ${{ matrix.build_type }} --prefix ${{ steps.strings.outputs.install-output-dir }}
+        run: cmake --install ${{ steps.strings.outputs.build-output-dir }} --config ${{ matrix.build_type }} --prefix ${{ steps.strings.outputs.install-output-dir }}
 
       - name: Validate installed CLI
         shell: pwsh
