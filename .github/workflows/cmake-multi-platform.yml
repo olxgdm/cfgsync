@@ -144,11 +144,11 @@ jobs:
             find "${build_dir}" \
               -type f \
               -perm -111 \
+              ! -path "${build_dir}/_deps/*" \
               \( \
                 -name 'cfgsync' \
                 -o -name 'cfgsync_*_tests' \
-                -o -name '*test*' \
-                -o -name '*Test*' \
+                -o -name '*_tests' \
               \) \
               | sort
           )
