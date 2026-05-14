@@ -1,6 +1,6 @@
+#include "Exceptions.hpp"
 #include "common/GoogleTestMain.hpp"
 #include "common/TestTempDirectory.hpp"
-#include "Exceptions.hpp"
 #include "gtest/gtest.h"
 #include "watch/EfswFileWatcher.hpp"
 #include "watch/FileWatcher.hpp"
