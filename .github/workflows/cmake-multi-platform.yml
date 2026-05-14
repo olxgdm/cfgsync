@@ -119,60 +119,95 @@ jobs:
           set -euo pipefail
 
           build_dir="${{ steps.strings.outputs.build-output-dir }}"
-          coverage_dir="${build_dir}/coverage"
+          coverage_dir="${{ steps.strings.outputs.coverage-output-dir }}"
           profile_data="${coverage_dir}/coverage.profdata"
+          text_report="${coverage_dir}/llvm-cov.txt"
 
-          raw_profiles=()
-          while IFS= read -r profile; do
-            raw_profiles+=("${profile}")
-          done < <(find "${coverage_dir}/profiles" -type f -name '*.profraw' | sort)
+          mapfile -t raw_profiles < <(
+            find "${coverage_dir}/profiles" \
+              -type f \
+              -name '*.profraw' \
+              | sort
+          )
 
           if [[ ${#raw_profiles[@]} -eq 0 ]]; then
             echo "No LLVM raw profile files were generated." >&2
             exit 1
           fi
 
-          llvm-profdata merge -sparse "${raw_profiles[@]}" -o "${profile_data}"
+          "${LLVM_PROFDATA}" merge \
+            -sparse \
+            "${raw_profiles[@]}" \
+            -o "${profile_data}"
 
-          coverage_binaries=()
-          while IFS= read -r binary; do
-            coverage_binaries+=("${binary}")
-          done < <(find "${build_dir}" -maxdepth 1 -type f -perm -111 \( -name 'cfgsync' -o -name 'cfgsync_*_tests' \) | sort)
+          mapfile -t coverage_binaries < <(
+            find "${build_dir}" \
+              -type f \
+              -perm -111 \
+              \( \
+                -name 'cfgsync' \
+                -o -name 'cfgsync_*_tests' \
+                -o -name '*test*' \
+                -o -name '*Test*' \
+              \) \
+              | sort
+          )
 
           if [[ ${#coverage_binaries[@]} -eq 0 ]]; then
-            echo "No cfgsync coverage binaries were found." >&2
+            echo "No coverage binaries were found." >&2
+            find "${build_dir}" -type f -perm -111 | sort >&2
             exit 1
           fi
 
-          source_files=()
-          while IFS= read -r source_file; do
-            source_files+=("${source_file}")
-          done < <(find "${{ github.workspace }}/src" -type f \( -name '*.cpp' -o -name '*.hpp' \) | sort)
+          mapfile -t source_files < <(
+            find "${{ github.workspace }}/src" "${{ github.workspace }}/tests" \
+              -type f \
+              \( \
+                -name '*.c' \
+                -o -name '*.cc' \
+                -o -name '*.cpp' \
+                -o -name '*.cxx' \
+                -o -name '*.h' \
+                -o -name '*.hh' \
+                -o -name '*.hpp' \
+                -o -name '*.hxx' \
+              \) \
+              | sort
+          )
 
           if [[ ${#source_files[@]} -eq 0 ]]; then
-            echo "No cfgsync source files were found." >&2
+            echo "No source files were found." >&2
             exit 1
           fi
 
           primary_binary="${coverage_binaries[0]}"
+
           object_args=()
           for binary in "${coverage_binaries[@]:1}"; do
             object_args+=("-object" "${binary}")
           done
 
-          llvm-cov show "${primary_binary}" "${object_args[@]}" \
+          "${LLVM_COV}" show \
+            "${primary_binary}" \
+            "${object_args[@]}" \
             -instr-profile="${profile_data}" \
             -format=text \
+            -show-branches=count \
             -use-color=0 \
-            "${source_files[@]}" > "${coverage_dir}/llvm-cov.txt"
+            "${source_files[@]}" \
+            > "${text_report}"
 
-          llvm-cov show "${primary_binary}" "${object_args[@]}" \
+          "${LLVM_COV}" show \
+            "${primary_binary}" \
+            "${object_args[@]}" \
             -instr-profile="${profile_data}" \
             -format=html \
             -output-dir="${coverage_dir}/html" \
             "${source_files[@]}"
 
-          llvm-cov report "${primary_binary}" "${object_args[@]}" \
+          "${LLVM_COV}" report \
+            "${primary_binary}" \
+            "${object_args[@]}" \
             -instr-profile="${profile_data}" \
             "${source_files[@]}"
 
