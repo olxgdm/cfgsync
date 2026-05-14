@@ -87,10 +87,10 @@ jobs:
             installed_executable: bin/cfgsync
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Set reusable strings
-        # Turn repeated input strings (such as the build output directory) into step outputs. These step outputs can be used throughout the workflow file.
         id: strings
         shell: bash
         run: |
@@ -98,38 +98,46 @@ jobs:
           echo "install-output-dir=${{ github.workspace }}/install" >> "$GITHUB_OUTPUT"
 
       - name: Configure CMake
-        # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
-        # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
         run: >
-          cmake -B ${{ steps.strings.outputs.build-output-dir }}
-          -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }} -DCMAKE_C_COMPILER=${{
-          matrix.c_compiler }} -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
-          -DCFGSYNC_BUILD_TESTS=ON -S ${{ github.workspace }}
+          cmake
+          -B "${{ steps.strings.outputs.build-output-dir }}"
+          -S "${{ github.workspace }}"
+          -DCMAKE_C_COMPILER=${{ matrix.c_compiler }}
+          -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }}
+          -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+          -DCFGSYNC_BUILD_TESTS=ON
 
       - name: Build
-        # Build your program with the given configuration. Note that --config is needed because the default Windows generator is a multi-config generator (Visual Studio generator).
-        run: cmake --build ${{ steps.strings.outputs.build-output-dir }} --config ${{
-          matrix.build_type }}
+        run: >
+          cmake --build "${{ steps.strings.outputs.build-output-dir }}"
+          --config ${{ matrix.build_type }}
 
       - name: Test
         working-directory: ${{ steps.strings.outputs.build-output-dir }}
-        # Execute tests defined by the CMake configuration. Note that --build-config is needed because the default Windows generator is a multi-config generator (Visual Studio generator).
-        # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
-        run: ctest --build-config ${{ matrix.build_type }}
+        run: >
+          ctest
+          --build-config ${{ matrix.build_type }}
+          --output-on-failure
 
       - name: Install
-        run: cmake --install ${{ steps.strings.outputs.build-output-dir }} --config ${{
-          matrix.build_type }} --prefix ${{ steps.strings.outputs.install-output-dir }}
+        run: >
+          cmake --install "${{ steps.strings.outputs.build-output-dir }}"
+          --config ${{ matrix.build_type }}
+          --prefix "${{ steps.strings.outputs.install-output-dir }}"
 
       - name: Validate installed CLI
         shell: pwsh
         run: |
-          $executable = Join-Path "${{ steps.strings.outputs.install-output-dir }}" "${{ matrix.installed_executable }}"
+          $executable = Join-Path `
+            "${{ steps.strings.outputs.install-output-dir }}" `
+            "${{ matrix.installed_executable }}"
+
           if (-not (Test-Path -Path $executable -PathType Leaf)) {
             throw "Installed executable was not found at $executable"
           }
 
           & $executable --help
+
           if ($LASTEXITCODE -ne 0) {
             throw "Installed executable exited with code $LASTEXITCODE"
           }
@@ -139,7 +147,9 @@ jobs:
         shell: bash
         run: |
           mkdir -p ctest-logs
-          cp -f "${{ steps.strings.outputs.build-output-dir }}/Testing/Temporary/"*.log ctest-logs/ 2>/dev/null || true
+          cp -f \
+            "${{ steps.strings.outputs.build-output-dir }}/Testing/Temporary/"*.log \
+            ctest-logs/ 2>/dev/null || true
 
       - name: Upload CTest logs
         if: failure()
