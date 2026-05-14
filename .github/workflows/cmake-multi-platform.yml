@@ -5,6 +5,7 @@ on:
 
   push:
     branches: ["main"]
+    branches: ["main"]
     paths:
       - "**/*.c"
       - "**/*.cc"
@@ -27,7 +28,9 @@ on:
       - ".github/actions/**"
       - ".github/workflows/cmake-multi-platform.yml"
 
+
   pull_request:
+    branches: ["main"]
     branches: ["main"]
     paths:
       - "**/*.c"
