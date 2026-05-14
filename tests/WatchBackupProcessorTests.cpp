@@ -63,6 +63,53 @@ TEST_F(WatchBackupProcessorTest, IgnoresUntrackedFileEvents) {
     EXPECT_FALSE(processor.HasPendingBackups());
 }
 
+TEST_F(WatchBackupProcessorTest, IgnoresUntrackedDeletedFileEvents) {
+    const auto trackedPath = SourcePath(".gitconfig");
+    const auto untrackedPath = SourcePath("untracked.conf");
+    cfgsync::tests::WriteTextFile(trackedPath, "tracked\n");
+    TrackFile(Registry(), trackedPath);
+    cfgsync::storage::StorageManager storageManager{StorageRoot()};
+    WatchBackupProcessor processor{Registry().GetTrackedEntries(), storageManager};
+
+    processor.OnFileChangedAt(Event(FileWatchAction::Deleted, untrackedPath), At(std::chrono::milliseconds{0}));
+
+    EXPECT_FALSE(processor.HasPendingBackups());
+    EXPECT_FALSE(processor.GetNextDueTime().has_value());
+}
+
+TEST_F(WatchBackupProcessorTest, AddedEventSchedulesBackupAndReportsNextDueTime) {
+    const auto sourcePath = SourcePath();
+    cfgsync::tests::WriteTextFile(sourcePath, "added\n");
+    const auto storedRelativePath = TrackFile(Registry(), sourcePath);
+    cfgsync::storage::StorageManager storageManager{StorageRoot()};
+    WatchBackupProcessor processor{Registry().GetTrackedEntries(), storageManager};
+
+    processor.OnFileChangedAt(Event(FileWatchAction::Added, sourcePath), At(std::chrono::milliseconds{25}));
+
+    ASSERT_TRUE(processor.HasPendingBackups());
+    ASSERT_TRUE(processor.GetNextDueTime().has_value());
+    EXPECT_EQ(processor.GetNextDueTime().value(), At(std::chrono::milliseconds{525}));
+
+    EXPECT_EQ(processor.ProcessDueBackupsAt(At(std::chrono::milliseconds{525})), 1U);
+    EXPECT_EQ(cfgsync::tests::ReadTextFile(StorageRoot() / storedRelativePath), "added\n");
+    EXPECT_FALSE(processor.GetNextDueTime().has_value());
+}
+
+TEST_F(WatchBackupProcessorTest, OnFileChangedUsesDefaultClockAndProcessDueBackupsLeavesFutureWorkPending) {
+    const auto sourcePath = SourcePath();
+    cfgsync::tests::WriteTextFile(sourcePath, "changed\n");
+    TrackFile(Registry(), sourcePath);
+    cfgsync::storage::StorageManager storageManager{StorageRoot()};
+    WatchBackupProcessor processor{Registry().GetTrackedEntries(), storageManager};
+
+    processor.OnFileChanged(Event(FileWatchAction::Modified, sourcePath));
+
+    EXPECT_TRUE(processor.HasPendingBackups());
+    EXPECT_TRUE(processor.GetNextDueTime().has_value());
+    EXPECT_EQ(processor.ProcessDueBackups(), 0U);
+    EXPECT_TRUE(processor.HasPendingBackups());
+}
+
 TEST_F(WatchBackupProcessorTest, DebouncesDuplicateTrackedEvents) {
     const auto sourcePath = SourcePath();
     cfgsync::tests::WriteTextFile(sourcePath, "first\n");
