@@ -29,6 +29,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 option(CFGSYNC_ENABLE_CLANG_TIDY "Enable clang-tidy for project sources" OFF)
 option(CFGSYNC_BUILD_TESTS "Build cfgsync GoogleTest test suite" ON)
+option(CFGSYNC_ENABLE_COVERAGE "Enable Clang/LLVM coverage instrumentation for cfgsync targets" OFF)
 
 include(FetchContent)
 
@@ -43,6 +44,27 @@ function(cfgsync_use_cached_fetchcontent name directory_name)
             break()
         endif()
     endforeach()
+endfunction()
+
+function(cfgsync_apply_coverage target_name)
+    if(NOT CFGSYNC_ENABLE_COVERAGE)
+        return()
+    endif()
+
+    if(NOT CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
+        message(FATAL_ERROR "CFGSYNC_ENABLE_COVERAGE requires Clang or AppleClang")
+    endif()
+
+    target_compile_options(${target_name} PRIVATE
+        -fprofile-instr-generate
+        -fcoverage-mapping
+        -O0
+        -g
+    )
+
+    target_link_options(${target_name} PRIVATE
+        -fprofile-instr-generate
+    )
 endfunction()
 
 cfgsync_use_cached_fetchcontent(CLI11 cli11-src)
