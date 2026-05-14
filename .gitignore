@@ -133,3 +133,6 @@ tmpfile.txt
 
 # Generated docs
 docs/diagrams/*.png
+
+# System generated
+.DS_Store
