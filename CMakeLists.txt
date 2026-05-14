@@ -153,6 +153,8 @@ add_executable(cfgsync
     src/utils/TerminalStyle.cpp
 )
 
+cfgsync_apply_coverage(cfgsync)
+
 # Enable clang-tidy only for project sources.
 # We intentionally do not enable it globally because that would also affect
 # third-party dependencies pulled via FetchContent. This option allows local

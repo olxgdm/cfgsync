@@ -32,6 +32,7 @@ function(cfgsync_add_gtest_target target_name)
     )
 
     cfgsync_apply_project_warnings(${target_name})
+    cfgsync_apply_coverage(${target_name})
 
     if(CFGSYNC_TEST_CLI)
         add_dependencies(${target_name} cfgsync)
