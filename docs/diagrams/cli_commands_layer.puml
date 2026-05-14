@@ -1,0 +1,185 @@
+@startuml
+title CLI parsing and command handlers
+package [src] as C_0016921741234196091272 {
+package [core] as C_0012207904346887387097 {
+class "basic_string<char>" as C_0001275076681856179721
+class C_0001275076681856179721 {
+__
+}
+class "vector<cfgsync::core::TrackedEntry>" as C_0008224020844101552744
+class C_0008224020844101552744 {
+__
+}
+class "AppConfig" as C_0006168007485712951452
+class C_0006168007485712951452 {
++AppConfig(std::filesys...) : void
+..
++GetConfigPath() const : const std::filesystem::path &
++GetStorageRoot() const : const std::filesystem::path &
++Load() : void
++Save() const : void
++SetConfigPath(std::filesys...) : void
++SetStorageRoot(const std::f...) : void
+__
+}
+class "TrackedEntry" as C_0001560558435499023390
+class C_0001560558435499023390 {
+__
++OriginalPath : std::string
++StoredRelativePath : std::string
+}
+class "Registry" as C_0013190075620569873206
+class C_0013190075620569873206 {
++Registry(std::filesys...) : void
+..
++AddEntry(TrackedEntry...) : bool
++ContainsOriginalPath(const std::f...) const : bool
++FindEntryByOriginalPath(const std::f...) const : const TrackedEntry *
++GetRegistryPath() const : const std::filesystem::path &
++GetStorageRoot() const : const std::filesystem::path &
++GetTrackedEntries() const : const std::vector<TrackedEntry> &
++Initialize(const std::f...) : void
++Load() : void
++RemoveEntry(const std::f...) : bool
++Save() const : void
++SetRegistryPath(std::filesys...) : void
++SetStorageRoot(const std::f...) : void
+__
+}
+}
+package [commands] as C_0007071062666072416744 {
+class "basic_ostream<char>" as C_0012782362847443494988
+class C_0012782362847443494988 {
+__
+}
+class "DiffCommand" as C_0008175946189229348597
+class C_0008175946189229348597 {
++DiffCommand(core::Regist...) : void
+..
++Execute(const std::f...) const : void
++Execute(const std::f...) const : void
+__
+}
+class "InitCommand" as C_0010348644749515316575
+class C_0010348644749515316575 {
++InitCommand(core::Regist...) : void
+..
++Execute(const std::f...) : void
+__
+}
+class "StatusCommand" as C_0012419010152674035740
+class C_0012419010152674035740 {
++StatusCommand(core::Regist...) : void
+..
++Execute(std::ostream...) const : void
++Execute() const : void
+__
+}
+class "RestoreCommand" as C_0016449125846540684918
+class C_0016449125846540684918 {
++RestoreCommand(core::Regist...) : void
+..
++ExecuteAll() const : void
++ExecuteSingle(const std::f...) const : void
+__
+}
+class "UseCommand" as C_0015814273669801255071
+class C_0015814273669801255071 {
++UseCommand(core::Regist...) : void
+..
++Execute(const std::f...) : void
+__
+}
+class "AddCommand" as C_0007750508848821660712
+class C_0007750508848821660712 {
++AddCommand(core::Regist...) : void
+..
++Execute(const std::f...) const : void
+__
+}
+class "RemoveCommand" as C_0005718119018709553864
+class C_0005718119018709553864 {
++RemoveCommand(core::Regist...) : void
+..
++Execute(const std::f...) : void
+__
+}
+class "ListCommand" as C_0000579532459672351954
+class C_0000579532459672351954 {
++ListCommand(core::Regist...) : void
+..
++Execute(std::ostream...) const : void
++Execute() const : void
+__
+}
+class "basic_string_view<char>" as C_0013247086971467822611
+class C_0013247086971467822611 {
+__
+}
+class "WatchCommand" as C_0014136483095535625954
+class C_0014136483095535625954 {
++WatchCommand(core::Regist...) : void
+..
++Execute(watch::FileW...) const : void
++Execute<StopRequested>(watch::FileW...) const : void
+__
+}
+abstract "WatchCommand::StopRequestedCallback" as C_0000981205443487918545
+abstract C_0000981205443487918545 {
+{abstract} +IsStopRequested() const = 0 : bool
++~StopRequestedCallback() constexpr = default : void
+__
+}
+class "TransparentStringHash" as C_0012018030270682886980
+class C_0012018030270682886980 {
++operator()(std::string_...) const noexcept : std::size_t
++operator()(const std::s...) const noexcept : std::size_t
++operator()(const char *...) const noexcept : std::size_t
+__
+}
+class "ScopedStopSignalHandlers" as C_0005119467390882299660
+class C_0005119467390882299660 {
++ScopedStopSignalHandlers() : void
++ScopedStopSignalHandlers(const Scoped...) = deleted : void
++~ScopedStopSignalHandlers() : void
+..
++operator=(const Scoped...) = deleted : ScopedStopSignalHandlers &
+__
+}
+class "BackupCommand" as C_0006507789357641609660
+class C_0006507789357641609660 {
++BackupCommand(core::Regist...) : void
+..
++Execute() const : void
+__
+}
+}
+}
+C_0008224020844101552744 ..> C_0001560558435499023390
+C_0001560558435499023390 o-- C_0001275076681856179721 : +OriginalPath
+C_0001560558435499023390 o-- C_0001275076681856179721 : +StoredRelativePath
+C_0013190075620569873206 ..> C_0001560558435499023390
+C_0013190075620569873206 o-- C_0008224020844101552744 : -TrackedEntries_
+C_0008175946189229348597 ..> C_0012782362847443494988
+C_0008175946189229348597 --> C_0013190075620569873206 : -Registry_
+C_0010348644749515316575 --> C_0013190075620569873206 : -Registry_
+C_0010348644749515316575 --> C_0006168007485712951452 : -AppConfig_
+C_0012419010152674035740 ..> C_0012782362847443494988
+C_0012419010152674035740 --> C_0013190075620569873206 : -Registry_
+C_0016449125846540684918 --> C_0013190075620569873206 : -Registry_
+C_0015814273669801255071 --> C_0013190075620569873206 : -Registry_
+C_0015814273669801255071 --> C_0006168007485712951452 : -AppConfig_
+C_0007750508848821660712 --> C_0013190075620569873206 : -Registry_
+C_0005718119018709553864 --> C_0013190075620569873206 : -Registry_
+C_0000579532459672351954 ..> C_0012782362847443494988
+C_0000579532459672351954 --> C_0013190075620569873206 : -Registry_
+C_0014136483095535625954 ..> C_0000981205443487918545
+C_0014136483095535625954 --> C_0013190075620569873206 : -Registry_
+C_0000981205443487918545 --+ C_0014136483095535625954
+C_0012018030270682886980 ..> C_0013247086971467822611
+C_0012018030270682886980 ..> C_0001275076681856179721
+C_0006507789357641609660 --> C_0013190075620569873206 : -Registry_
+
+'Generated with clang-uml, version 0.6.2-30-g98728ad
+'LLVM version Ubuntu clang version 20.1.8 (0ubuntu4)
+@enduml

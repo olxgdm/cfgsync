@@ -1,0 +1,144 @@
+compilation_database_dir: build
+output_directory: docs/diagrams
+
+generate_method_arguments: abbreviated
+generate_concept_requirements: true
+generate_packages: true
+package_type: directory
+
+glob:
+  include:
+    - src/**/*.cpp
+    - src/**/*.cc
+    - src/**/*.cxx
+  exclude:
+    - tests/**/*.cpp
+    - tests/**/*.cc
+    - tests/**/*.cxx
+
+exclude:
+  paths:
+    - tests
+
+diagrams:
+  architecture_overview:
+    type: package
+    title: Project architecture overview
+    package_type: directory
+    glob:
+      include:
+        - src/**/*.cpp
+      exclude:
+        - tests/**/*.cpp
+    include:
+      paths:
+        - src/cli
+        - src/commands
+        - src/core
+        - src/diff
+        - src/storage
+        - src/watch
+        - src/utils
+
+  core_and_config:
+    type: class
+    title: Core registry and configuration
+    glob:
+      include:
+        - src/core/**/*.cpp
+        - src/utils/**/*.cpp
+      exclude:
+        - tests/**/*.cpp
+    include:
+      paths:
+        - src/core
+        - src/utils
+    exclude:
+      access:
+        - private
+
+  diff_layer:
+    type: class
+    title: Diff rendering and byte comparison
+    glob:
+      include:
+        - src/diff/**/*.cpp
+      exclude:
+        - tests/**/*.cpp
+    include:
+      paths:
+        - src/diff
+    exclude:
+      access:
+        - private
+
+  storage_layer:
+    type: class
+    title: Storage mapping and backup restore
+    glob:
+      include:
+        - src/storage/**/*.cpp
+        - src/utils/**/*.cpp
+      exclude:
+        - tests/**/*.cpp
+    include:
+      paths:
+        - src/storage
+        - src/utils
+    exclude:
+      access:
+        - private
+
+  watch_layer:
+    type: class
+    title: Watcher abstraction and debounced backup flow
+    glob:
+      include:
+        - src/watch/**/*.cpp
+        - src/storage/**/*.cpp
+        - src/utils/**/*.cpp
+      exclude:
+        - tests/**/*.cpp
+    include:
+      paths:
+        - src/watch
+        - src/storage
+        - src/utils
+    exclude:
+      access:
+        - private
+
+  cli_commands_layer:
+    type: class
+    title: CLI parsing and command handlers
+    glob:
+      include:
+        - src/cli/**/*.cpp
+        - src/commands/**/*.cpp
+        - src/core/**/*.cpp
+      exclude:
+        - tests/**/*.cpp
+    include:
+      paths:
+        - src/cli
+        - src/commands
+        - src/core
+    exclude:
+      access:
+        - private
+
+  include_dependencies:
+    type: include
+    title: Source include dependencies
+    glob:
+      include:
+        - src/**/*.cpp
+      exclude:
+        - tests/**/*.cpp
+    include:
+      paths:
+        - src
+    exclude:
+      paths:
+        - tests
+

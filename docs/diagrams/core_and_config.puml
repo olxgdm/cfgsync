@@ -1,0 +1,97 @@
+@startuml
+title Core registry and configuration
+package [src] as C_0016921741234196091272 {
+package [core] as C_0012207904346887387097 {
+class "AppConfig" as C_0006168007485712951452
+class C_0006168007485712951452 {
++AppConfig(std::filesys...) : void
+..
++GetConfigPath() const : const std::filesystem::path &
++GetStorageRoot() const : const std::filesystem::path &
++Load() : void
++Save() const : void
++SetConfigPath(std::filesys...) : void
++SetStorageRoot(const std::f...) : void
+__
+}
+class "basic_string<char>" as C_0001275076681856179721
+class C_0001275076681856179721 {
+__
+}
+class "vector<cfgsync::core::TrackedEntry>" as C_0008224020844101552744
+class C_0008224020844101552744 {
+__
+}
+class "TrackedEntry" as C_0001560558435499023390
+class C_0001560558435499023390 {
+__
++OriginalPath : std::string
++StoredRelativePath : std::string
+}
+class "Registry" as C_0013190075620569873206
+class C_0013190075620569873206 {
++Registry(std::filesys...) : void
+..
++AddEntry(TrackedEntry...) : bool
++ContainsOriginalPath(const std::f...) const : bool
++FindEntryByOriginalPath(const std::f...) const : const TrackedEntry *
++GetRegistryPath() const : const std::filesystem::path &
++GetStorageRoot() const : const std::filesystem::path &
++GetTrackedEntries() const : const std::vector<TrackedEntry> &
++Initialize(const std::f...) : void
++Load() : void
++RemoveEntry(const std::f...) : bool
++Save() const : void
++SetRegistryPath(std::filesys...) : void
++SetStorageRoot(const std::f...) : void
+__
+}
+}
+package [utils] as C_0006966483515336780210 {
+class "basic_string_view<char>" as C_0013247086971467822611
+class C_0013247086971467822611 {
+__
+}
+enum "TerminalColor" as C_0014822155060380475892
+enum C_0014822155060380475892 {
+Default
+Red
+Green
+Yellow
+Cyan
+}
+class "TerminalStyle" as C_0001227858788528835931
+class C_0001227858788528835931 {
++Bold() const : TerminalStyle
+{static} +Foreground(TerminalColo...) : TerminalStyle
++GetForeground() const : TerminalColor
++IsBold() const : bool
++IsPlain() const : bool
+{static} +Plain() : TerminalStyle
+__
+}
+class "Colorizer" as C_0016296498416031808574
+class C_0016296498416031808574 {
++Colorizer(bool enabled...) : void
+..
++Apply(std::string_...) const : std::string
+{static} +Disabled() : Colorizer
+{static} +Enabled() : Colorizer
++IsEnabled() const : bool
+__
+}
+}
+}
+C_0008224020844101552744 ..> C_0001560558435499023390
+C_0001560558435499023390 o-- C_0001275076681856179721 : +OriginalPath
+C_0001560558435499023390 o-- C_0001275076681856179721 : +StoredRelativePath
+C_0013190075620569873206 ..> C_0001560558435499023390
+C_0013190075620569873206 o-- C_0008224020844101552744 : -TrackedEntries_
+C_0001227858788528835931 o-- C_0014822155060380475892 : -Foreground_
+C_0016296498416031808574 ..> C_0013247086971467822611
+C_0016296498416031808574 ..> C_0001227858788528835931
+C_0016296498416031808574 ..> C_0001275076681856179721
+
+'Generated with clang-uml, version 0.6.2-30-g98728ad
+'LLVM version Ubuntu clang version 20.1.8 (0ubuntu4)
+@enduml

@@ -1,0 +1,243 @@
+@startuml
+title Watcher abstraction and debounced backup flow
+package [src] as C_0016921741234196091272 {
+package [watch] as C_0001259032512452126389 {
+class "optional<std::filesystem::path>" as C_0003248289481097936640
+class C_0003248289481097936640 {
+__
+}
+abstract "FileWatcher" as C_0017662489150741961478
+abstract C_0017662489150741961478 {
++~FileWatcher() constexpr = default : void
+..
+{abstract} +Start() = 0 : void
+{abstract} +WatchDirectory(const std::f...) = 0 : void
+__
+}
+class "unique_ptr<cfgsync::watch::EfswFileWatcher::Impl>" as C_0013864384593027492472
+class C_0013864384593027492472 {
+__
+}
+class "EfswFileWatcher" as C_0018379632625643385229
+class C_0018379632625643385229 {
++EfswFileWatcher() : void
++EfswFileWatcher(const EfswFi...) = deleted : void
++EfswFileWatcher(EfswFileWatc...) noexcept : void
++~EfswFileWatcher() noexcept : void
+..
++operator=(const EfswFi...) = deleted : EfswFileWatcher &
++operator=(EfswFileWatc...) noexcept : EfswFileWatcher &
+..
++Start() : void
++WatchDirectory(const std::f...) : void
+__
+}
+class "basic_string<char>" as C_0001275076681856179721
+class C_0001275076681856179721 {
+__
+}
+class "unordered_map<efsw::WatchID,FileWatchObserver *>" as C_0007618220662105754573
+class C_0007618220662105754573 {
+__
+}
+class "vector<efsw::WatchID>" as C_0014948577343120798530
+class C_0014948577343120798530 {
+__
+}
+class "EfswFileWatcher::Impl" as C_0004578940656653356480
+class C_0004578940656653356480 {
++Impl() : void
++Start() : void
++WatchDirectory(const fs::pa...) : void
++handleFileAction(efsw::WatchI...) : void
++~Impl() : void
+__
+}
+class "vector<cfgsync::core::TrackedEntry>" as C_0008224020844101552744
+class C_0008224020844101552744 {
+__
+}
+class "ratio<1,1000>" as C_0007978523187995048023
+class C_0007978523187995048023 {
+__
+}
+class "duration<int64_t,std::ratio<1,1000>>" as C_0015081611806164895939
+class C_0015081611806164895939 {
+__
+}
+class "ratio<1,1000000000>" as C_0012415743977570969849
+class C_0012415743977570969849 {
+__
+}
+class "duration<int64_t,std::ratio<1,1000000000>>" as C_0017614144533568309161
+class C_0017614144533568309161 {
+__
+}
+class "time_point<std::chrono::steady_clock,std::chrono::duration<int64_t,std::ratio<1,1000000000>>>" as C_0016577378426764904006
+class C_0016577378426764904006 {
+__
+}
+class "optional<std::chrono::time_point<std::chrono::steady_clock,std::chrono::duration<int64_t,std::ratio<1,1000000000>>>>" as C_0010805190154277018898
+class C_0010805190154277018898 {
+__
+}
+class "optional<cfgsync::core::TrackedEntry>" as C_0015319532953800821665
+class C_0015319532953800821665 {
+__
+}
+class "equal_to" as C_0004149151544091696352
+class C_0004149151544091696352 {
+__
+}
+class "unordered_map<std::string,cfgsync::core::TrackedEntry,cfgsync::watch::WatchBackupProcessor::TransparentStringHash,std::equal_to>" as C_0000079076444660976202
+class C_0000079076444660976202 {
+__
+}
+class "unordered_map<std::string,cfgsync::watch::WatchBackupProcessor::PendingBackup,cfgsync::watch::WatchBackupProcessor::TransparentStringHash,std::equal_to>" as C_0011848137813081268194
+class C_0011848137813081268194 {
+__
+}
+class "basic_string_view<char>" as C_0013247086971467822611
+class C_0013247086971467822611 {
+__
+}
+enum "FileWatchAction" as C_0005709414393495466187
+enum C_0005709414393495466187 {
+Added
+Deleted
+Modified
+Moved
+}
+class "FileWatchEvent" as C_0000352993842931936633
+class C_0000352993842931936633 {
+__
++Action : FileWatchAction
++Directory : std::filesystem::path
++OldPath : std::optional<std::filesystem::path>
++Path : std::filesystem::path
+}
+abstract "FileWatchObserver" as C_0018383726129781582659
+abstract C_0018383726129781582659 {
++~FileWatchObserver() constexpr = default : void
+..
+{abstract} +OnFileChanged(const FileWa...) = 0 : void
+__
+}
+class "WatchBackupProcessor" as C_0009758153947805412797
+class C_0009758153947805412797 {
++WatchBackupProcessor(std::vector<...) : void
+..
++GetNextDueTime() const : std::optional<TimePoint>
++HasPendingBackups() const : bool
++OnFileChanged(const FileWa...) : void
++OnFileChangedAt(const FileWa...) : void
++ProcessDueBackups() : std::size_t
++ProcessDueBackupsAt(TimePoint now) : std::size_t
+__
+{static} +DefaultDebounceDelay : const std::chrono::milliseconds
+}
+class "WatchBackupProcessor::TransparentStringHash" as C_0009844829741650601093
+class C_0009844829741650601093 {
++operator()(std::string_...) const noexcept : std::size_t
++operator()(const std::s...) const noexcept : std::size_t
++operator()(const char *...) const noexcept : std::size_t
+__
+}
+class "WatchBackupProcessor::PendingBackup" as C_0002456841108866565061
+class C_0002456841108866565061 {
+__
++DueAt : TimePoint
++Entry : core::TrackedEntry
+}
+}
+package [storage] as C_0017999738198623292114 {
+class "StorageManager" as C_0000001151641826262801
+class C_0000001151641826262801 {
++StorageManager(std::filesys...) : void
+..
++BackupEntry(const core::...) const : void
++GetRegistryPath() const : std::filesystem::path
++GetStorageRoot() const : const std::filesystem::path &
++ResolveStoredPath(const core::...) const : std::filesystem::path
++RestoreEntry(const core::...) const : void
++SetStorageRoot(std::filesys...) : void
+__
+}
+}
+package [utils] as C_0006966483515336780210 {
+enum "TerminalColor" as C_0014822155060380475892
+enum C_0014822155060380475892 {
+Default
+Red
+Green
+Yellow
+Cyan
+}
+class "TerminalStyle" as C_0001227858788528835931
+class C_0001227858788528835931 {
++Bold() const : TerminalStyle
+{static} +Foreground(TerminalColo...) : TerminalStyle
++GetForeground() const : TerminalColor
++IsBold() const : bool
++IsPlain() const : bool
+{static} +Plain() : TerminalStyle
+__
+}
+class "Colorizer" as C_0016296498416031808574
+class C_0016296498416031808574 {
++Colorizer(bool enabled...) : void
+..
++Apply(std::string_...) const : std::string
+{static} +Disabled() : Colorizer
+{static} +Enabled() : Colorizer
++IsEnabled() const : bool
+__
+}
+}
+}
+C_0017662489150741961478 ..> C_0018383726129781582659
+C_0018379632625643385229 ..> C_0018383726129781582659
+C_0018379632625643385229 o-- C_0013864384593027492472 : -Impl_
+C_0017662489150741961478 <|-- C_0018379632625643385229
+C_0004578940656653356480 --+ C_0018379632625643385229
+C_0004578940656653356480 ..> C_0018383726129781582659
+C_0004578940656653356480 ..> C_0001275076681856179721
+C_0004578940656653356480 o-- C_0007618220662105754573 : -Observers_
+C_0004578940656653356480 o-- C_0014948577343120798530 : -WatchIds_
+C_0015081611806164895939 ..> C_0007978523187995048023
+C_0017614144533568309161 ..> C_0012415743977570969849
+C_0016577378426764904006 ..> C_0017614144533568309161
+C_0010805190154277018898 ..> C_0016577378426764904006
+C_0000079076444660976202 ..> C_0001275076681856179721
+C_0000079076444660976202 ..> C_0004149151544091696352
+C_0011848137813081268194 ..> C_0001275076681856179721
+C_0011848137813081268194 ..> C_0004149151544091696352
+C_0000352993842931936633 o-- C_0005709414393495466187 : +Action
+C_0000352993842931936633 o-- C_0003248289481097936640 : +OldPath
+C_0018383726129781582659 ..> C_0000352993842931936633
+C_0009758153947805412797 ..> C_0008224020844101552744
+C_0009758153947805412797 ..> C_0014822155060380475892
+C_0009758153947805412797 ..> C_0000352993842931936633
+C_0009758153947805412797 ..> C_0016577378426764904006
+C_0009758153947805412797 ..> C_0010805190154277018898
+C_0009758153947805412797 ..> C_0015319532953800821665
+C_0009758153947805412797 o-- C_0000079076444660976202 : -TrackedEntriesByPath_
+C_0009758153947805412797 --> C_0000001151641826262801 : -StorageManager_
+C_0009758153947805412797 o-- C_0015081611806164895939 : -DebounceDelay_
+C_0009758153947805412797 o-- C_0011848137813081268194 : -PendingBackups_
+C_0018383726129781582659 <|-- C_0009758153947805412797
+C_0009844829741650601093 --+ C_0009758153947805412797
+C_0009844829741650601093 ..> C_0013247086971467822611
+C_0009844829741650601093 ..> C_0001275076681856179721
+C_0002456841108866565061 --+ C_0009758153947805412797
+C_0002456841108866565061 o-- C_0014822155060380475892 : +Entry
+C_0002456841108866565061 o-- C_0016577378426764904006 : +DueAt
+C_0000001151641826262801 ..> C_0014822155060380475892
+C_0001227858788528835931 o-- C_0014822155060380475892 : -Foreground_
+C_0016296498416031808574 ..> C_0013247086971467822611
+C_0016296498416031808574 ..> C_0001227858788528835931
+C_0016296498416031808574 ..> C_0001275076681856179721
+
+'Generated with clang-uml, version 0.6.2-30-g98728ad
+'LLVM version Ubuntu clang version 20.1.8 (0ubuntu4)
+@enduml
