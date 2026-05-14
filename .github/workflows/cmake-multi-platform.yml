@@ -24,6 +24,7 @@ on:
       - "scripts/**"
       - ".clang-format"
       - ".clang-tidy"
+      - "sonar-project.properties"
       - ".github/actions/**"
       - ".github/workflows/cmake-multi-platform.yml"
 
@@ -48,18 +49,192 @@ on:
       - "scripts/**"
       - ".clang-format"
       - ".clang-tidy"
+      - "sonar-project.properties"
       - ".github/actions/**"
       - ".github/workflows/cmake-multi-platform.yml"
 
 jobs:
+  sonar:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set reusable strings
+        id: strings
+        shell: bash
+        run: |
+          echo "build-output-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
+          echo "coverage-output-dir=${{ github.workspace }}/build/coverage" >> "$GITHUB_OUTPUT"
+
+      - name: Install LLVM tools
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-18 llvm-18
+
+          echo "CC=clang-18" >> "$GITHUB_ENV"
+          echo "CXX=clang++-18" >> "$GITHUB_ENV"
+          echo "LLVM_PROFDATA=llvm-profdata-18" >> "$GITHUB_ENV"
+          echo "LLVM_COV=llvm-cov-18" >> "$GITHUB_ENV"
+
+      - name: Install SonarQube Build Wrapper
+        uses: SonarSource/sonarqube-scan-action/install-build-wrapper@v6
+
+      - name: Configure CMake for SonarQube
+        shell: bash
+        run: |
+          cmake -B "${{ steps.strings.outputs.build-output-dir }}" \
+            -DCMAKE_CXX_COMPILER="${CXX}" \
+            -DCMAKE_C_COMPILER="${CC}" \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCFGSYNC_BUILD_TESTS=ON \
+            -DCFGSYNC_ENABLE_COVERAGE=ON \
+            -S "${{ github.workspace }}"
+
+      - name: Build with SonarQube Build Wrapper
+        shell: bash
+        run: |
+          build-wrapper-linux-x86-64 \
+            --out-dir bw-output \
+            cmake --build "${{ steps.strings.outputs.build-output-dir }}" --config Debug
+
+      - name: Test with LLVM coverage
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p "${{ steps.strings.outputs.coverage-output-dir }}/profiles"
+
+          LLVM_PROFILE_FILE="${{ steps.strings.outputs.coverage-output-dir }}/profiles/%m-%p.profraw" \
+            ctest --test-dir "${{ steps.strings.outputs.build-output-dir }}" \
+              --build-config Debug \
+              --output-on-failure
+
+      - name: Generate LLVM coverage reports
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          build_dir="${{ steps.strings.outputs.build-output-dir }}"
+          coverage_dir="${{ steps.strings.outputs.coverage-output-dir }}"
+          profile_data="${coverage_dir}/coverage.profdata"
+          text_report="${coverage_dir}/llvm-cov.txt"
+
+          mapfile -t raw_profiles < <(
+            find "${coverage_dir}/profiles" \
+              -type f \
+              -name '*.profraw' \
+              | sort
+          )
+
+          if [[ ${#raw_profiles[@]} -eq 0 ]]; then
+            echo "No LLVM raw profile files were generated." >&2
+            exit 1
+          fi
+
+          "${LLVM_PROFDATA}" merge \
+            -sparse \
+            "${raw_profiles[@]}" \
+            -o "${profile_data}"
+
+          mapfile -t coverage_binaries < <(
+            find "${build_dir}" \
+              -type f \
+              -perm -111 \
+              ! -path "${build_dir}/_deps/*" \
+              \( \
+                -name 'cfgsync' \
+                -o -name 'cfgsync_*_tests' \
+                -o -name '*_tests' \
+              \) \
+              | sort
+          )
+
+          if [[ ${#coverage_binaries[@]} -eq 0 ]]; then
+            echo "No coverage binaries were found." >&2
+            find "${build_dir}" -type f -perm -111 | sort >&2
+            exit 1
+          fi
+
+          mapfile -t source_files < <(
+            find "${{ github.workspace }}/src" "${{ github.workspace }}/tests" \
+              -type f \
+              \( \
+                -name '*.c' \
+                -o -name '*.cc' \
+                -o -name '*.cpp' \
+                -o -name '*.cxx' \
+                -o -name '*.h' \
+                -o -name '*.hh' \
+                -o -name '*.hpp' \
+                -o -name '*.hxx' \
+              \) \
+              | sort
+          )
+
+          if [[ ${#source_files[@]} -eq 0 ]]; then
+            echo "No source files were found." >&2
+            exit 1
+          fi
+
+          primary_binary="${coverage_binaries[0]}"
+
+          object_args=()
+          for binary in "${coverage_binaries[@]:1}"; do
+            object_args+=("-object" "${binary}")
+          done
+
+          "${LLVM_COV}" show \
+            "${primary_binary}" \
+            "${object_args[@]}" \
+            -instr-profile="${profile_data}" \
+            -format=text \
+            -show-branches=count \
+            -use-color=0 \
+            "${source_files[@]}" \
+            > "${text_report}"
+
+          "${LLVM_COV}" show \
+            "${primary_binary}" \
+            "${object_args[@]}" \
+            -instr-profile="${profile_data}" \
+            -format=html \
+            -output-dir="${coverage_dir}/html" \
+            "${source_files[@]}"
+
+          "${LLVM_COV}" report \
+            "${primary_binary}" \
+            "${object_args[@]}" \
+            -instr-profile="${profile_data}" \
+            "${source_files[@]}"
+
+      - name: Upload LLVM coverage HTML report
+        uses: actions/upload-artifact@v4
+        with:
+          name: llvm-coverage-html
+          path: ${{ steps.strings.outputs.coverage-output-dir }}/html
+
+      - name: SonarQube Cloud scan
+        uses: SonarSource/sonarqube-scan-action@v6
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: https://sonarcloud.io
+        with:
+          args: >
+            -Dsonar.cfamily.compile-commands=bw-output/compile_commands.json
+            -Dsonar.cfamily.llvm-cov.reportPath=${{ steps.strings.outputs.coverage-output-dir }}/llvm-cov.txt
+            -Dsonar.qualitygate.wait=true
+
   build:
-    name: ${{ matrix.os }} / ${{ matrix.cpp_compiler }}
+    needs: sonar
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
 
     strategy:
       fail-fast: false
-
       matrix:
         include:
           - os: windows-latest
@@ -99,38 +274,30 @@ jobs:
 
       - name: Configure CMake
         run: >
-          cmake
-          -B "${{ steps.strings.outputs.build-output-dir }}"
-          -S "${{ github.workspace }}"
-          -DCMAKE_C_COMPILER=${{ matrix.c_compiler }}
+          cmake -B ${{ steps.strings.outputs.build-output-dir }}
           -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }}
+          -DCMAKE_C_COMPILER=${{ matrix.c_compiler }}
           -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
           -DCFGSYNC_BUILD_TESTS=ON
+          -S ${{ github.workspace }}
 
       - name: Build
-        run: >
-          cmake --build "${{ steps.strings.outputs.build-output-dir }}"
-          --config ${{ matrix.build_type }}
+        run: cmake --build ${{ steps.strings.outputs.build-output-dir }} --config ${{ matrix.build_type }}
 
       - name: Test
         working-directory: ${{ steps.strings.outputs.build-output-dir }}
-        run: >
-          ctest
-          --build-config ${{ matrix.build_type }}
-          --output-on-failure
+        run: ctest --build-config ${{ matrix.build_type }}
 
       - name: Install
         run: >
-          cmake --install "${{ steps.strings.outputs.build-output-dir }}"
+          cmake --install ${{ steps.strings.outputs.build-output-dir }}
           --config ${{ matrix.build_type }}
-          --prefix "${{ steps.strings.outputs.install-output-dir }}"
+          --prefix ${{ steps.strings.outputs.install-output-dir }}
 
       - name: Validate installed CLI
         shell: pwsh
         run: |
-          $executable = Join-Path `
-            "${{ steps.strings.outputs.install-output-dir }}" `
-            "${{ matrix.installed_executable }}"
+          $executable = Join-Path "${{ steps.strings.outputs.install-output-dir }}" "${{ matrix.installed_executable }}"
 
           if (-not (Test-Path -Path $executable -PathType Leaf)) {
             throw "Installed executable was not found at $executable"

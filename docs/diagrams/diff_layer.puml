@@ -1,0 +1,86 @@
+@startuml
+title Diff rendering and byte comparison
+package [src] as C_0016921741234196091272 {
+package [diff] as C_0012737410907933377154 {
+class "vector<cfgsync::core::TrackedEntry>" as C_0008224020844101552744
+class C_0008224020844101552744 {
+__
+}
+class "vector<cfgsync::diff::FileStatusResult>" as C_0004965500553103095783
+class C_0004965500553103095783 {
+__
+}
+enum "FileStatus" as C_0002489263939565265575
+enum C_0002489263939565265575 {
+Clean
+Modified
+MissingOriginal
+MissingBackup
+}
+class "FileStatusResult" as C_0013210955629383350680
+class C_0013210955629383350680 {
+__
++Entry : core::TrackedEntry
++Status : FileStatus
+}
+class "FileComparator" as C_0004570752702619654424
+class C_0004570752702619654424 {
++FileComparator(const storag...) : void
+..
++Compare(const core::...) const : FileStatusResult
++CompareAll(const std::v...) const : std::vector<FileStatusResult>
+__
+}
+enum "PathState" as C_0002584808394781259732
+enum C_0002584808394781259732 {
+Missing
+OrdinaryFile
+}
+class "basic_string<char>" as C_0001275076681856179721
+class C_0001275076681856179721 {
+__
+}
+class "Colorizer" as C_0016296498416031808574
+class C_0016296498416031808574 {
+__
+}
+class "DiffLine" as C_0008650710564852852247
+class C_0008650710564852852247 {
+__
++HasTrailingNewline : bool
++Text : std::string
+}
+enum "OperationType" as C_0000793841947783987262
+enum C_0000793841947783987262 {
+Context
+Delete
+Insert
+}
+class "DiffOperation" as C_0018015037523708536464
+class C_0018015037523708536464 {
+__
++Line : DiffLine
++NewIndex : std::size_t
++OldIndex : std::size_t
++Type : OperationType
+}
+class "HunkRange" as C_0015197629037628554106
+class C_0015197629037628554106 {
+__
++End : std::size_t
++Start : std::size_t
+}
+}
+}
+C_0004965500553103095783 ..> C_0013210955629383350680
+C_0013210955629383350680 o-- C_0002489263939565265575 : +Status
+C_0004570752702619654424 ..> C_0013210955629383350680
+C_0004570752702619654424 ..> C_0008224020844101552744
+C_0004570752702619654424 ..> C_0004965500553103095783
+C_0008650710564852852247 o-- C_0001275076681856179721 : +Text
+C_0018015037523708536464 o-- C_0000793841947783987262 : +Type
+C_0018015037523708536464 o-- C_0008650710564852852247 : +Line
+
+'Generated with clang-uml, version 0.6.2-30-g98728ad
+'LLVM version Ubuntu clang version 20.1.8 (0ubuntu4)
+@enduml
