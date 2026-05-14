@@ -5,7 +5,6 @@ on:
 
   push:
     branches: ["main"]
-    branches: ["main"]
     paths:
       - "**/*.c"
       - "**/*.cc"
@@ -28,9 +27,7 @@ on:
       - ".github/actions/**"
       - ".github/workflows/cmake-multi-platform.yml"
 
-
   pull_request:
-    branches: ["main"]
     branches: ["main"]
     paths:
       - "**/*.c"
@@ -99,7 +96,6 @@ jobs:
 
   build:
     needs: sonar
-    needs: sonar
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
 
@@ -150,14 +146,8 @@ jobs:
           -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
           -DCFGSYNC_BUILD_TESTS=ON
           -S ${{ github.workspace }}
-          -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }}
-          -DCMAKE_C_COMPILER=${{ matrix.c_compiler }}
-          -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
-          -DCFGSYNC_BUILD_TESTS=ON
-          -S ${{ github.workspace }}
 
       - name: Build
-        run: cmake --build ${{ steps.strings.outputs.build-output-dir }} --config ${{ matrix.build_type }}
         run: cmake --build ${{ steps.strings.outputs.build-output-dir }} --config ${{ matrix.build_type }}
 
       - name: Test
@@ -165,7 +155,6 @@ jobs:
         run: ctest --build-config ${{ matrix.build_type }}
 
       - name: Install
-        run: cmake --install ${{ steps.strings.outputs.build-output-dir }} --config ${{ matrix.build_type }} --prefix ${{ steps.strings.outputs.install-output-dir }}
         run: cmake --install ${{ steps.strings.outputs.build-output-dir }} --config ${{ matrix.build_type }} --prefix ${{ steps.strings.outputs.install-output-dir }}
 
       - name: Validate installed CLI
