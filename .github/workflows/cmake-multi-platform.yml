@@ -52,14 +52,55 @@ on:
       - ".github/workflows/cmake-multi-platform.yml"
 
 jobs:
+  sonar:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set reusable strings
+        id: strings
+        shell: bash
+        run: |
+          echo "build-output-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
+
+      - name: Install SonarQube build-wrapper
+        uses: SonarSource/sonarqube-scan-action/install-build-wrapper@v6
+
+      - name: Configure CMake for SonarQube
+        run: >
+          cmake -B ${{ steps.strings.outputs.build-output-dir }}
+          -DCMAKE_CXX_COMPILER=g++
+          -DCMAKE_C_COMPILER=gcc
+          -DCMAKE_BUILD_TYPE=Release
+          -DCFGSYNC_BUILD_TESTS=ON
+          -S ${{ github.workspace }}
+
+      - name: Build with SonarQube build-wrapper
+        run: >
+          build-wrapper-linux-x86-64
+          --out-dir bw-output
+          cmake --build ${{ steps.strings.outputs.build-output-dir }} --config Release
+
+      - name: SonarQube Cloud scan
+        uses: SonarSource/sonarqube-scan-action@v6
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: https://sonarcloud.io
+        with:
+          args: >
+            -Dsonar.cfamily.build-wrapper-output=bw-output
+            -Dsonar.qualitygate.wait=true
+
   build:
-    name: ${{ matrix.os }} / ${{ matrix.cpp_compiler }}
+    needs: sonar
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
 
     strategy:
       fail-fast: false
-
       matrix:
         include:
           - os: windows-latest
