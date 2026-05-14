@@ -1,5 +1,5 @@
 compilation_database_dir: build
-output_directory: docs/diagrams
+output_directory: docs/diagrams/main
 
 generate_method_arguments: abbreviated
 generate_concept_requirements: true
