@@ -1,5 +1,8 @@
 #include "common/GoogleTestMain.hpp"
+#include "common/TestTempDirectory.hpp"
+#include "Exceptions.hpp"
 #include "gtest/gtest.h"
+#include "watch/EfswFileWatcher.hpp"
 #include "watch/FileWatcher.hpp"
 
 #include <filesystem>
@@ -83,6 +86,31 @@ TEST(FileWatcherTest, ObserverReceivesMovedEventOldPath) {
     EXPECT_EQ(observer.Events.front().Action, cfgsync::watch::FileWatchAction::Moved);
     ASSERT_TRUE(observer.Events.front().OldPath.has_value());
     EXPECT_EQ(observer.Events.front().OldPath.value(), fs::path{"/home/user/.gitconfig.old"});
+}
+
+TEST(FileWatcherTest, EfswWatcherConstructsMovesAndRejectsEmptyDirectory) {
+    cfgsync::watch::EfswFileWatcher watcher;
+    cfgsync::watch::EfswFileWatcher movedWatcher{std::move(watcher)};
+    RecordingObserver observer;
+
+    EXPECT_THROW(movedWatcher.WatchDirectory({}, observer), cfgsync::WatchError);
+
+    cfgsync::watch::EfswFileWatcher assignedWatcher;
+    assignedWatcher = std::move(movedWatcher);
+
+    EXPECT_THROW(assignedWatcher.WatchDirectory({}, observer), cfgsync::WatchError);
+}
+
+TEST(FileWatcherTest, EfswWatcherWatchesExistingDirectoryAndCleansUpOnDestruction) {
+    const auto directory = cfgsync::tests::MakeTestRoot();
+    RecordingObserver observer;
+
+    {
+        cfgsync::watch::EfswFileWatcher watcher;
+        EXPECT_NO_THROW(watcher.WatchDirectory(directory, observer));
+    }
+
+    fs::remove_all(directory);
 }
 
 }  // namespace

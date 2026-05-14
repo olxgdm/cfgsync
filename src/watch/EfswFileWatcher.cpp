@@ -3,8 +3,10 @@
 #include "Exceptions.hpp"
 
 #include <efsw/efsw.hpp>
+#include <exception>
 #include <filesystem>
 #include <fmt/format.h>
+#include <iostream>
 #include <mutex>
 #include <optional>
 #include <string>
@@ -62,22 +64,16 @@ std::string FormatWatchError(efsw::WatchID watchId, const fs::path& directory) {
 
 class EfswFileWatcher::Impl final : public efsw::FileWatchListener {
 public:
-    Impl() : Watcher_(UseGenericPollingWatcher, PollingFrequencyMs) {
+    Impl() {
         Watcher_.followSymlinks(false);
         Watcher_.allowOutOfScopeLinks(false);
     }
 
-    ~Impl() override {
-        std::vector<efsw::WatchID> watchIds;
-        {
-            std::scoped_lock lock{Mutex_};
-            watchIds = WatchIds_;
-            WatchIds_.clear();
-            Observers_.clear();
-        }
-
-        for (const auto watchId : watchIds) {
-            Watcher_.removeWatch(watchId);
+    ~Impl() noexcept override {
+        try {
+            StopWatching();
+        } catch (const std::exception& error) {
+            std::cerr << "warning: failed to stop file watcher cleanly: " << error.what() << '\n';
         }
     }
 
@@ -98,9 +94,10 @@ public:
 
     void Start() { Watcher_.watch(); }
 
-    void handleFileAction(efsw::WatchID watchId, const std::string& dir,  // NOLINT(bugprone-easily-swappable-parameters): efsw owns this override signature with adjacent parameters.
-                          const std::string& filename,
-                          efsw::Action action, const std::string& oldFilename) override {
+    void handleFileAction(efsw::WatchID watchId,
+                          const std::string& dir,  // NOLINT(bugprone-easily-swappable-parameters): efsw owns this
+                                                   // override signature with adjacent parameters.
+                          const std::string& filename, efsw::Action action, const std::string& oldFilename) override {
         FileWatchObserver* observer = nullptr;
         {
             std::scoped_lock lock{Mutex_};
@@ -122,7 +119,20 @@ public:
     }
 
 private:
-    efsw::FileWatcher Watcher_;
+    void StopWatching() {
+        std::vector<efsw::WatchID> watchIds;
+        {
+            std::scoped_lock lock{Mutex_};
+            watchIds.swap(WatchIds_);
+            Observers_.clear();
+        }
+
+        for (const auto watchId : watchIds) {
+            Watcher_.removeWatch(watchId);
+        }
+    }
+
+    efsw::FileWatcher Watcher_{UseGenericPollingWatcher, PollingFrequencyMs};
     std::mutex Mutex_;
     std::unordered_map<efsw::WatchID, FileWatchObserver*> Observers_;
     std::vector<efsw::WatchID> WatchIds_;
