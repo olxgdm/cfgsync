@@ -143,5 +143,12 @@
     "**/.cache": true
   },
   "indentRainbow.updateDelay": 100,
-  "cmake.ctest.testExplorerIntegrationEnabled": false
+  "cmake.ctest.testExplorerIntegrationEnabled": false,
+  "sonarlint.connectedMode.project": {
+    "connectionId": "olxgdm",
+    "projectKey": "olxgdm_cfgsync"
+  },
+  "sonarlint.pathToCompileCommands": "${workspaceFolder}/build/compile_commands.json",
+  "sonarlint.output.showVerboseLogs": true,
+  "sonarlint.output.showAnalyzerLogs": true
 }
