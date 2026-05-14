@@ -1,4 +1,5 @@
 #include "common/GoogleTestMain.hpp"
+#include "common/TestTempDirectory.hpp"
 #include "Exceptions.hpp"
 #include "gtest/gtest.h"
 #include "watch/EfswFileWatcher.hpp"
@@ -98,6 +99,18 @@ TEST(FileWatcherTest, EfswWatcherConstructsMovesAndRejectsEmptyDirectory) {
     assignedWatcher = std::move(movedWatcher);
 
     EXPECT_THROW(assignedWatcher.WatchDirectory({}, observer), cfgsync::WatchError);
+}
+
+TEST(FileWatcherTest, EfswWatcherWatchesExistingDirectoryAndCleansUpOnDestruction) {
+    const auto directory = cfgsync::tests::MakeTestRoot();
+    RecordingObserver observer;
+
+    {
+        cfgsync::watch::EfswFileWatcher watcher;
+        EXPECT_NO_THROW(watcher.WatchDirectory(directory, observer));
+    }
+
+    fs::remove_all(directory);
 }
 
 }  // namespace
