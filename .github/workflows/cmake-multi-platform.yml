@@ -289,14 +289,15 @@ jobs:
         run: ctest --build-config ${{ matrix.build_type }}
 
       - name: Install
-        run: cmake --install ${{ steps.strings.outputs.build-output-dir }} --config ${{ matrix.build_type }} --prefix ${{ steps.strings.outputs.install-output-dir }}
+        run: >
+          cmake --install ${{ steps.strings.outputs.build-output-dir }}
+          --config ${{ matrix.build_type }}
+          --prefix ${{ steps.strings.outputs.install-output-dir }}
 
       - name: Validate installed CLI
         shell: pwsh
         run: |
-          $executable = Join-Path `
-            "${{ steps.strings.outputs.install-output-dir }}" `
-            "${{ matrix.installed_executable }}"
+          $executable = Join-Path "${{ steps.strings.outputs.install-output-dir }}" "${{ matrix.installed_executable }}"
 
           if (-not (Test-Path -Path $executable -PathType Leaf)) {
             throw "Installed executable was not found at $executable"
