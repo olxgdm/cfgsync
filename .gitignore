@@ -132,7 +132,7 @@ build-coverage/
 tmpfile.txt
 
 # Generated docs
-docs/diagrams/*.png
+docs/diagrams/main/*.png
 
 # System generated
 .DS_Store
