@@ -1,6 +1,14 @@
 @startuml
 title Storage mapping and backup restore
 package [src] as C_0016921741234196091272 {
+package [core] as C_0012207904346887387097 {
+class "TrackedEntry" as C_0001560558435499023390
+class C_0001560558435499023390 {
+__
++OriginalPath : std::string
++StoredRelativePath : std::string
+}
+}
 package [storage] as C_0017999738198623292114 {
 class "StorageManager" as C_0000001151641826262801
 class C_0000001151641826262801 {
@@ -15,50 +23,8 @@ class C_0000001151641826262801 {
 __
 }
 }
-package [utils] as C_0006966483515336780210 {
-class "basic_string_view<char>" as C_0013247086971467822611
-class C_0013247086971467822611 {
-__
 }
-class "basic_string<char>" as C_0001275076681856179721
-class C_0001275076681856179721 {
-__
-}
-enum "TerminalColor" as C_0014822155060380475892
-enum C_0014822155060380475892 {
-Default
-Red
-Green
-Yellow
-Cyan
-}
-class "TerminalStyle" as C_0001227858788528835931
-class C_0001227858788528835931 {
-+Bold() const : TerminalStyle
-{static} +Foreground(TerminalColo...) : TerminalStyle
-+GetForeground() const : TerminalColor
-+IsBold() const : bool
-+IsPlain() const : bool
-{static} +Plain() : TerminalStyle
-__
-}
-class "Colorizer" as C_0016296498416031808574
-class C_0016296498416031808574 {
-+Colorizer(bool enabled...) : void
-..
-+Apply(std::string_...) const : std::string
-{static} +Disabled() : Colorizer
-{static} +Enabled() : Colorizer
-+IsEnabled() const : bool
-__
-}
-}
-}
-C_0000001151641826262801 ..> C_0014822155060380475892
-C_0001227858788528835931 o-- C_0014822155060380475892 : -Foreground_
-C_0016296498416031808574 ..> C_0013247086971467822611
-C_0016296498416031808574 ..> C_0001227858788528835931
-C_0016296498416031808574 ..> C_0001275076681856179721
+C_0000001151641826262801 ..> C_0001560558435499023390
 
 'Generated with clang-uml, version 0.6.2-30-g98728ad
 'LLVM version Ubuntu clang version 20.1.8 (0ubuntu4)

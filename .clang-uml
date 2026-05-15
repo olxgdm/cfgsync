@@ -1,10 +1,13 @@
 compilation_database_dir: build
 output_directory: docs/diagrams/main
 
+using_namespace: cfgsync
 generate_method_arguments: abbreviated
 generate_concept_requirements: true
 generate_packages: true
 package_type: directory
+include_relations_also_as_members: false
+generate_template_argument_dependencies: false
 
 glob:
   include:
@@ -19,6 +22,21 @@ glob:
 exclude:
   paths:
     - tests
+  namespaces:
+    - std
+    - CLI
+    - fmt
+    - spdlog
+    - nlohmann
+    - efsw
+  elements:
+    - r: '(^|.*::)(basic_string|basic_string_view|vector|unordered_map|optional|unique_ptr|shared_ptr|weak_ptr|duration|time_point|ratio|equal_to)<.*'
+    - r: '^std::.*'
+    - r: '^CLI::.*'
+    - r: '^fmt::.*'
+    - r: '^spdlog::.*'
+    - r: '^nlohmann::.*'
+    - r: '^efsw::.*'
 
 diagrams:
   architecture_overview:
@@ -39,6 +57,51 @@ diagrams:
         - src/storage
         - src/watch
         - src/utils
+    plantuml:
+      before:
+        - left to right direction
+
+  app_entrypoint:
+    type: class
+    title: Application entrypoint and top-level services
+    glob:
+      include:
+        - src/main.cpp
+        - src/App.cpp
+        - src/cli/BuildCli.cpp
+        - src/core/**/*.cpp
+        - src/storage/**/*.cpp
+      exclude:
+        - tests/**/*.cpp
+    include:
+      namespaces:
+        - cfgsync
+        - cfgsync::cli
+        - cfgsync::core
+        - cfgsync::storage
+      paths:
+        - src/App.hpp
+        - src/cli/BuildCli.hpp
+        - src/core
+        - src/storage
+    exclude:
+      access:
+        - private
+      namespaces:
+        - std
+        - CLI
+        - fmt
+        - spdlog
+        - nlohmann
+        - efsw
+      elements:
+        - r: '(^|.*::)(basic_string|basic_string_view|vector|unordered_map|optional|unique_ptr|shared_ptr|weak_ptr|duration|time_point|ratio|equal_to)<.*'
+        - r: '^std::.*'
+        - r: '^CLI::.*'
+        - r: '^fmt::.*'
+        - r: '^spdlog::.*'
+        - r: '^nlohmann::.*'
+        - r: '^efsw::.*'
 
   core_and_config:
     type: class
@@ -46,31 +109,41 @@ diagrams:
     glob:
       include:
         - src/core/**/*.cpp
-        - src/utils/**/*.cpp
+        - src/utils/AppConfigPath.cpp
+        - src/utils/FileUtils.cpp
+        - src/utils/PathUtils.cpp
       exclude:
         - tests/**/*.cpp
     include:
+      namespaces:
+        - cfgsync::core
+        - cfgsync::utils
       paths:
         - src/core
-        - src/utils
+        - src/utils/AppConfigPath.hpp
+        - src/utils/FileUtils.hpp
+        - src/utils/PathUtils.hpp
     exclude:
       access:
         - private
-
-  diff_layer:
-    type: class
-    title: Diff rendering and byte comparison
-    glob:
-      include:
-        - src/diff/**/*.cpp
-      exclude:
-        - tests/**/*.cpp
-    include:
-      paths:
-        - src/diff
-    exclude:
-      access:
-        - private
+      namespaces:
+        - std
+        - CLI
+        - fmt
+        - spdlog
+        - nlohmann
+        - efsw
+      elements:
+        - r: '(^|.*::)(basic_string|basic_string_view|vector|unordered_map|optional|unique_ptr|shared_ptr|weak_ptr|duration|time_point|ratio|equal_to)<.*'
+        - r: '^std::.*'
+        - r: '^CLI::.*'
+        - r: '^fmt::.*'
+        - r: '^spdlog::.*'
+        - r: '^nlohmann::.*'
+        - r: '^efsw::.*'
+        - cfgsync::utils::TerminalStyle
+        - cfgsync::utils::TerminalColor
+        - cfgsync::utils::Colorizer
 
   storage_layer:
     type: class
@@ -78,16 +151,81 @@ diagrams:
     glob:
       include:
         - src/storage/**/*.cpp
-        - src/utils/**/*.cpp
+        - src/utils/FileUtils.cpp
+        - src/utils/PathUtils.cpp
       exclude:
         - tests/**/*.cpp
     include:
+      namespaces:
+        - cfgsync::storage
+        - cfgsync::core
+        - cfgsync::utils
       paths:
         - src/storage
-        - src/utils
+        - src/core/TrackedEntry.hpp
+        - src/utils/FileUtils.hpp
+        - src/utils/PathUtils.hpp
     exclude:
       access:
         - private
+      namespaces:
+        - std
+        - CLI
+        - fmt
+        - spdlog
+        - nlohmann
+        - efsw
+      elements:
+        - r: '(^|.*::)(basic_string|basic_string_view|vector|unordered_map|optional|unique_ptr|shared_ptr|weak_ptr|duration|time_point|ratio|equal_to)<.*'
+        - r: '^std::.*'
+        - r: '^CLI::.*'
+        - r: '^fmt::.*'
+        - r: '^spdlog::.*'
+        - r: '^nlohmann::.*'
+        - r: '^efsw::.*'
+        - cfgsync::utils::TerminalStyle
+        - cfgsync::utils::TerminalColor
+        - cfgsync::utils::Colorizer
+
+  diff_layer:
+    type: class
+    title: Diff rendering and byte comparison
+    glob:
+      include:
+        - src/diff/**/*.cpp
+        - src/storage/**/*.cpp
+      exclude:
+        - tests/**/*.cpp
+    include:
+      namespaces:
+        - cfgsync::diff
+        - cfgsync::core
+        - cfgsync::storage
+        - cfgsync::utils
+      paths:
+        - src/diff
+        - src/core/TrackedEntry.hpp
+        - src/storage/StorageManager.hpp
+        - src/utils/TerminalStyle.hpp
+    exclude:
+      access:
+        - private
+      namespaces:
+        - std
+        - CLI
+        - fmt
+        - spdlog
+        - nlohmann
+        - efsw
+      elements:
+        - r: '(^|.*::)(basic_string|basic_string_view|vector|unordered_map|optional|unique_ptr|shared_ptr|weak_ptr|duration|time_point|ratio|equal_to)<.*'
+        - r: '^std::.*'
+        - r: '^CLI::.*'
+        - r: '^fmt::.*'
+        - r: '^spdlog::.*'
+        - r: '^nlohmann::.*'
+        - r: '^efsw::.*'
+        - r: '.*(DiffLine|DiffOperation|HunkRange|OperationType|PathState).*'
 
   watch_layer:
     type: class
@@ -96,40 +234,97 @@ diagrams:
       include:
         - src/watch/**/*.cpp
         - src/storage/**/*.cpp
-        - src/utils/**/*.cpp
       exclude:
         - tests/**/*.cpp
     include:
+      namespaces:
+        - cfgsync::watch
+        - cfgsync::core
+        - cfgsync::storage
       paths:
         - src/watch
-        - src/storage
-        - src/utils
+        - src/core/TrackedEntry.hpp
+        - src/storage/StorageManager.hpp
     exclude:
       access:
         - private
+      namespaces:
+        - std
+        - CLI
+        - fmt
+        - spdlog
+        - nlohmann
+        - efsw
+      elements:
+        - r: '(^|.*::)(basic_string|basic_string_view|vector|unordered_map|optional|unique_ptr|shared_ptr|weak_ptr|duration|time_point|ratio|equal_to)<.*'
+        - r: '^std::.*'
+        - r: '^CLI::.*'
+        - r: '^fmt::.*'
+        - r: '^spdlog::.*'
+        - r: '^nlohmann::.*'
+        - r: '^efsw::.*'
+        - r: '.*WatchBackupProcessor::(TransparentStringHash|PendingBackup).*'
+        - r: '.*EfswFileWatcher::Impl.*'
 
   cli_commands_layer:
     type: class
     title: CLI parsing and command handlers
     glob:
       include:
+        - src/App.cpp
         - src/cli/**/*.cpp
         - src/commands/**/*.cpp
         - src/core/**/*.cpp
+        - src/diff/**/*.cpp
+        - src/storage/**/*.cpp
+        - src/watch/**/*.cpp
       exclude:
         - tests/**/*.cpp
     include:
+      namespaces:
+        - cfgsync
+        - cfgsync::cli
+        - cfgsync::commands
+        - cfgsync::core
+        - cfgsync::diff
+        - cfgsync::storage
+        - cfgsync::watch
       paths:
+        - src/App.hpp
         - src/cli
         - src/commands
         - src/core
+        - src/diff
+        - src/storage
+        - src/watch
     exclude:
       access:
         - private
+      namespaces:
+        - std
+        - CLI
+        - fmt
+        - spdlog
+        - nlohmann
+        - efsw
+      elements:
+        - r: '(^|.*::)(basic_string|basic_string_view|vector|unordered_map|optional|unique_ptr|shared_ptr|weak_ptr|duration|time_point|ratio|equal_to)<.*'
+        - r: '^std::.*'
+        - r: '^CLI::.*'
+        - r: '^fmt::.*'
+        - r: '^spdlog::.*'
+        - r: '^nlohmann::.*'
+        - r: '^efsw::.*'
+        - r: '.*(ScopedStopSignalHandlers|StopRequestedAdapter|TransparentStringHash).*'
+        - r: '.*WatchCommand::StopRequestedCallback.*'
+        - r: '.*WatchBackupProcessor::(TransparentStringHash|PendingBackup).*'
+        - r: '.*EfswFileWatcher::Impl.*'
+        - r: '.*(DiffLine|DiffOperation|HunkRange|OperationType|PathState).*'
 
-  include_dependencies:
+  layer_include_dependencies:
     type: include
-    title: Source include dependencies
+    title: Layer include dependencies
+    generate_packages: true
     glob:
       include:
         - src/**/*.cpp
@@ -142,3 +337,50 @@ diagrams:
       paths:
         - tests
 
+  command_include_dependencies:
+    type: include
+    title: Command and CLI include dependencies
+    generate_packages: true
+    glob:
+      include:
+        - src/App.cpp
+        - src/cli/**/*.cpp
+        - src/commands/**/*.cpp
+      exclude:
+        - tests/**/*.cpp
+    include:
+      paths:
+        - src/App.cpp
+        - src/App.hpp
+        - src/cli
+        - src/commands
+        - src/core
+        - src/diff
+        - src/storage
+        - src/watch
+        - src/utils
+    exclude:
+      paths:
+        - tests
+
+  watch_include_dependencies:
+    type: include
+    title: Watch include dependencies
+    generate_packages: true
+    glob:
+      include:
+        - src/watch/**/*.cpp
+        - src/commands/WatchCommand.cpp
+      exclude:
+        - tests/**/*.cpp
+    include:
+      paths:
+        - src/watch
+        - src/commands/WatchCommand.cpp
+        - src/commands/WatchCommand.hpp
+        - src/core
+        - src/storage
+        - src/utils
+    exclude:
+      paths:
+        - tests
