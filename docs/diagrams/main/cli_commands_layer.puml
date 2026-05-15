@@ -2,14 +2,6 @@
 title CLI parsing and command handlers
 package [src] as C_0016921741234196091272 {
 package [core] as C_0012207904346887387097 {
-class "basic_string<char>" as C_0001275076681856179721
-class C_0001275076681856179721 {
-__
-}
-class "vector<cfgsync::core::TrackedEntry>" as C_0008224020844101552744
-class C_0008224020844101552744 {
-__
-}
 class "AppConfig" as C_0006168007485712951452
 class C_0006168007485712951452 {
 +AppConfig(std::filesys...) : void
@@ -21,12 +13,6 @@ class C_0006168007485712951452 {
 +SetConfigPath(std::filesys...) : void
 +SetStorageRoot(const std::f...) : void
 __
-}
-class "TrackedEntry" as C_0001560558435499023390
-class C_0001560558435499023390 {
-__
-+OriginalPath : std::string
-+StoredRelativePath : std::string
 }
 class "Registry" as C_0013190075620569873206
 class C_0013190075620569873206 {
@@ -46,12 +32,33 @@ class C_0013190075620569873206 {
 +SetStorageRoot(const std::f...) : void
 __
 }
+class "TrackedEntry" as C_0001560558435499023390
+class C_0001560558435499023390 {
+__
++OriginalPath : std::string
++StoredRelativePath : std::string
 }
-package [commands] as C_0007071062666072416744 {
-class "basic_ostream<char>" as C_0012782362847443494988
-class C_0012782362847443494988 {
+}
+package [storage] as C_0017999738198623292114 {
+class "StorageManager" as C_0000001151641826262801
+class C_0000001151641826262801 {
++StorageManager(std::filesys...) : void
+..
++BackupEntry(const core::...) const : void
++GetRegistryPath() const : std::filesystem::path
++GetStorageRoot() const : const std::filesystem::path &
++ResolveStoredPath(const core::...) const : std::filesystem::path
++RestoreEntry(const core::...) const : void
++SetStorageRoot(std::filesys...) : void
 __
 }
+}
+class "App" as C_0013679797813601658288
+class C_0013679797813601658288 {
++Run(int argc, ch...) : int
+__
+}
+package [commands] as C_0007071062666072416744 {
 class "DiffCommand" as C_0008175946189229348597
 class C_0008175946189229348597 {
 +DiffCommand(core::Regist...) : void
@@ -112,10 +119,6 @@ class C_0000579532459672351954 {
 +Execute() const : void
 __
 }
-class "basic_string_view<char>" as C_0013247086971467822611
-class C_0013247086971467822611 {
-__
-}
 class "WatchCommand" as C_0014136483095535625954
 class C_0014136483095535625954 {
 +WatchCommand(core::Regist...) : void
@@ -130,22 +133,6 @@ abstract C_0000981205443487918545 {
 +~StopRequestedCallback() constexpr = default : void
 __
 }
-class "TransparentStringHash" as C_0012018030270682886980
-class C_0012018030270682886980 {
-+operator()(std::string_...) const noexcept : std::size_t
-+operator()(const std::s...) const noexcept : std::size_t
-+operator()(const char *...) const noexcept : std::size_t
-__
-}
-class "ScopedStopSignalHandlers" as C_0005119467390882299660
-class C_0005119467390882299660 {
-+ScopedStopSignalHandlers() : void
-+ScopedStopSignalHandlers(const Scoped...) = deleted : void
-+~ScopedStopSignalHandlers() : void
-..
-+operator=(const Scoped...) = deleted : ScopedStopSignalHandlers &
-__
-}
 class "BackupCommand" as C_0006507789357641609660
 class C_0006507789357641609660 {
 +BackupCommand(core::Regist...) : void
@@ -154,31 +141,151 @@ class C_0006507789357641609660 {
 __
 }
 }
+package [diff] as C_0012737410907933377154 {
+class "Colorizer" as C_0016296498416031808574
+class C_0016296498416031808574 {
+__
 }
-C_0008224020844101552744 ..> C_0001560558435499023390
-C_0001560558435499023390 o-- C_0001275076681856179721 : +OriginalPath
-C_0001560558435499023390 o-- C_0001275076681856179721 : +StoredRelativePath
-C_0013190075620569873206 ..> C_0001560558435499023390
-C_0013190075620569873206 o-- C_0008224020844101552744 : -TrackedEntries_
-C_0008175946189229348597 ..> C_0012782362847443494988
+enum "FileStatus" as C_0002489263939565265575
+enum C_0002489263939565265575 {
+Clean
+Modified
+MissingOriginal
+MissingBackup
+}
+class "FileStatusResult" as C_0013210955629383350680
+class C_0013210955629383350680 {
+__
+}
+class "FileComparator" as C_0004570752702619654424
+class C_0004570752702619654424 {
++FileComparator(const storag...) : void
+..
++Compare(const core::...) const : FileStatusResult
++CompareAll(const std::v...) const : std::vector<FileStatusResult>
+__
+}
+}
+package [watch] as C_0001259032512452126389 {
+abstract "FileWatcher" as C_0017662489150741961478
+abstract C_0017662489150741961478 {
++~FileWatcher() constexpr = default : void
+..
+{abstract} +Start() = 0 : void
+{abstract} +WatchDirectory(const std::f...) = 0 : void
+__
+}
+class "EfswFileWatcher" as C_0018379632625643385229
+class C_0018379632625643385229 {
++EfswFileWatcher() : void
++EfswFileWatcher(const EfswFi...) = deleted : void
++EfswFileWatcher(EfswFileWatc...) noexcept : void
++~EfswFileWatcher() noexcept : void
+..
++operator=(const EfswFi...) = deleted : EfswFileWatcher &
++operator=(EfswFileWatc...) noexcept : EfswFileWatcher &
+..
++Start() : void
++WatchDirectory(const std::f...) : void
+__
+}
+class "EfswFileWatcher::Impl" as C_0004578940656653356480
+class C_0004578940656653356480 {
++Impl() : void
++Start() : void
++WatchDirectory(const fs::pa...) : void
++handleFileAction(efsw::WatchI...) : void
++~Impl() noexcept : void
+__
+}
+enum "FileWatchAction" as C_0005709414393495466187
+enum C_0005709414393495466187 {
+Added
+Deleted
+Modified
+Moved
+}
+class "FileWatchEvent" as C_0000352993842931936633
+class C_0000352993842931936633 {
+__
++Directory : std::filesystem::path
++OldPath : std::optional<std::filesystem::path>
++Path : std::filesystem::path
+}
+abstract "FileWatchObserver" as C_0018383726129781582659
+abstract C_0018383726129781582659 {
++~FileWatchObserver() constexpr = default : void
+..
+{abstract} +OnFileChanged(const FileWa...) = 0 : void
+__
+}
+class "WatchBackupProcessor" as C_0009758153947805412797
+class C_0009758153947805412797 {
++WatchBackupProcessor(std::vector<...) : void
+..
++GetNextDueTime() const : std::optional<TimePoint>
++HasPendingBackups() const : bool
++OnFileChanged(const FileWa...) : void
++OnFileChangedAt(const FileWa...) : void
++ProcessDueBackups() : std::size_t
++ProcessDueBackupsAt(TimePoint now) : std::size_t
+__
+{static} +DefaultDebounceDelay : const std::chrono::milliseconds
+}
+class "WatchBackupProcessor::PendingBackup" as C_0002456841108866565061
+class C_0002456841108866565061 {
+__
++DueAt : TimePoint
+}
+}
+}
+C_0013190075620569873206 o-- C_0001560558435499023390 : -TrackedEntries_
+C_0000001151641826262801 ..> C_0001560558435499023390
+C_0013679797813601658288 o-- C_0006168007485712951452 : -AppConfig_
+C_0013679797813601658288 o-- C_0013190075620569873206 : -Registry_
+C_0013679797813601658288 o-- C_0000001151641826262801 : -StorageManager_
 C_0008175946189229348597 --> C_0013190075620569873206 : -Registry_
+C_0008175946189229348597 --> C_0000001151641826262801 : -StorageManager_
 C_0010348644749515316575 --> C_0013190075620569873206 : -Registry_
+C_0010348644749515316575 --> C_0000001151641826262801 : -StorageManager_
 C_0010348644749515316575 --> C_0006168007485712951452 : -AppConfig_
-C_0012419010152674035740 ..> C_0012782362847443494988
 C_0012419010152674035740 --> C_0013190075620569873206 : -Registry_
+C_0012419010152674035740 --> C_0000001151641826262801 : -StorageManager_
 C_0016449125846540684918 --> C_0013190075620569873206 : -Registry_
+C_0016449125846540684918 --> C_0000001151641826262801 : -StorageManager_
 C_0015814273669801255071 --> C_0013190075620569873206 : -Registry_
+C_0015814273669801255071 --> C_0000001151641826262801 : -StorageManager_
 C_0015814273669801255071 --> C_0006168007485712951452 : -AppConfig_
 C_0007750508848821660712 --> C_0013190075620569873206 : -Registry_
 C_0005718119018709553864 --> C_0013190075620569873206 : -Registry_
-C_0000579532459672351954 ..> C_0012782362847443494988
 C_0000579532459672351954 --> C_0013190075620569873206 : -Registry_
+C_0014136483095535625954 ..> C_0017662489150741961478
 C_0014136483095535625954 ..> C_0000981205443487918545
 C_0014136483095535625954 --> C_0013190075620569873206 : -Registry_
+C_0014136483095535625954 --> C_0000001151641826262801 : -StorageManager_
 C_0000981205443487918545 --+ C_0014136483095535625954
-C_0012018030270682886980 ..> C_0013247086971467822611
-C_0012018030270682886980 ..> C_0001275076681856179721
 C_0006507789357641609660 --> C_0013190075620569873206 : -Registry_
+C_0006507789357641609660 --> C_0000001151641826262801 : -StorageManager_
+C_0013210955629383350680 o-- C_0002489263939565265575 : +Status
+C_0013210955629383350680 o-- C_0001560558435499023390 : +Entry
+C_0004570752702619654424 ..> C_0001560558435499023390
+C_0004570752702619654424 ..> C_0013210955629383350680
+C_0004570752702619654424 --> C_0000001151641826262801 : -StorageManager_
+C_0017662489150741961478 ..> C_0018383726129781582659
+C_0018379632625643385229 ..> C_0018383726129781582659
+C_0018379632625643385229 o-- C_0004578940656653356480 : -Impl_
+C_0017662489150741961478 <|-- C_0018379632625643385229
+C_0004578940656653356480 --+ C_0018379632625643385229
+C_0004578940656653356480 --> C_0018383726129781582659 : -Observers_
+C_0000352993842931936633 o-- C_0005709414393495466187 : +Action
+C_0018383726129781582659 ..> C_0000352993842931936633
+C_0009758153947805412797 ..> C_0000352993842931936633
+C_0009758153947805412797 o-- C_0001560558435499023390 : -TrackedEntriesByPath_
+C_0009758153947805412797 --> C_0000001151641826262801 : -StorageManager_
+C_0009758153947805412797 o-- C_0002456841108866565061 : -PendingBackups_
+C_0018383726129781582659 <|-- C_0009758153947805412797
+C_0002456841108866565061 --+ C_0009758153947805412797
+C_0002456841108866565061 o-- C_0001560558435499023390 : +Entry
 
 'Generated with clang-uml, version 0.6.2-30-g98728ad
 'LLVM version Ubuntu clang version 20.1.8 (0ubuntu4)

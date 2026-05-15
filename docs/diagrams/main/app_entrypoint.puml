@@ -1,5 +1,5 @@
 @startuml
-title Core registry and configuration
+title Application entrypoint and top-level services
 package [src] as C_0016921741234196091272 {
 package [core] as C_0012207904346887387097 {
 class "AppConfig" as C_0006168007485712951452
@@ -13,12 +13,6 @@ class C_0006168007485712951452 {
 +SetConfigPath(std::filesys...) : void
 +SetStorageRoot(const std::f...) : void
 __
-}
-class "TrackedEntry" as C_0001560558435499023390
-class C_0001560558435499023390 {
-__
-+OriginalPath : std::string
-+StoredRelativePath : std::string
 }
 class "Registry" as C_0013190075620569873206
 class C_0013190075620569873206 {
@@ -38,9 +32,38 @@ class C_0013190075620569873206 {
 +SetStorageRoot(const std::f...) : void
 __
 }
+class "TrackedEntry" as C_0001560558435499023390
+class C_0001560558435499023390 {
+__
++OriginalPath : std::string
++StoredRelativePath : std::string
+}
+}
+package [storage] as C_0017999738198623292114 {
+class "StorageManager" as C_0000001151641826262801
+class C_0000001151641826262801 {
++StorageManager(std::filesys...) : void
+..
++BackupEntry(const core::...) const : void
++GetRegistryPath() const : std::filesystem::path
++GetStorageRoot() const : const std::filesystem::path &
++ResolveStoredPath(const core::...) const : std::filesystem::path
++RestoreEntry(const core::...) const : void
++SetStorageRoot(std::filesys...) : void
+__
+}
+}
+class "App" as C_0013679797813601658288
+class C_0013679797813601658288 {
++Run(int argc, ch...) : int
+__
 }
 }
 C_0013190075620569873206 o-- C_0001560558435499023390 : -TrackedEntries_
+C_0000001151641826262801 ..> C_0001560558435499023390
+C_0013679797813601658288 o-- C_0006168007485712951452 : -AppConfig_
+C_0013679797813601658288 o-- C_0013190075620569873206 : -Registry_
+C_0013679797813601658288 o-- C_0000001151641826262801 : -StorageManager_
 
 'Generated with clang-uml, version 0.6.2-30-g98728ad
 'LLVM version Ubuntu clang version 20.1.8 (0ubuntu4)

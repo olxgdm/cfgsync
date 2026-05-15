@@ -1,5 +1,6 @@
 @startuml
 title Project architecture overview
+left to right direction
 package [src] as C_0011100957978370531577 {
 package [core] as C_0018226291797328563395 {
 }
