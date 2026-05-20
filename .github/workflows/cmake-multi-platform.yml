@@ -66,8 +66,10 @@ jobs:
         id: strings
         shell: bash
         run: |
-          echo "build-output-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
-          echo "coverage-output-dir=${{ github.workspace }}/build/coverage" >> "$GITHUB_OUTPUT"
+          {
+            echo "build-output-dir=${{ github.workspace }}/build"
+            echo "coverage-output-dir=${{ github.workspace }}/build/coverage"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Install LLVM tools
         shell: bash
@@ -75,10 +77,12 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y clang-18 llvm-18
 
-          echo "CC=clang-18" >> "$GITHUB_ENV"
-          echo "CXX=clang++-18" >> "$GITHUB_ENV"
-          echo "LLVM_PROFDATA=llvm-profdata-18" >> "$GITHUB_ENV"
-          echo "LLVM_COV=llvm-cov-18" >> "$GITHUB_ENV"
+          {
+            echo "CC=clang-18"
+            echo "CXX=clang++-18"
+            echo "LLVM_PROFDATA=llvm-profdata-18"
+            echo "LLVM_COV=llvm-cov-18"
+          } >> "$GITHUB_ENV"
 
       - name: Install SonarQube Build Wrapper
         uses: SonarSource/sonarqube-scan-action/install-build-wrapper@v6
@@ -269,8 +273,10 @@ jobs:
         id: strings
         shell: bash
         run: |
-          echo "build-output-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
-          echo "install-output-dir=${{ github.workspace }}/install" >> "$GITHUB_OUTPUT"
+          {
+            echo "build-output-dir=${{ github.workspace }}/build"
+            echo "install-output-dir=${{ github.workspace }}/install"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Configure CMake
         run: >
