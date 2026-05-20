@@ -4,6 +4,7 @@ extends: default
 rules:
   line-length:
     max: 140
+  document-start: disable
 
   truthy:
     ignore: |
