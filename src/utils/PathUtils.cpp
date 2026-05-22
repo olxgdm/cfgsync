@@ -216,4 +216,49 @@ fs::path MakeStorageRelativePath(const fs::path& originalPath) {
     return storageRelativePath;
 }
 
+StoredRelativePathValidationError ValidateStoredRelativePath(std::string_view storedRelativePath) {
+    if (storedRelativePath.empty()) {
+        return StoredRelativePathValidationError::Empty;
+    }
+
+    if (fs::path{storedRelativePath}.is_absolute() || IsStoredPathRooted(storedRelativePath)) {
+        return StoredRelativePathValidationError::Absolute;
+    }
+
+    const auto components = SplitPathComponents(storedRelativePath);
+    if (components.empty() || components.front() != "files") {
+        return StoredRelativePathValidationError::OutsideFiles;
+    }
+
+    if (components.size() < 2) {
+        return StoredRelativePathValidationError::MissingFilesChild;
+    }
+
+    if (std::any_of(components.begin(), components.end(),
+                    [](const std::string& component) { return component == ".."; })) {
+        return StoredRelativePathValidationError::ParentTraversal;
+    }
+
+    return StoredRelativePathValidationError::None;
+}
+
+std::string_view DescribeStoredRelativePathValidationError(StoredRelativePathValidationError error) {
+    switch (error) {
+        case StoredRelativePathValidationError::None:
+            return "is valid.";
+        case StoredRelativePathValidationError::Empty:
+            return "must not be empty.";
+        case StoredRelativePathValidationError::Absolute:
+            return "must be relative.";
+        case StoredRelativePathValidationError::OutsideFiles:
+            return "must be under files/.";
+        case StoredRelativePathValidationError::MissingFilesChild:
+            return "must include a path under files/.";
+        case StoredRelativePathValidationError::ParentTraversal:
+            return "must not contain parent directory traversal.";
+    }
+
+    return "is invalid.";
+}
+
 }  // namespace cfgsync::utils
