@@ -2,53 +2,15 @@
 
 #include "Exceptions.hpp"
 #include "utils/FileUtils.hpp"
+#include "utils/PathUtils.hpp"
 
-#include <algorithm>
-#include <cctype>
 #include <string>
-#include <string_view>
 #include <utility>
-#include <vector>
 
 namespace cfgsync::storage {
 namespace fs = std::filesystem;
 
 namespace {
-
-bool IsStoredPathRooted(std::string_view storedRelativePath) {
-    if (storedRelativePath.empty()) {
-        return false;
-    }
-
-    if (storedRelativePath[0] == '/' || storedRelativePath[0] == '\\') {
-        return true;
-    }
-
-    return storedRelativePath.size() >= 2 && std::isalpha(static_cast<unsigned char>(storedRelativePath[0])) != 0 &&
-           storedRelativePath[1] == ':';
-}
-
-std::vector<std::string> SplitStoredPathComponents(std::string_view storedRelativePath) {
-    std::vector<std::string> components;
-    std::string component;
-    for (const auto character : storedRelativePath) {
-        if (character == '/' || character == '\\') {
-            if (!component.empty()) {
-                components.push_back(component);
-                component.clear();
-            }
-            continue;
-        }
-
-        component.push_back(character);
-    }
-
-    if (!component.empty()) {
-        components.push_back(component);
-    }
-
-    return components;
-}
 
 bool HasPathPrefix(const fs::path& path, const fs::path& prefix) {
     auto pathIterator = path.begin();
@@ -63,26 +25,10 @@ bool HasPathPrefix(const fs::path& path, const fs::path& prefix) {
 }
 
 void ValidateStoredRelativePath(const std::string& storedRelativePath) {
-    if (storedRelativePath.empty()) {
-        throw FileError{"stored_relative_path must not be empty."};
-    }
-
-    if (fs::path{storedRelativePath}.is_absolute() || IsStoredPathRooted(storedRelativePath)) {
-        throw FileError{"stored_relative_path must be relative."};
-    }
-
-    const auto components = SplitStoredPathComponents(storedRelativePath);
-    if (components.empty() || components.front() != "files") {
-        throw FileError{"stored_relative_path must be under files/."};
-    }
-
-    if (components.size() < 2) {
-        throw FileError{"stored_relative_path must include a path under files/."};
-    }
-
-    if (std::any_of(components.begin(), components.end(),
-                    [](const std::string& component) { return component == ".."; })) {
-        throw FileError{"stored_relative_path must not contain parent directory traversal."};
+    const auto validationError = utils::ValidateStoredRelativePath(storedRelativePath);
+    if (validationError != utils::StoredRelativePathValidationError::None) {
+        throw FileError{"stored_relative_path " +
+                        std::string{utils::DescribeStoredRelativePathValidationError(validationError)}};
     }
 }
 

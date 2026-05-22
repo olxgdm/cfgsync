@@ -6,16 +6,13 @@
 #include "utils/PathUtils.hpp"
 
 #include <algorithm>
-#include <cctype>
 #include <fmt/format.h>
 #include <fstream>
 #include <nlohmann/json.hpp>
 #include <stdexcept>
 #include <string>
-#include <string_view>
 #include <unordered_set>
 #include <utility>
-#include <vector>
 
 namespace cfgsync::core {
 namespace fs = std::filesystem;
@@ -71,63 +68,13 @@ fs::path ReadStorageRoot(const nlohmann::json& document, const fs::path& registr
     return utils::NormalizePath(storageRoot);
 }
 
-bool IsStoredPathRooted(std::string_view storedRelativePath) {
-    if (storedRelativePath.empty()) {
-        return false;
-    }
-
-    if (storedRelativePath[0] == '/' || storedRelativePath[0] == '\\') {
-        return true;
-    }
-
-    return storedRelativePath.size() >= 2 && std::isalpha(static_cast<unsigned char>(storedRelativePath[0])) != 0 &&
-           storedRelativePath[1] == ':';
-}
-
-std::vector<std::string> SplitStoredPathComponents(std::string_view storedRelativePath) {
-    std::vector<std::string> components;
-    std::string component;
-    for (const auto character : storedRelativePath) {
-        if (character == '/' || character == '\\') {
-            if (!component.empty()) {
-                components.push_back(component);
-                component.clear();
-            }
-            continue;
-        }
-
-        component.push_back(character);
-    }
-
-    if (!component.empty()) {
-        components.push_back(component);
-    }
-
-    return components;
-}
-
 void ValidateStoredRelativePath(const std::string& storedRelativePath, const fs::path& registryPath,
                                 const std::string& fieldName) {
-    if (storedRelativePath.empty()) {
-        throw MalformedRegistryError(registryPath, fieldName + " must not be empty.");
-    }
-
-    if (fs::path{storedRelativePath}.is_absolute() || IsStoredPathRooted(storedRelativePath)) {
-        throw MalformedRegistryError(registryPath, fieldName + " must be relative.");
-    }
-
-    const auto components = SplitStoredPathComponents(storedRelativePath);
-    if (components.empty() || components.front() != "files") {
-        throw MalformedRegistryError(registryPath, fieldName + " must be under files/.");
-    }
-
-    if (components.size() < 2) {
-        throw MalformedRegistryError(registryPath, fieldName + " must include a path under files/.");
-    }
-
-    if (std::any_of(components.begin(), components.end(),
-                    [](const std::string& component) { return component == ".."; })) {
-        throw MalformedRegistryError(registryPath, fieldName + " must not contain parent directory traversal.");
+    const auto validationError = utils::ValidateStoredRelativePath(storedRelativePath);
+    if (validationError != utils::StoredRelativePathValidationError::None) {
+        throw MalformedRegistryError(
+            registryPath,
+            fieldName + " " + std::string{utils::DescribeStoredRelativePathValidationError(validationError)});
     }
 }
 
