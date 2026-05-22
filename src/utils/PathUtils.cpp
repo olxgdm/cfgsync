@@ -39,7 +39,42 @@ bool IsWindowsDriveAbsolutePath(std::string_view input) {
            IsPathSeparator(input[2]);
 }
 
+bool IsStoredPathRooted(std::string_view storedRelativePath) {
+    if (storedRelativePath.empty()) {
+        return false;
+    }
+
+    if (IsPathSeparator(storedRelativePath[0])) {
+        return true;
+    }
+
+    return storedRelativePath.size() >= 2 &&
+           std::isalpha(static_cast<unsigned char>(storedRelativePath[0])) != 0 && storedRelativePath[1] == ':';
+}
+
 bool IsPosixAbsolutePath(std::string_view input) { return input.starts_with('/') && !input.starts_with("//"); }
+
+std::vector<std::string> SplitPathComponents(std::string_view input) {
+    std::vector<std::string> components;
+    std::string currentComponent;
+    for (const auto character : input) {
+        if (!IsPathSeparator(character)) {
+            currentComponent.push_back(character);
+            continue;
+        }
+
+        if (!currentComponent.empty()) {
+            components.push_back(currentComponent);
+            currentComponent.clear();
+        }
+    }
+
+    if (!currentComponent.empty()) {
+        components.push_back(currentComponent);
+    }
+
+    return components;
+}
 
 std::vector<std::string> SplitNormalizedComponents(std::string_view input, std::size_t startIndex) {
     std::string normalizedInput{input};
