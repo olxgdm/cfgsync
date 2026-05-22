@@ -309,10 +309,135 @@ jobs:
             throw "Installed executable was not found at $executable"
           }
 
-          & $executable --help
+          function Invoke-Cfgsync {
+            param(
+              [Parameter(Mandatory = $true)]
+              [string] $Description,
+              [Parameter(Mandatory = $true)]
+              [string[]] $Arguments
+            )
 
-          if ($LASTEXITCODE -ne 0) {
-            throw "Installed executable exited with code $LASTEXITCODE"
+            Write-Host "Running: cfgsync $($Arguments -join ' ')"
+            $outputLines = & $executable @Arguments 2>&1
+            $exitCode = $LASTEXITCODE
+            $output = $outputLines -join "`n"
+
+            if ($output.Length -gt 0) {
+              Write-Host $output
+            }
+
+            if ($exitCode -ne 0) {
+              throw "$Description failed with exit code $exitCode.`n$output"
+            }
+
+            return $output
+          }
+
+          function Assert-Contains {
+            param(
+              [Parameter(Mandatory = $true)]
+              [string] $Text,
+              [Parameter(Mandatory = $true)]
+              [string] $Expected,
+              [Parameter(Mandatory = $true)]
+              [string] $Context
+            )
+
+            if (-not $Text.Contains($Expected)) {
+              throw "$Context did not contain expected text '$Expected'.`nActual output:`n$Text"
+            }
+          }
+
+          function Assert-PathExists {
+            param(
+              [Parameter(Mandatory = $true)]
+              [string] $Path,
+              [Parameter(Mandatory = $true)]
+              [string] $Description
+            )
+
+            if (-not (Test-Path -Path $Path -PathType Leaf)) {
+              throw "$Description was not found at $Path"
+            }
+          }
+
+          function Assert-FileContent {
+            param(
+              [Parameter(Mandatory = $true)]
+              [string] $Path,
+              [Parameter(Mandatory = $true)]
+              [string] $Expected,
+              [Parameter(Mandatory = $true)]
+              [string] $Description
+            )
+
+            $actual = [System.IO.File]::ReadAllText($Path)
+            if ($actual -ne $Expected) {
+              throw "$Description had unexpected contents.`nExpected:`n$Expected`nActual:`n$actual"
+            }
+          }
+
+          $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) "cfgsync-smoke-$([System.Guid]::NewGuid().ToString('N'))"
+
+          try {
+            $sourceRoot = Join-Path $tempRoot "source"
+            $storageRoot = Join-Path $tempRoot "storage"
+            $homeRoot = Join-Path $tempRoot "home"
+            $appDataRoot = Join-Path $tempRoot "appdata"
+            New-Item -ItemType Directory -Path $sourceRoot, $storageRoot, $homeRoot, $appDataRoot -Force | Out-Null
+
+            if ($IsWindows) {
+              $env:APPDATA = $appDataRoot
+              $appConfigPath = Join-Path $appDataRoot "cfgsync/config.json"
+            } else {
+              $env:HOME = $homeRoot
+              $appConfigPath = Join-Path $homeRoot ".config/cfgsync/config.json"
+            }
+
+            $sourceFile = Join-Path $sourceRoot "sample.conf"
+            $storedContents = "stored contents`n"
+            $changedContents = "local changes`n"
+            $restoreAllContents = "restore all changes`n"
+            [System.IO.File]::WriteAllText($sourceFile, $storedContents)
+
+            Invoke-Cfgsync -Description "Show help" -Arguments @("--help")
+            Invoke-Cfgsync -Description "Initialize storage" -Arguments @("init", "--storage", $storageRoot)
+            Assert-PathExists -Path (Join-Path $storageRoot "registry.json") -Description "Registry"
+            Assert-PathExists -Path $appConfigPath -Description "App config"
+
+            Invoke-Cfgsync -Description "Add file" -Arguments @("add", $sourceFile)
+            $listOutput = Invoke-Cfgsync -Description "List tracked files" -Arguments @("list")
+            Assert-Contains -Text $listOutput -Expected $sourceFile -Context "cfgsync list"
+
+            Invoke-Cfgsync -Description "Back up file" -Arguments @("backup")
+            [System.IO.File]::WriteAllText($sourceFile, $changedContents)
+
+            $statusOutput = Invoke-Cfgsync -Description "Check status" -Arguments @("status")
+            Assert-Contains -Text $statusOutput -Expected "modified" -Context "cfgsync status"
+            Assert-Contains -Text $statusOutput -Expected $sourceFile -Context "cfgsync status"
+
+            $diffOutput = Invoke-Cfgsync -Description "Diff file" -Arguments @("diff", $sourceFile)
+            Assert-Contains -Text $diffOutput -Expected "-stored contents" -Context "cfgsync diff"
+            Assert-Contains -Text $diffOutput -Expected "+local changes" -Context "cfgsync diff"
+
+            Remove-Item -Path $appConfigPath -Force
+            Invoke-Cfgsync -Description "Use existing storage" -Arguments @("use", "--storage", $storageRoot)
+            Assert-PathExists -Path $appConfigPath -Description "App config after use"
+
+            Invoke-Cfgsync -Description "Restore file" -Arguments @("restore", $sourceFile)
+            Assert-FileContent -Path $sourceFile -Expected $storedContents -Description "Restored file"
+
+            [System.IO.File]::WriteAllText($sourceFile, $restoreAllContents)
+            Invoke-Cfgsync -Description "Restore all files" -Arguments @("restore", "--all")
+            Assert-FileContent -Path $sourceFile -Expected $storedContents -Description "Restore all file"
+
+            Invoke-Cfgsync -Description "Remove file" -Arguments @("remove", $sourceFile)
+            $emptyListOutput = Invoke-Cfgsync -Description "List after remove" -Arguments @("list")
+            Assert-Contains -Text $emptyListOutput -Expected "No files tracked." -Context "cfgsync list after remove"
+          } finally {
+            if (Test-Path -Path $tempRoot) {
+              Remove-Item -Path $tempRoot -Recurse -Force
+            }
           }
 
       - name: Collect CTest logs
