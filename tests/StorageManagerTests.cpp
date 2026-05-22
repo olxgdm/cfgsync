@@ -1,3 +1,4 @@
+#include "Exceptions.hpp"
 #include "common/GoogleTestMain.hpp"
 #include "common/TestFileUtils.hpp"
 #include "common/TestTempDirectory.hpp"
