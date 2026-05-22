@@ -48,8 +48,8 @@ bool IsStoredPathRooted(std::string_view storedRelativePath) {
         return true;
     }
 
-    return storedRelativePath.size() >= 2 &&
-           std::isalpha(static_cast<unsigned char>(storedRelativePath[0])) != 0 && storedRelativePath[1] == ':';
+    return storedRelativePath.size() >= 2 && std::isalpha(static_cast<unsigned char>(storedRelativePath[0])) != 0 &&
+           storedRelativePath[1] == ':';
 }
 
 bool IsPosixAbsolutePath(std::string_view input) { return input.starts_with('/') && !input.starts_with("//"); }
