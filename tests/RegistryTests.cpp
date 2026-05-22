@@ -34,20 +34,24 @@ void WriteJsonFile(const fs::path& path, const nlohmann::json& document) {
     WriteTextFile(path, document.dump(4) + "\n");
 }
 
-void WriteRegistryWithStoredRelativePath(const fs::path& registryPath, const fs::path& storageRoot,
-                                         const std::string& storedRelativePath) {
-    const auto normalizedStorageRoot = cfgsync::utils::NormalizePath(storageRoot);
-    const auto originalPath = cfgsync::utils::NormalizePath(storageRoot / "source.conf");
-    WriteJsonFile(registryPath, {
-                                    {"version", 1},
-                                    {"storage_root", normalizedStorageRoot.string()},
-                                    {"tracked_files", nlohmann::json::array({
-                                                          {
-                                                              {"original_path", originalPath.string()},
-                                                              {"stored_relative_path", storedRelativePath},
-                                                          },
-                                                      })},
-                                });
+struct RegistryDocumentPaths {
+    fs::path RegistryPath;
+    fs::path StorageRoot;
+};
+
+void WriteRegistryWithStoredRelativePath(const RegistryDocumentPaths& paths, const std::string& storedRelativePath) {
+    const auto normalizedStorageRoot = cfgsync::utils::NormalizePath(paths.StorageRoot);
+    const auto originalPath = cfgsync::utils::NormalizePath(paths.StorageRoot / "source.conf");
+    WriteJsonFile(paths.RegistryPath, {
+                                          {"version", 1},
+                                          {"storage_root", normalizedStorageRoot.string()},
+                                          {"tracked_files", nlohmann::json::array({
+                                                                {
+                                                                    {"original_path", originalPath.string()},
+                                                                    {"stored_relative_path", storedRelativePath},
+                                                                },
+                                                            })},
+                                      });
 }
 
 class RegistryTest : public testing::Test {
@@ -78,7 +82,8 @@ TEST_F(RegistryTest, SavesEmptyVersionOneRegistry) {
 }
 
 TEST_F(RegistryTest, LoadsValidVersionOneRegistry) {
-    WriteRegistryWithStoredRelativePath(RegistryPath(), StorageRoot(), "files/source.conf");
+    WriteRegistryWithStoredRelativePath({.RegistryPath = RegistryPath(), .StorageRoot = StorageRoot()},
+                                        "files/source.conf");
 
     cfgsync::core::Registry registry{RegistryPath()};
     registry.Load();
@@ -206,7 +211,8 @@ TEST_F(RegistryTest, UnsafeStoredRelativePathsThrowClearError) {
 
     for (const auto& storedRelativePath : unsafeStoredRelativePaths) {
         SCOPED_TRACE(storedRelativePath);
-        WriteRegistryWithStoredRelativePath(RegistryPath(), StorageRoot(), storedRelativePath);
+        WriteRegistryWithStoredRelativePath({.RegistryPath = RegistryPath(), .StorageRoot = StorageRoot()},
+                                            storedRelativePath);
 
         cfgsync::core::Registry registry{RegistryPath()};
 
