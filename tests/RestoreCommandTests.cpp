@@ -106,7 +106,7 @@ TEST_F(RestoreCommandTest, SingleRestoreFailsWhenStoredBackupIsMissing) {
     } catch (const cfgsync::FileError& error) {
         const std::string message = error.what();
         EXPECT_NE(message.find("Path does not exist"), std::string::npos);
-        EXPECT_NE(message.find((StorageRoot() / storedRelativePath.generic_string()).string()), std::string::npos);
+        EXPECT_NE(message.find((StorageRoot() / storedRelativePath).string()), std::string::npos);
     }
 }
 

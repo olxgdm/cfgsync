@@ -70,12 +70,11 @@ fs::path ReadStorageRoot(const nlohmann::json& document, const fs::path& registr
 
 void ValidateStoredRelativePath(const std::string& storedRelativePath, const fs::path& registryPath,
                                 const std::string& fieldName) {
-    if (storedRelativePath.empty()) {
-        throw MalformedRegistryError(registryPath, fieldName + " must not be empty.");
-    }
-
-    if (fs::path{storedRelativePath}.is_absolute()) {
-        throw MalformedRegistryError(registryPath, fieldName + " must be relative.");
+    const auto validationError = utils::ValidateStoredRelativePath(storedRelativePath);
+    if (validationError != utils::StoredRelativePathValidationError::None) {
+        throw MalformedRegistryError(
+            registryPath,
+            fieldName + " " + std::string{utils::DescribeStoredRelativePathValidationError(validationError)});
     }
 }
 

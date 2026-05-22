@@ -39,7 +39,42 @@ bool IsWindowsDriveAbsolutePath(std::string_view input) {
            IsPathSeparator(input[2]);
 }
 
+bool IsStoredPathRooted(std::string_view storedRelativePath) {
+    if (storedRelativePath.empty()) {
+        return false;
+    }
+
+    if (IsPathSeparator(storedRelativePath[0])) {
+        return true;
+    }
+
+    return storedRelativePath.size() >= 2 &&
+           std::isalpha(static_cast<unsigned char>(storedRelativePath[0])) != 0 && storedRelativePath[1] == ':';
+}
+
 bool IsPosixAbsolutePath(std::string_view input) { return input.starts_with('/') && !input.starts_with("//"); }
+
+std::vector<std::string> SplitPathComponents(std::string_view input) {
+    std::vector<std::string> components;
+    std::string currentComponent;
+    for (const auto character : input) {
+        if (!IsPathSeparator(character)) {
+            currentComponent.push_back(character);
+            continue;
+        }
+
+        if (!currentComponent.empty()) {
+            components.push_back(currentComponent);
+            currentComponent.clear();
+        }
+    }
+
+    if (!currentComponent.empty()) {
+        components.push_back(currentComponent);
+    }
+
+    return components;
+}
 
 std::vector<std::string> SplitNormalizedComponents(std::string_view input, std::size_t startIndex) {
     std::string normalizedInput{input};
@@ -179,6 +214,51 @@ fs::path MakeStorageRelativePath(const fs::path& originalPath) {
     }
 
     return storageRelativePath;
+}
+
+StoredRelativePathValidationError ValidateStoredRelativePath(std::string_view storedRelativePath) {
+    if (storedRelativePath.empty()) {
+        return StoredRelativePathValidationError::Empty;
+    }
+
+    if (fs::path{storedRelativePath}.is_absolute() || IsStoredPathRooted(storedRelativePath)) {
+        return StoredRelativePathValidationError::Absolute;
+    }
+
+    const auto components = SplitPathComponents(storedRelativePath);
+    if (components.empty() || components.front() != "files") {
+        return StoredRelativePathValidationError::OutsideFiles;
+    }
+
+    if (components.size() < 2) {
+        return StoredRelativePathValidationError::MissingFilesChild;
+    }
+
+    if (std::any_of(components.begin(), components.end(),
+                    [](const std::string& component) { return component == ".."; })) {
+        return StoredRelativePathValidationError::ParentTraversal;
+    }
+
+    return StoredRelativePathValidationError::None;
+}
+
+std::string_view DescribeStoredRelativePathValidationError(StoredRelativePathValidationError error) {
+    switch (error) {
+        case StoredRelativePathValidationError::None:
+            return "is valid.";
+        case StoredRelativePathValidationError::Empty:
+            return "must not be empty.";
+        case StoredRelativePathValidationError::Absolute:
+            return "must be relative.";
+        case StoredRelativePathValidationError::OutsideFiles:
+            return "must be under files/.";
+        case StoredRelativePathValidationError::MissingFilesChild:
+            return "must include a path under files/.";
+        case StoredRelativePathValidationError::ParentTraversal:
+            return "must not contain parent directory traversal.";
+    }
+
+    return "is invalid.";
 }
 
 }  // namespace cfgsync::utils

@@ -9,6 +9,7 @@
 #include <fstream>
 #include <nlohmann/json.hpp>
 #include <string>
+#include <vector>
 
 namespace {
 namespace fs = std::filesystem;
@@ -31,6 +32,26 @@ void WriteTextFile(const fs::path& path, const std::string& contents) {
 
 void WriteJsonFile(const fs::path& path, const nlohmann::json& document) {
     WriteTextFile(path, document.dump(4) + "\n");
+}
+
+struct RegistryDocumentPaths {
+    fs::path RegistryPath;
+    fs::path StorageRoot;
+};
+
+void WriteRegistryWithStoredRelativePath(const RegistryDocumentPaths& paths, const std::string& storedRelativePath) {
+    const auto normalizedStorageRoot = cfgsync::utils::NormalizePath(paths.StorageRoot);
+    const auto originalPath = cfgsync::utils::NormalizePath(paths.StorageRoot / "source.conf");
+    WriteJsonFile(paths.RegistryPath, {
+                                          {"version", 1},
+                                          {"storage_root", normalizedStorageRoot.string()},
+                                          {"tracked_files", nlohmann::json::array({
+                                                                {
+                                                                    {"original_path", originalPath.string()},
+                                                                    {"stored_relative_path", storedRelativePath},
+                                                                },
+                                                            })},
+                                      });
 }
 
 class RegistryTest : public testing::Test {
@@ -61,25 +82,16 @@ TEST_F(RegistryTest, SavesEmptyVersionOneRegistry) {
 }
 
 TEST_F(RegistryTest, LoadsValidVersionOneRegistry) {
-    const auto normalizedStorageRoot = cfgsync::utils::NormalizePath(StorageRoot());
-    const auto originalPath = cfgsync::utils::NormalizePath(StorageRoot() / "source.conf");
-    WriteJsonFile(RegistryPath(), {
-                                      {"version", 1},
-                                      {"storage_root", normalizedStorageRoot.string()},
-                                      {"tracked_files", nlohmann::json::array({
-                                                            {
-                                                                {"original_path", originalPath.string()},
-                                                                {"stored_relative_path", "files/source.conf"},
-                                                            },
-                                                        })},
-                                  });
+    WriteRegistryWithStoredRelativePath({.RegistryPath = RegistryPath(), .StorageRoot = StorageRoot()},
+                                        "files/source.conf");
 
     cfgsync::core::Registry registry{RegistryPath()};
     registry.Load();
 
-    EXPECT_EQ(registry.GetStorageRoot(), normalizedStorageRoot);
+    EXPECT_EQ(registry.GetStorageRoot(), cfgsync::utils::NormalizePath(StorageRoot()));
     ASSERT_EQ(registry.GetTrackedEntries().size(), 1U);
-    EXPECT_EQ(registry.GetTrackedEntries()[0].OriginalPath, originalPath.string());
+    EXPECT_EQ(registry.GetTrackedEntries()[0].OriginalPath,
+              cfgsync::utils::NormalizePath(StorageRoot() / "source.conf").string());
     EXPECT_EQ(registry.GetTrackedEntries()[0].StoredRelativePath, "files/source.conf");
 }
 
@@ -189,6 +201,29 @@ TEST_F(RegistryTest, DuplicateOriginalPathsInFileThrowClearError) {
     } catch (const cfgsync::RegistryError& error) {
         const std::string message = error.what();
         EXPECT_NE(message.find("duplicate original_path"), std::string::npos);
+    }
+}
+
+TEST_F(RegistryTest, UnsafeStoredRelativePathsThrowClearError) {
+    const std::vector<std::string> unsafeStoredRelativePaths{
+        "", "../escape", "files/../../escape", (StorageRoot() / "escape").string(), "backup/foo", "files",
+    };
+
+    for (const auto& storedRelativePath : unsafeStoredRelativePaths) {
+        SCOPED_TRACE(storedRelativePath);
+        WriteRegistryWithStoredRelativePath({.RegistryPath = RegistryPath(), .StorageRoot = StorageRoot()},
+                                            storedRelativePath);
+
+        cfgsync::core::Registry registry{RegistryPath()};
+
+        try {
+            registry.Load();
+            FAIL() << "Unsafe stored_relative_path did not throw.";
+        } catch (const cfgsync::RegistryError& error) {
+            const std::string message = error.what();
+            EXPECT_NE(message.find("Malformed cfgsync registry"), std::string::npos);
+            EXPECT_NE(message.find("stored_relative_path"), std::string::npos);
+        }
     }
 }
 

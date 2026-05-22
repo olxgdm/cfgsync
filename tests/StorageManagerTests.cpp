@@ -1,3 +1,4 @@
+#include "Exceptions.hpp"
 #include "common/GoogleTestMain.hpp"
 #include "common/TestFileUtils.hpp"
 #include "common/TestTempDirectory.hpp"
@@ -7,6 +8,7 @@
 
 #include <filesystem>
 #include <string>
+#include <vector>
 
 namespace {
 namespace fs = std::filesystem;
@@ -62,6 +64,23 @@ TEST_F(StorageManagerTest, ResolvesStoredPathFromTrackedRelativePath) {
     };
 
     EXPECT_EQ(storageManager.ResolveStoredPath(entry), StorageRoot() / "files/home/user/.gitconfig");
+}
+
+TEST_F(StorageManagerTest, UnsafeStoredRelativePathsThrowFileError) {
+    const cfgsync::storage::StorageManager storageManager{StorageRoot()};
+    const std::vector<std::string> unsafeStoredRelativePaths{
+        "", "../escape", "files/../../escape", (StorageRoot() / "escape").string(), "backup/foo", "files",
+    };
+
+    for (const auto& storedRelativePath : unsafeStoredRelativePaths) {
+        SCOPED_TRACE(storedRelativePath);
+        const cfgsync::core::TrackedEntry entry{
+            .OriginalPath = SourcePath().string(),
+            .StoredRelativePath = storedRelativePath,
+        };
+
+        EXPECT_THROW(storageManager.ResolveStoredPath(entry), cfgsync::FileError);
+    }
 }
 
 TEST_F(StorageManagerTest, BackupCopiesSourceToResolvedStoredPath) {

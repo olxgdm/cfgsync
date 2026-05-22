@@ -1,10 +1,38 @@
 #include "storage/StorageManager.hpp"
 
+#include "Exceptions.hpp"
 #include "utils/FileUtils.hpp"
+#include "utils/PathUtils.hpp"
 
+#include <string>
 #include <utility>
 
 namespace cfgsync::storage {
+namespace fs = std::filesystem;
+
+namespace {
+
+bool HasPathPrefix(const fs::path& path, const fs::path& prefix) {
+    auto pathIterator = path.begin();
+    auto prefixIterator = prefix.begin();
+    for (; prefixIterator != prefix.end(); ++prefixIterator, ++pathIterator) {
+        if (pathIterator == path.end() || *pathIterator != *prefixIterator) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+void ValidateStoredRelativePath(const std::string& storedRelativePath) {
+    const auto validationError = utils::ValidateStoredRelativePath(storedRelativePath);
+    if (validationError != utils::StoredRelativePathValidationError::None) {
+        throw FileError{"stored_relative_path " +
+                        std::string{utils::DescribeStoredRelativePathValidationError(validationError)}};
+    }
+}
+
+}  // namespace
 
 StorageManager::StorageManager(std::filesystem::path storageRoot) : StorageRoot_(std::move(storageRoot)) {}
 
@@ -25,7 +53,16 @@ std::filesystem::path StorageManager::ResolveStoredPath(const core::TrackedEntry
         return {};
     }
 
-    return StorageRoot_ / entry.StoredRelativePath;
+    ValidateStoredRelativePath(entry.StoredRelativePath);
+
+    const auto storageRoot = StorageRoot_.lexically_normal();
+    const auto filesRoot = (storageRoot / "files").lexically_normal();
+    const auto storedPath = (StorageRoot_ / entry.StoredRelativePath).lexically_normal();
+    if (!HasPathPrefix(storedPath, filesRoot)) {
+        throw FileError{"stored_relative_path resolves outside cfgsync storage files."};
+    }
+
+    return storedPath;
 }
 
 void StorageManager::BackupEntry(const core::TrackedEntry& entry) const {

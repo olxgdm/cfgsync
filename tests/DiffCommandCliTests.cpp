@@ -109,8 +109,7 @@ TEST_F(DiffCommandCliTest, MissingBackupFailsWithStoredPathContext) {
     EXPECT_NE(result.ExitCode, 0);
     EXPECT_TRUE(result.Output.empty());
     EXPECT_NE(result.Error.find("no stored backup yet"), std::string::npos);
-    EXPECT_NE(result.Error.find(cfgsync::tests::StoredRegistryPathFor(StorageRoot(), sourcePath).string()),
-              std::string::npos);
+    EXPECT_NE(result.Error.find(cfgsync::tests::StoredPathFor(StorageRoot(), sourcePath).string()), std::string::npos);
 }
 
 TEST_F(DiffCommandCliTest, MissingOriginalFailsClearly) {
