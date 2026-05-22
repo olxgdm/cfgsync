@@ -18,7 +18,7 @@ endif()
 
 set(CMAKE_LINK_LIBRARIES_STRATEGY REORDER_FREELY)
 
-project(cfgsync VERSION 0.2.0 LANGUAGES CXX)
+project(cfgsync VERSION 0.2.1 LANGUAGES CXX)
 
 include(GNUInstallDirs)
 
