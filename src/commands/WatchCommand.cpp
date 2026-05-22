@@ -114,7 +114,11 @@ std::chrono::milliseconds SleepDurationUntil(std::optional<watch::WatchBackupPro
 }  // namespace
 
 WatchCommand::WatchCommand(core::Registry& registry, storage::StorageManager& storageManager)
-    : Registry_(registry), StorageManager_(storageManager) {}
+    : WatchCommand(registry, storageManager, watch::WatchBackupProcessor::DefaultDebounceDelay) {}
+
+WatchCommand::WatchCommand(core::Registry& registry, storage::StorageManager& storageManager,
+                           std::chrono::milliseconds debounceDelay)
+    : Registry_(registry), StorageManager_(storageManager), DebounceDelay_(debounceDelay) {}
 
 void WatchCommand::Execute(watch::FileWatcher& watcher) const {
     const ScopedStopSignalHandlers signalHandlers;
@@ -129,7 +133,7 @@ void WatchCommand::ExecuteWithStopRequested(watch::FileWatcher& watcher,
         return;
     }
 
-    watch::WatchBackupProcessor processor{trackedEntries, StorageManager_};
+    watch::WatchBackupProcessor processor{trackedEntries, StorageManager_, DebounceDelay_};
     const auto watchDirectories = CollectWatchDirectories(trackedEntries);
 
     std::size_t startedWatchCount = 0;
@@ -157,6 +161,7 @@ void WatchCommand::ExecuteWithStopRequested(watch::FileWatcher& watcher,
         }
     }
 
+    processor.ProcessDueBackups();
     utils::LogInfo("Stopped watching.");
 }
 

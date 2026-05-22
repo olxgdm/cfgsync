@@ -4,11 +4,15 @@
 #include "storage/StorageManager.hpp"
 #include "watch/FileWatcher.hpp"
 
+#include <chrono>
+
 namespace cfgsync::commands {
 
 class WatchCommand {
 public:
     WatchCommand(core::Registry& registry, storage::StorageManager& storageManager);
+    WatchCommand(core::Registry& registry, storage::StorageManager& storageManager,
+                 std::chrono::milliseconds debounceDelay);
 
     void Execute(watch::FileWatcher& watcher) const;
 
@@ -39,6 +43,7 @@ private:
 
     core::Registry& Registry_;                 // NOLINT(cppcoreguidelines-avoid-const-or-ref-data-members)
     storage::StorageManager& StorageManager_;  // NOLINT(cppcoreguidelines-avoid-const-or-ref-data-members)
+    std::chrono::milliseconds DebounceDelay_;
 };
 
 }  // namespace cfgsync::commands
