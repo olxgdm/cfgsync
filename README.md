@@ -111,6 +111,7 @@ The examples below assume `cfgsync` is available on your `PATH`. If it is not, r
 ```bash
 cfgsync init --storage ~/cfgsync-store
 cfgsync add ~/.gitconfig
+cfgsync add ~/.config/nvim
 cfgsync list
 cfgsync backup
 cfgsync status
@@ -124,7 +125,7 @@ cfgsync remove ~/.gitconfig
 Typical flow:
 
 1. Run `cfgsync init --storage <dir>` once to create the storage directory and record it as the active storage root.
-2. Run `cfgsync add <file>` for each ordinary config file you want to track.
+2. Run `cfgsync add <file>` for one ordinary config file, or `cfgsync add <directory>` to recursively import existing ordinary files under a directory.
 3. Run `cfgsync backup` whenever you want to copy the current tracked files into storage.
 4. Run `cfgsync status` to check which tracked files differ from stored backups.
 5. Run `cfgsync diff <file>` to inspect a tracked file's text changes.
@@ -186,13 +187,17 @@ The command does not restore files. Run `cfgsync list` to inspect tracked origin
 
 In v0, restore uses the exact original paths recorded in the registry. `cfgsync use` does not remap paths across different usernames, home directories, or operating systems.
 
-### `cfgsync add <file>`
+### `cfgsync add <file|directory>`
 
-Registers an existing ordinary file for tracking.
+Registers an existing ordinary file for tracking, or recursively imports existing ordinary files under a directory.
 
-The path is expanded for `~`, normalized, and stored in the registry. Directories, symlinks, missing paths, and special files are rejected in v0.
+The path is expanded for `~`, normalized, and stored in the registry. Direct file adds still accept ordinary files only; symlinks, missing paths, and special files are rejected.
 
-Adding an already tracked file leaves the registry unchanged.
+When a directory is passed, cfgsync performs a one-time recursive import of current ordinary files. It stores each imported file as an ordinary tracked file entry; it does not store directory-root metadata, does not enable persistent directory tracking, and does not automatically track files created later under that directory. Run `cfgsync add <directory>` again to import newly created files.
+
+Directory import skips already tracked files without failing. Symlinks, special files, and entries that cannot be inspected are skipped with warnings while the import continues.
+
+Adding files does not create backup copies in storage. Run `cfgsync backup` or `cfgsync watch` when you want tracked files copied into storage.
 
 ### `cfgsync remove <file>`
 
@@ -329,7 +334,7 @@ Users normally do not need to edit this file manually, but it is kept readable f
 The v0 scope is intentionally small:
 
 - ordinary files only
-- no directory tracking
+- no persistent directory tracking
 - no symlink tracking
 - no special file handling
 - no snapshots or history
