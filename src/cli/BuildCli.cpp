@@ -51,9 +51,9 @@ void BuildCli(CLI::App& app, core::Registry& registry, storage::StorageManager& 
         command.Execute(std::filesystem::path{*useStorageRoot});
     });
 
-    auto* addCommand = app.add_subcommand("add", "Register a file for tracking.");
+    auto* addCommand = app.add_subcommand("add", "Register a file or import a directory for tracking.");
     auto addFile = std::make_shared<std::string>();
-    addCommand->add_option("file", *addFile, "Path to the file that should be tracked.")->required();
+    addCommand->add_option("path", *addFile, "Path to the file or directory that should be tracked.")->required();
     addCommand->callback([&registry, loadActiveStorage, addFile]() {
         loadActiveStorage();
         commands::AddCommand command{registry};

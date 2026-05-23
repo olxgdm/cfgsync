@@ -8,6 +8,7 @@
 #include <fstream>
 #include <nlohmann/json.hpp>
 #include <string>
+#include <vector>
 
 namespace {
 namespace fs = std::filesystem;
@@ -61,6 +62,54 @@ TEST_F(AddCommandCliTest, DuplicateAddReturnsSuccessAndLeavesRegistryUnchanged) 
     EXPECT_TRUE(
         cfgsync::tests::CfgsyncCommandSucceeded("add " + cfgsync::tests::QuoteForCommand(sourcePath), GetTestRoot()));
 
+    EXPECT_EQ(ReadJsonFile(StorageRoot() / "registry.json"), documentAfterFirstAdd);
+}
+
+TEST_F(AddCommandCliTest, AddDirectoryUsesActiveStorageRootAndWritesImportedFilesToRegistry) {
+    const auto directoryPath = GetTestRoot() / "configs";
+    const auto firstPath = directoryPath / "git" / ".gitconfig";
+    const auto secondPath = directoryPath / "nvim" / "init.lua";
+    WriteTextFile(secondPath, "vim.opt.number = true\n");
+    WriteTextFile(firstPath, "[user]\n");
+
+    ASSERT_TRUE(cfgsync::tests::CfgsyncCommandSucceeded(
+        "init --storage " + cfgsync::tests::QuoteForCommand(StorageRoot()), GetTestRoot()));
+
+    const auto result = RunCommand("add " + cfgsync::tests::QuoteForCommand(directoryPath));
+
+    EXPECT_EQ(result.ExitCode, 0);
+    EXPECT_TRUE(result.Error.empty());
+
+    const std::vector<fs::path> expectedPaths{
+        cfgsync::utils::NormalizePath(firstPath),
+        cfgsync::utils::NormalizePath(secondPath),
+    };
+    const auto document = ReadJsonFile(StorageRoot() / "registry.json");
+    ASSERT_EQ(document["tracked_files"].size(), expectedPaths.size());
+    for (std::size_t index = 0; index < expectedPaths.size(); ++index) {
+        EXPECT_EQ(document["tracked_files"][index]["original_path"], expectedPaths[index].string());
+        EXPECT_EQ(document["tracked_files"][index]["stored_relative_path"],
+                  cfgsync::utils::MakeStorageRelativePath(expectedPaths[index]).generic_string());
+    }
+}
+
+TEST_F(AddCommandCliTest, RepeatedDirectoryAddSucceedsAndLeavesRegistryUnchanged) {
+    const auto directoryPath = GetTestRoot() / "configs";
+    const auto firstPath = directoryPath / ".gitconfig";
+    const auto secondPath = directoryPath / "nvim" / "init.lua";
+    WriteTextFile(firstPath, "[user]\n");
+    WriteTextFile(secondPath, "vim.opt.number = true\n");
+
+    ASSERT_TRUE(cfgsync::tests::CfgsyncCommandSucceeded(
+        "init --storage " + cfgsync::tests::QuoteForCommand(StorageRoot()), GetTestRoot()));
+    ASSERT_TRUE(cfgsync::tests::CfgsyncCommandSucceeded("add " + cfgsync::tests::QuoteForCommand(directoryPath),
+                                                        GetTestRoot()));
+    const auto documentAfterFirstAdd = ReadJsonFile(StorageRoot() / "registry.json");
+
+    const auto result = RunCommand("add " + cfgsync::tests::QuoteForCommand(directoryPath));
+
+    EXPECT_EQ(result.ExitCode, 0);
+    EXPECT_TRUE(result.Error.empty());
     EXPECT_EQ(ReadJsonFile(StorageRoot() / "registry.json"), documentAfterFirstAdd);
 }
 
