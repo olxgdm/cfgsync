@@ -5,6 +5,7 @@
 #include "utils/PathUtils.hpp"
 
 #include <algorithm>
+#include <format>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -137,7 +138,7 @@ void AddCommand::ExecuteDirectory(const fs::path& normalizedPath) const {
     }
 
     Registry_.Save();
-    utils::LogInfo("Imported " + std::to_string(addedCount) + " file(s) from directory: " + normalizedPath.string());
+    utils::LogInfo(std::format("Imported {} file(s) from directory: {}", addedCount, normalizedPath.string()));
 }
 
 void AddCommand::Execute(const fs::path& path) const {
