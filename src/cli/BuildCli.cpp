@@ -76,7 +76,7 @@ void BuildCli(CLI::App& app, core::Registry& registry, storage::StorageManager& 
         command.Execute();
     });
 
-    auto* backupCommand = app.add_subcommand("backup", "Copy tracked files into storage.");
+    auto* backupCommand = app.add_subcommand("backup", "Create missing stored copies for tracked files.");
     backupCommand->callback([&registry, &storageManager, loadActiveStorage]() {
         loadActiveStorage();
         const commands::BackupCommand command{registry, storageManager};

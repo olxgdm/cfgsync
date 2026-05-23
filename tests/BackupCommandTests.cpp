@@ -61,7 +61,7 @@ TEST_F(BackupCommandTest, CreatesDestinationParentDirectories) {
     EXPECT_EQ(cfgsync::tests::ReadTextFile(StorageRoot() / storedRelativePath), "vim.opt.number = true\n");
 }
 
-TEST_F(BackupCommandTest, OverwritesExistingStoredCopy) {
+TEST_F(BackupCommandTest, LeavesExistingStoredCopyUnchanged) {
     const auto sourcePath = SourcePath();
     cfgsync::tests::WriteTextFile(sourcePath, "new contents\n");
     const auto storedRelativePath = TrackFile(Registry(), sourcePath);
@@ -72,7 +72,25 @@ TEST_F(BackupCommandTest, OverwritesExistingStoredCopy) {
 
     command.Execute();
 
-    EXPECT_EQ(cfgsync::tests::ReadTextFile(StorageRoot() / storedRelativePath), "new contents\n");
+    EXPECT_EQ(cfgsync::tests::ReadTextFile(StorageRoot() / storedRelativePath), "old contents\n");
+}
+
+TEST_F(BackupCommandTest, BacksUpOnlyMissingStoredCopies) {
+    const auto existingBackupPath = SourcePath(".gitconfig");
+    const auto missingBackupPath = SourcePath("init.lua");
+    cfgsync::tests::WriteTextFile(existingBackupPath, "changed contents\n");
+    cfgsync::tests::WriteTextFile(missingBackupPath, "vim.opt.number = true\n");
+    const auto existingStoredRelativePath = TrackFile(Registry(), existingBackupPath);
+    const auto missingStoredRelativePath = TrackFile(Registry(), missingBackupPath);
+    cfgsync::tests::WriteTextFile(StorageRoot() / existingStoredRelativePath, "stored contents\n");
+
+    cfgsync::storage::StorageManager storageManager{StorageRoot()};
+    const cfgsync::commands::BackupCommand command{Registry(), storageManager};
+
+    command.Execute();
+
+    EXPECT_EQ(cfgsync::tests::ReadTextFile(StorageRoot() / existingStoredRelativePath), "stored contents\n");
+    EXPECT_EQ(cfgsync::tests::ReadTextFile(StorageRoot() / missingStoredRelativePath), "vim.opt.number = true\n");
 }
 
 TEST_F(BackupCommandTest, ContinuesAfterMissingSourceAndReportsPartialFailure) {

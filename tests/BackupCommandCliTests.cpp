@@ -48,7 +48,7 @@ TEST_F(BackupCommandCliTest, BackupCopiesMultipleTrackedFiles) {
               "vim.opt.number = true\n");
 }
 
-TEST_F(BackupCommandCliTest, BackupOverwritesExistingStoredCopy) {
+TEST_F(BackupCommandCliTest, BackupLeavesExistingStoredCopyUnchanged) {
     const auto sourcePath = SourcePath(".gitconfig");
     cfgsync::tests::WriteTextFile(sourcePath, "new contents\n");
     ASSERT_TRUE(RunInitCommand());
@@ -58,7 +58,27 @@ TEST_F(BackupCommandCliTest, BackupOverwritesExistingStoredCopy) {
     const auto result = RunBackupCommand();
 
     EXPECT_EQ(result.ExitCode, 0);
-    EXPECT_EQ(cfgsync::tests::ReadTextFile(cfgsync::tests::StoredPathFor(StorageRoot(), sourcePath)), "new contents\n");
+    EXPECT_EQ(cfgsync::tests::ReadTextFile(cfgsync::tests::StoredPathFor(StorageRoot(), sourcePath)), "old contents\n");
+    EXPECT_NE(result.Output.find("No new files to back up."), std::string::npos);
+}
+
+TEST_F(BackupCommandCliTest, BackupAfterSourceEditDoesNotRefreshStoredCopyAndStatusReportsModified) {
+    const auto sourcePath = SourcePath(".gitconfig");
+    cfgsync::tests::WriteTextFile(sourcePath, "stored contents\n");
+    ASSERT_TRUE(RunInitCommand());
+    ASSERT_TRUE(RunAddCommand(sourcePath));
+    ASSERT_EQ(RunBackupCommand().ExitCode, 0);
+    cfgsync::tests::WriteTextFile(sourcePath, "local changes\n");
+
+    const auto backupResult = RunBackupCommand();
+    const auto statusResult = RunCommand("status");
+
+    EXPECT_EQ(backupResult.ExitCode, 0);
+    EXPECT_NE(backupResult.Output.find("No new files to back up."), std::string::npos);
+    EXPECT_EQ(cfgsync::tests::ReadTextFile(cfgsync::tests::StoredPathFor(StorageRoot(), sourcePath)),
+              "stored contents\n");
+    EXPECT_EQ(statusResult.ExitCode, 0);
+    EXPECT_EQ(statusResult.Output, "modified " + cfgsync::utils::NormalizePath(sourcePath).string() + "\n");
 }
 
 TEST_F(BackupCommandCliTest, BackupContinuesAfterMissingSourceAndReturnsNonZero) {
