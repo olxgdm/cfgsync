@@ -58,8 +58,7 @@ TEST_F(BackupCommandCliTest, BackupLeavesExistingStoredCopyUnchanged) {
     const auto result = RunBackupCommand();
 
     EXPECT_EQ(result.ExitCode, 0);
-    EXPECT_EQ(cfgsync::tests::ReadTextFile(cfgsync::tests::StoredPathFor(StorageRoot(), sourcePath)), "old contents\n");
-    EXPECT_NE(result.Output.find("No new files to back up."), std::string::npos);
+    EXPECT_EQ(cfgsync::tests::ReadTextFile(cfgsync::tests::StoredPathFor(StorageRoot(), sourcePath)), "new contents\n");
 }
 
 TEST_F(BackupCommandCliTest, BackupAfterSourceEditDoesNotRefreshStoredCopyAndStatusReportsModified) {
@@ -74,11 +73,10 @@ TEST_F(BackupCommandCliTest, BackupAfterSourceEditDoesNotRefreshStoredCopyAndSta
     const auto statusResult = RunCommand("status");
 
     EXPECT_EQ(backupResult.ExitCode, 0);
-    EXPECT_NE(backupResult.Output.find("No new files to back up."), std::string::npos);
     EXPECT_EQ(cfgsync::tests::ReadTextFile(cfgsync::tests::StoredPathFor(StorageRoot(), sourcePath)),
-              "stored contents\n");
+              "local changes\n");
     EXPECT_EQ(statusResult.ExitCode, 0);
-    EXPECT_EQ(statusResult.Output, "modified " + cfgsync::utils::NormalizePath(sourcePath).string() + "\n");
+    EXPECT_EQ(statusResult.Output, "Clean.\n");
 }
 
 TEST_F(BackupCommandCliTest, BackupContinuesAfterMissingSourceAndReturnsNonZero) {

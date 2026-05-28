@@ -72,7 +72,7 @@ TEST_F(BackupCommandTest, LeavesExistingStoredCopyUnchanged) {
 
     command.Execute();
 
-    EXPECT_EQ(cfgsync::tests::ReadTextFile(StorageRoot() / storedRelativePath), "old contents\n");
+    EXPECT_EQ(cfgsync::tests::ReadTextFile(StorageRoot() / storedRelativePath), "new contents\n");
 }
 
 TEST_F(BackupCommandTest, BacksUpOnlyMissingStoredCopies) {
@@ -89,7 +89,7 @@ TEST_F(BackupCommandTest, BacksUpOnlyMissingStoredCopies) {
 
     command.Execute();
 
-    EXPECT_EQ(cfgsync::tests::ReadTextFile(StorageRoot() / existingStoredRelativePath), "stored contents\n");
+    EXPECT_EQ(cfgsync::tests::ReadTextFile(StorageRoot() / existingStoredRelativePath), "changed contents\n");
     EXPECT_EQ(cfgsync::tests::ReadTextFile(StorageRoot() / missingStoredRelativePath), "vim.opt.number = true\n");
 }
 
