@@ -61,7 +61,41 @@ TEST_F(BackupCommandTest, CreatesDestinationParentDirectories) {
     EXPECT_EQ(cfgsync::tests::ReadTextFile(StorageRoot() / storedRelativePath), "vim.opt.number = true\n");
 }
 
-TEST_F(BackupCommandTest, LeavesExistingStoredCopyUnchanged) {
+TEST_F(BackupCommandTest, SkipsExistingStoredCopyWhenContentMatches) {
+    const auto sourcePath = SourcePath();
+    cfgsync::tests::WriteTextFile(sourcePath, "same contents\n");
+    const auto storedRelativePath = TrackFile(Registry(), sourcePath);
+    cfgsync::tests::WriteTextFile(StorageRoot() / storedRelativePath, "same contents\n");
+
+    cfgsync::storage::StorageManager storageManager{StorageRoot()};
+    const cfgsync::commands::BackupCommand command{Registry(), storageManager};
+
+    testing::internal::CaptureStdout();
+    command.Execute();
+    const auto output = testing::internal::GetCapturedStdout();
+
+    EXPECT_EQ(cfgsync::tests::ReadTextFile(StorageRoot() / storedRelativePath), "same contents\n");
+    EXPECT_NE(output.find("No new files to back up."), std::string::npos);
+}
+
+TEST_F(BackupCommandTest, SkipsExistingStoredCopyWhenBothFilesAreEmpty) {
+    const auto sourcePath = SourcePath();
+    cfgsync::tests::WriteTextFile(sourcePath, "");
+    const auto storedRelativePath = TrackFile(Registry(), sourcePath);
+    cfgsync::tests::WriteTextFile(StorageRoot() / storedRelativePath, "");
+
+    cfgsync::storage::StorageManager storageManager{StorageRoot()};
+    const cfgsync::commands::BackupCommand command{Registry(), storageManager};
+
+    testing::internal::CaptureStdout();
+    command.Execute();
+    const auto output = testing::internal::GetCapturedStdout();
+
+    EXPECT_EQ(cfgsync::tests::ReadTextFile(StorageRoot() / storedRelativePath), "");
+    EXPECT_NE(output.find("No new files to back up."), std::string::npos);
+}
+
+TEST_F(BackupCommandTest, RefreshesExistingStoredCopyWhenContentDiffers) {
     const auto sourcePath = SourcePath();
     cfgsync::tests::WriteTextFile(sourcePath, "new contents\n");
     const auto storedRelativePath = TrackFile(Registry(), sourcePath);
@@ -72,33 +106,42 @@ TEST_F(BackupCommandTest, LeavesExistingStoredCopyUnchanged) {
 
     command.Execute();
 
-    EXPECT_EQ(cfgsync::tests::ReadTextFile(StorageRoot() / storedRelativePath), "old contents\n");
+    EXPECT_EQ(cfgsync::tests::ReadTextFile(StorageRoot() / storedRelativePath), "new contents\n");
 }
 
-TEST_F(BackupCommandTest, BacksUpOnlyMissingStoredCopies) {
-    const auto existingBackupPath = SourcePath(".gitconfig");
+TEST_F(BackupCommandTest, SkipsCleanRefreshesChangedAndCreatesMissingStoredCopies) {
+    const auto cleanBackupPath = SourcePath(".gitconfig");
+    const auto changedBackupPath = SourcePath("starship.toml");
     const auto missingBackupPath = SourcePath("init.lua");
-    cfgsync::tests::WriteTextFile(existingBackupPath, "changed contents\n");
+    cfgsync::tests::WriteTextFile(cleanBackupPath, "clean contents\n");
+    cfgsync::tests::WriteTextFile(changedBackupPath, "changed contents\n");
     cfgsync::tests::WriteTextFile(missingBackupPath, "vim.opt.number = true\n");
-    const auto existingStoredRelativePath = TrackFile(Registry(), existingBackupPath);
+    const auto cleanStoredRelativePath = TrackFile(Registry(), cleanBackupPath);
+    const auto changedStoredRelativePath = TrackFile(Registry(), changedBackupPath);
     const auto missingStoredRelativePath = TrackFile(Registry(), missingBackupPath);
-    cfgsync::tests::WriteTextFile(StorageRoot() / existingStoredRelativePath, "stored contents\n");
+    cfgsync::tests::WriteTextFile(StorageRoot() / cleanStoredRelativePath, "clean contents\n");
+    cfgsync::tests::WriteTextFile(StorageRoot() / changedStoredRelativePath, "stored contents\n");
 
     cfgsync::storage::StorageManager storageManager{StorageRoot()};
     const cfgsync::commands::BackupCommand command{Registry(), storageManager};
 
     command.Execute();
 
-    EXPECT_EQ(cfgsync::tests::ReadTextFile(StorageRoot() / existingStoredRelativePath), "stored contents\n");
+    EXPECT_EQ(cfgsync::tests::ReadTextFile(StorageRoot() / cleanStoredRelativePath), "clean contents\n");
+    EXPECT_EQ(cfgsync::tests::ReadTextFile(StorageRoot() / changedStoredRelativePath), "changed contents\n");
     EXPECT_EQ(cfgsync::tests::ReadTextFile(StorageRoot() / missingStoredRelativePath), "vim.opt.number = true\n");
 }
 
 TEST_F(BackupCommandTest, ContinuesAfterMissingSourceAndReportsPartialFailure) {
     const auto existingPath = SourcePath(".gitconfig");
+    const auto changedPath = SourcePath("starship.toml");
     const auto missingPath = SourcePath("missing.conf");
     cfgsync::tests::WriteTextFile(existingPath, "[user]\n");
+    cfgsync::tests::WriteTextFile(changedPath, "changed contents\n");
     const auto existingStoredRelativePath = TrackFile(Registry(), existingPath);
+    const auto changedStoredRelativePath = TrackFile(Registry(), changedPath);
     TrackFile(Registry(), missingPath);
+    cfgsync::tests::WriteTextFile(StorageRoot() / changedStoredRelativePath, "stored contents\n");
     const auto registryBeforeBackup = cfgsync::tests::ReadJsonFile(RegistryPath());
 
     cfgsync::storage::StorageManager storageManager{StorageRoot()};
@@ -113,7 +156,35 @@ TEST_F(BackupCommandTest, ContinuesAfterMissingSourceAndReportsPartialFailure) {
     }
 
     EXPECT_EQ(cfgsync::tests::ReadTextFile(StorageRoot() / existingStoredRelativePath), "[user]\n");
+    EXPECT_EQ(cfgsync::tests::ReadTextFile(StorageRoot() / changedStoredRelativePath), "changed contents\n");
     EXPECT_EQ(cfgsync::tests::ReadJsonFile(RegistryPath()), registryBeforeBackup);
+}
+
+TEST_F(BackupCommandTest, MissingSourcesWithExistingBackupsReportPluralFailureAndLeaveBackupsUntouched) {
+    const auto firstPath = SourcePath(".gitconfig");
+    const auto secondPath = SourcePath("starship.toml");
+    cfgsync::tests::WriteTextFile(firstPath, "first current\n");
+    cfgsync::tests::WriteTextFile(secondPath, "second current\n");
+    const auto firstStoredRelativePath = TrackFile(Registry(), firstPath);
+    const auto secondStoredRelativePath = TrackFile(Registry(), secondPath);
+    cfgsync::tests::WriteTextFile(StorageRoot() / firstStoredRelativePath, "first stored\n");
+    cfgsync::tests::WriteTextFile(StorageRoot() / secondStoredRelativePath, "second stored\n");
+    fs::remove(firstPath);
+    fs::remove(secondPath);
+
+    cfgsync::storage::StorageManager storageManager{StorageRoot()};
+    const cfgsync::commands::BackupCommand command{Registry(), storageManager};
+
+    try {
+        command.Execute();
+        FAIL() << "Backup with missing sources and existing backups did not throw.";
+    } catch (const cfgsync::CommandError& error) {
+        const std::string message = error.what();
+        EXPECT_NE(message.find("Backup completed with 2 failures."), std::string::npos);
+    }
+
+    EXPECT_EQ(cfgsync::tests::ReadTextFile(StorageRoot() / firstStoredRelativePath), "first stored\n");
+    EXPECT_EQ(cfgsync::tests::ReadTextFile(StorageRoot() / secondStoredRelativePath), "second stored\n");
 }
 
 TEST_F(BackupCommandTest, EmptyRegistrySucceedsWithoutCreatingStoredFiles) {

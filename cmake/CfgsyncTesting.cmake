@@ -28,6 +28,7 @@ function(cfgsync_add_gtest_target target_name)
         fmt::fmt
         spdlog::spdlog
         GTest::gtest
+        OpenSSL::Crypto
         ${CFGSYNC_TEST_LIBRARIES}
     )
 

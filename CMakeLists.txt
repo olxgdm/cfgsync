@@ -18,7 +18,7 @@ endif()
 
 set(CMAKE_LINK_LIBRARIES_STRATEGY REORDER_FREELY)
 
-project(cfgsync VERSION 0.3.0 LANGUAGES CXX)
+project(cfgsync VERSION 0.3.1 LANGUAGES CXX)
 
 include(GNUInstallDirs)
 
@@ -120,11 +120,14 @@ endif()
 
 if(TARGET efsw-static)
     get_target_property(EFSW_STATIC_INCLUDE_DIRECTORIES efsw-static INTERFACE_INCLUDE_DIRECTORIES)
+
     if(EFSW_STATIC_INCLUDE_DIRECTORIES)
         set_target_properties(efsw-static PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "")
         target_include_directories(efsw-static SYSTEM INTERFACE ${EFSW_STATIC_INCLUDE_DIRECTORIES})
     endif()
 endif()
+
+find_package(OpenSSL REQUIRED)
 
 add_executable(cfgsync
     src/main.cpp
@@ -176,6 +179,7 @@ target_link_libraries(cfgsync
     CLI11::CLI11
     nlohmann_json::nlohmann_json
     efsw-static
+    OpenSSL::Crypto
 )
 
 if(MSVC)
@@ -215,327 +219,327 @@ if(CFGSYNC_BUILD_TESTS)
 
     cfgsync_add_gtest_target(cfgsync_app_config_tests
         SOURCES
-            tests/AppConfigTests.cpp
-            tests/common/TestTempDirectory.cpp
-            src/core/AppConfig.cpp
-            src/utils/AppConfigPath.cpp
-            src/utils/FileUtils.cpp
-            src/utils/PathUtils.cpp
+        tests/AppConfigTests.cpp
+        tests/common/TestTempDirectory.cpp
+        src/core/AppConfig.cpp
+        src/utils/AppConfigPath.cpp
+        src/utils/FileUtils.cpp
+        src/utils/PathUtils.cpp
         LIBRARIES
-            nlohmann_json::nlohmann_json
+        nlohmann_json::nlohmann_json
     )
 
     cfgsync_add_gtest_target(cfgsync_registry_init_tests
         SOURCES
-            tests/RegistryInitTests.cpp
-            tests/common/TestTempDirectory.cpp
-            src/core/Registry.cpp
-            src/utils/FileUtils.cpp
-            src/utils/PathUtils.cpp
+        tests/RegistryInitTests.cpp
+        tests/common/TestTempDirectory.cpp
+        src/core/Registry.cpp
+        src/utils/FileUtils.cpp
+        src/utils/PathUtils.cpp
         LIBRARIES
-            nlohmann_json::nlohmann_json
+        nlohmann_json::nlohmann_json
     )
 
     cfgsync_add_gtest_target(cfgsync_registry_tests
         SOURCES
-            tests/RegistryTests.cpp
-            tests/common/TestTempDirectory.cpp
-            src/core/Registry.cpp
-            src/utils/FileUtils.cpp
-            src/utils/PathUtils.cpp
+        tests/RegistryTests.cpp
+        tests/common/TestTempDirectory.cpp
+        src/core/Registry.cpp
+        src/utils/FileUtils.cpp
+        src/utils/PathUtils.cpp
         LIBRARIES
-            nlohmann_json::nlohmann_json
+        nlohmann_json::nlohmann_json
     )
 
     cfgsync_add_gtest_target(cfgsync_path_file_utils_tests
         SOURCES
-            tests/PathFileUtilsTests.cpp
-            tests/common/TestTempDirectory.cpp
-            src/utils/FileUtils.cpp
-            src/utils/PathUtils.cpp
+        tests/PathFileUtilsTests.cpp
+        tests/common/TestTempDirectory.cpp
+        src/utils/FileUtils.cpp
+        src/utils/PathUtils.cpp
     )
 
     cfgsync_add_gtest_target(cfgsync_terminal_style_tests
         SOURCES
-            tests/TerminalStyleTests.cpp
-            src/utils/TerminalStyle.cpp
+        tests/TerminalStyleTests.cpp
+        src/utils/TerminalStyle.cpp
     )
 
     cfgsync_add_gtest_target(cfgsync_storage_manager_tests
         SOURCES
-            tests/StorageManagerTests.cpp
-            tests/common/TestTempDirectory.cpp
-            src/storage/StorageManager.cpp
-            src/utils/FileUtils.cpp
-            src/utils/PathUtils.cpp
+        tests/StorageManagerTests.cpp
+        tests/common/TestTempDirectory.cpp
+        src/storage/StorageManager.cpp
+        src/utils/FileUtils.cpp
+        src/utils/PathUtils.cpp
         LIBRARIES
-            nlohmann_json::nlohmann_json
+        nlohmann_json::nlohmann_json
     )
 
     cfgsync_add_gtest_target(cfgsync_file_watcher_tests
         SOURCES
-            tests/FileWatcherTests.cpp
-            tests/common/TestTempDirectory.cpp
-            src/watch/EfswFileWatcher.cpp
+        tests/FileWatcherTests.cpp
+        tests/common/TestTempDirectory.cpp
+        src/watch/EfswFileWatcher.cpp
         LIBRARIES
-            efsw-static
+        efsw-static
     )
 
     cfgsync_add_gtest_target(cfgsync_watch_backup_processor_tests
         SOURCES
-            tests/WatchBackupProcessorTests.cpp
-            tests/common/TestTempDirectory.cpp
-            src/watch/WatchBackupProcessor.cpp
-            src/storage/StorageManager.cpp
-            src/core/Registry.cpp
-            src/utils/FileUtils.cpp
-            src/utils/PathUtils.cpp
+        tests/WatchBackupProcessorTests.cpp
+        tests/common/TestTempDirectory.cpp
+        src/watch/WatchBackupProcessor.cpp
+        src/storage/StorageManager.cpp
+        src/core/Registry.cpp
+        src/utils/FileUtils.cpp
+        src/utils/PathUtils.cpp
         LIBRARIES
-            nlohmann_json::nlohmann_json
+        nlohmann_json::nlohmann_json
     )
 
     cfgsync_add_gtest_target(cfgsync_file_comparator_tests
         SOURCES
-            tests/FileComparatorTests.cpp
-            tests/common/TestTempDirectory.cpp
-            src/diff/FileComparator.cpp
-            src/storage/StorageManager.cpp
-            src/utils/FileUtils.cpp
-            src/utils/PathUtils.cpp
+        tests/FileComparatorTests.cpp
+        tests/common/TestTempDirectory.cpp
+        src/diff/FileComparator.cpp
+        src/storage/StorageManager.cpp
+        src/utils/FileUtils.cpp
+        src/utils/PathUtils.cpp
         LIBRARIES
-            nlohmann_json::nlohmann_json
+        nlohmann_json::nlohmann_json
     )
 
     cfgsync_add_gtest_target(cfgsync_unified_diff_tests
         SOURCES
-            tests/UnifiedDiffTests.cpp
-            tests/common/TestTempDirectory.cpp
-            src/diff/UnifiedDiff.cpp
-            src/utils/FileUtils.cpp
-            src/utils/PathUtils.cpp
-            src/utils/TerminalStyle.cpp
+        tests/UnifiedDiffTests.cpp
+        tests/common/TestTempDirectory.cpp
+        src/diff/UnifiedDiff.cpp
+        src/utils/FileUtils.cpp
+        src/utils/PathUtils.cpp
+        src/utils/TerminalStyle.cpp
         LIBRARIES
-            nlohmann_json::nlohmann_json
+        nlohmann_json::nlohmann_json
     )
 
     cfgsync_add_gtest_target(cfgsync_add_command_tests
         SOURCES
-            tests/AddCommandTests.cpp
-            tests/common/TestTempDirectory.cpp
-            src/commands/AddCommand.cpp
-            src/core/Registry.cpp
-            src/utils/FileUtils.cpp
-            src/utils/PathUtils.cpp
+        tests/AddCommandTests.cpp
+        tests/common/TestTempDirectory.cpp
+        src/commands/AddCommand.cpp
+        src/core/Registry.cpp
+        src/utils/FileUtils.cpp
+        src/utils/PathUtils.cpp
         LIBRARIES
-            nlohmann_json::nlohmann_json
+        nlohmann_json::nlohmann_json
     )
 
     cfgsync_add_gtest_target(cfgsync_use_command_tests
         SOURCES
-            tests/UseCommandTests.cpp
-            tests/common/TestTempDirectory.cpp
-            src/commands/UseCommand.cpp
-            src/storage/StorageManager.cpp
-            src/core/AppConfig.cpp
-            src/core/Registry.cpp
-            src/utils/AppConfigPath.cpp
-            src/utils/FileUtils.cpp
-            src/utils/PathUtils.cpp
+        tests/UseCommandTests.cpp
+        tests/common/TestTempDirectory.cpp
+        src/commands/UseCommand.cpp
+        src/storage/StorageManager.cpp
+        src/core/AppConfig.cpp
+        src/core/Registry.cpp
+        src/utils/AppConfigPath.cpp
+        src/utils/FileUtils.cpp
+        src/utils/PathUtils.cpp
         LIBRARIES
-            nlohmann_json::nlohmann_json
+        nlohmann_json::nlohmann_json
     )
 
     cfgsync_add_gtest_target(cfgsync_use_command_cli_tests CLI
         SOURCES
-            tests/UseCommandCliTests.cpp
-            tests/common/CliTestUtils.cpp
-            tests/common/TestTempDirectory.cpp
-            src/utils/FileUtils.cpp
-            src/utils/PathUtils.cpp
+        tests/UseCommandCliTests.cpp
+        tests/common/CliTestUtils.cpp
+        tests/common/TestTempDirectory.cpp
+        src/utils/FileUtils.cpp
+        src/utils/PathUtils.cpp
         LIBRARIES
-            nlohmann_json::nlohmann_json
+        nlohmann_json::nlohmann_json
     )
 
     cfgsync_add_gtest_target(cfgsync_add_command_cli_tests CLI
         SOURCES
-            tests/AddCommandCliTests.cpp
-            tests/common/CliTestUtils.cpp
-            tests/common/TestTempDirectory.cpp
-            src/utils/FileUtils.cpp
-            src/utils/PathUtils.cpp
+        tests/AddCommandCliTests.cpp
+        tests/common/CliTestUtils.cpp
+        tests/common/TestTempDirectory.cpp
+        src/utils/FileUtils.cpp
+        src/utils/PathUtils.cpp
         LIBRARIES
-            nlohmann_json::nlohmann_json
+        nlohmann_json::nlohmann_json
     )
 
     cfgsync_add_gtest_target(cfgsync_list_command_tests
         SOURCES
-            tests/ListCommandTests.cpp
-            tests/common/TestTempDirectory.cpp
-            src/commands/ListCommand.cpp
-            src/core/Registry.cpp
-            src/utils/FileUtils.cpp
-            src/utils/PathUtils.cpp
+        tests/ListCommandTests.cpp
+        tests/common/TestTempDirectory.cpp
+        src/commands/ListCommand.cpp
+        src/core/Registry.cpp
+        src/utils/FileUtils.cpp
+        src/utils/PathUtils.cpp
         LIBRARIES
-            nlohmann_json::nlohmann_json
+        nlohmann_json::nlohmann_json
     )
 
     cfgsync_add_gtest_target(cfgsync_list_command_cli_tests CLI
         SOURCES
-            tests/ListCommandCliTests.cpp
-            tests/common/CliTestUtils.cpp
-            tests/common/TestTempDirectory.cpp
-            src/utils/FileUtils.cpp
-            src/utils/PathUtils.cpp
+        tests/ListCommandCliTests.cpp
+        tests/common/CliTestUtils.cpp
+        tests/common/TestTempDirectory.cpp
+        src/utils/FileUtils.cpp
+        src/utils/PathUtils.cpp
         LIBRARIES
-            nlohmann_json::nlohmann_json
+        nlohmann_json::nlohmann_json
     )
 
     cfgsync_add_gtest_target(cfgsync_remove_command_tests
         SOURCES
-            tests/RemoveCommandTests.cpp
-            tests/common/TestTempDirectory.cpp
-            src/commands/RemoveCommand.cpp
-            src/core/Registry.cpp
-            src/utils/FileUtils.cpp
-            src/utils/PathUtils.cpp
+        tests/RemoveCommandTests.cpp
+        tests/common/TestTempDirectory.cpp
+        src/commands/RemoveCommand.cpp
+        src/core/Registry.cpp
+        src/utils/FileUtils.cpp
+        src/utils/PathUtils.cpp
         LIBRARIES
-            nlohmann_json::nlohmann_json
+        nlohmann_json::nlohmann_json
     )
 
     cfgsync_add_gtest_target(cfgsync_remove_command_cli_tests CLI
         SOURCES
-            tests/RemoveCommandCliTests.cpp
-            tests/common/CliTestUtils.cpp
-            tests/common/TestTempDirectory.cpp
-            src/utils/FileUtils.cpp
-            src/utils/PathUtils.cpp
+        tests/RemoveCommandCliTests.cpp
+        tests/common/CliTestUtils.cpp
+        tests/common/TestTempDirectory.cpp
+        src/utils/FileUtils.cpp
+        src/utils/PathUtils.cpp
         LIBRARIES
-            nlohmann_json::nlohmann_json
+        nlohmann_json::nlohmann_json
     )
 
     cfgsync_add_gtest_target(cfgsync_backup_command_tests
         SOURCES
-            tests/BackupCommandTests.cpp
-            tests/common/TestTempDirectory.cpp
-            src/commands/BackupCommand.cpp
-            src/storage/StorageManager.cpp
-            src/core/Registry.cpp
-            src/utils/FileUtils.cpp
-            src/utils/PathUtils.cpp
+        tests/BackupCommandTests.cpp
+        tests/common/TestTempDirectory.cpp
+        src/commands/BackupCommand.cpp
+        src/storage/StorageManager.cpp
+        src/core/Registry.cpp
+        src/utils/FileUtils.cpp
+        src/utils/PathUtils.cpp
         LIBRARIES
-            nlohmann_json::nlohmann_json
+        nlohmann_json::nlohmann_json
     )
 
     cfgsync_add_gtest_target(cfgsync_backup_command_cli_tests CLI
         SOURCES
-            tests/BackupCommandCliTests.cpp
-            tests/common/CliTestUtils.cpp
-            tests/common/TestTempDirectory.cpp
-            src/utils/FileUtils.cpp
-            src/utils/PathUtils.cpp
+        tests/BackupCommandCliTests.cpp
+        tests/common/CliTestUtils.cpp
+        tests/common/TestTempDirectory.cpp
+        src/utils/FileUtils.cpp
+        src/utils/PathUtils.cpp
         LIBRARIES
-            nlohmann_json::nlohmann_json
+        nlohmann_json::nlohmann_json
     )
 
     cfgsync_add_gtest_target(cfgsync_watch_command_tests
         SOURCES
-            tests/WatchCommandTests.cpp
-            tests/common/TestTempDirectory.cpp
-            src/commands/WatchCommand.cpp
-            src/watch/WatchBackupProcessor.cpp
-            src/storage/StorageManager.cpp
-            src/core/Registry.cpp
-            src/utils/FileUtils.cpp
-            src/utils/PathUtils.cpp
+        tests/WatchCommandTests.cpp
+        tests/common/TestTempDirectory.cpp
+        src/commands/WatchCommand.cpp
+        src/watch/WatchBackupProcessor.cpp
+        src/storage/StorageManager.cpp
+        src/core/Registry.cpp
+        src/utils/FileUtils.cpp
+        src/utils/PathUtils.cpp
         LIBRARIES
-            nlohmann_json::nlohmann_json
+        nlohmann_json::nlohmann_json
     )
 
     cfgsync_add_gtest_target(cfgsync_watch_command_cli_tests CLI
         SOURCES
-            tests/WatchCommandCliTests.cpp
-            tests/common/CliTestUtils.cpp
-            tests/common/TestTempDirectory.cpp
-            src/utils/FileUtils.cpp
-            src/utils/PathUtils.cpp
+        tests/WatchCommandCliTests.cpp
+        tests/common/CliTestUtils.cpp
+        tests/common/TestTempDirectory.cpp
+        src/utils/FileUtils.cpp
+        src/utils/PathUtils.cpp
         LIBRARIES
-            nlohmann_json::nlohmann_json
+        nlohmann_json::nlohmann_json
     )
 
     cfgsync_add_gtest_target(cfgsync_status_command_tests
         SOURCES
-            tests/StatusCommandTests.cpp
-            tests/common/TestTempDirectory.cpp
-            src/commands/StatusCommand.cpp
-            src/diff/FileComparator.cpp
-            src/storage/StorageManager.cpp
-            src/core/Registry.cpp
-            src/utils/FileUtils.cpp
-            src/utils/PathUtils.cpp
+        tests/StatusCommandTests.cpp
+        tests/common/TestTempDirectory.cpp
+        src/commands/StatusCommand.cpp
+        src/diff/FileComparator.cpp
+        src/storage/StorageManager.cpp
+        src/core/Registry.cpp
+        src/utils/FileUtils.cpp
+        src/utils/PathUtils.cpp
         LIBRARIES
-            nlohmann_json::nlohmann_json
+        nlohmann_json::nlohmann_json
     )
 
     cfgsync_add_gtest_target(cfgsync_status_command_cli_tests CLI
         SOURCES
-            tests/StatusCommandCliTests.cpp
-            tests/common/CliTestUtils.cpp
-            tests/common/TestTempDirectory.cpp
-            src/utils/FileUtils.cpp
-            src/utils/PathUtils.cpp
+        tests/StatusCommandCliTests.cpp
+        tests/common/CliTestUtils.cpp
+        tests/common/TestTempDirectory.cpp
+        src/utils/FileUtils.cpp
+        src/utils/PathUtils.cpp
         LIBRARIES
-            nlohmann_json::nlohmann_json
+        nlohmann_json::nlohmann_json
     )
 
     cfgsync_add_gtest_target(cfgsync_diff_command_tests
         SOURCES
-            tests/DiffCommandTests.cpp
-            tests/common/TestTempDirectory.cpp
-            src/commands/DiffCommand.cpp
-            src/diff/FileComparator.cpp
-            src/diff/UnifiedDiff.cpp
-            src/storage/StorageManager.cpp
-            src/core/Registry.cpp
-            src/utils/FileUtils.cpp
-            src/utils/PathUtils.cpp
-            src/utils/TerminalStyle.cpp
+        tests/DiffCommandTests.cpp
+        tests/common/TestTempDirectory.cpp
+        src/commands/DiffCommand.cpp
+        src/diff/FileComparator.cpp
+        src/diff/UnifiedDiff.cpp
+        src/storage/StorageManager.cpp
+        src/core/Registry.cpp
+        src/utils/FileUtils.cpp
+        src/utils/PathUtils.cpp
+        src/utils/TerminalStyle.cpp
         LIBRARIES
-            nlohmann_json::nlohmann_json
+        nlohmann_json::nlohmann_json
     )
 
     cfgsync_add_gtest_target(cfgsync_diff_command_cli_tests CLI
         SOURCES
-            tests/DiffCommandCliTests.cpp
-            tests/common/CliTestUtils.cpp
-            tests/common/TestTempDirectory.cpp
-            src/utils/FileUtils.cpp
-            src/utils/PathUtils.cpp
-            src/utils/TerminalStyle.cpp
+        tests/DiffCommandCliTests.cpp
+        tests/common/CliTestUtils.cpp
+        tests/common/TestTempDirectory.cpp
+        src/utils/FileUtils.cpp
+        src/utils/PathUtils.cpp
+        src/utils/TerminalStyle.cpp
         LIBRARIES
-            nlohmann_json::nlohmann_json
+        nlohmann_json::nlohmann_json
     )
 
     cfgsync_add_gtest_target(cfgsync_restore_command_tests
         SOURCES
-            tests/RestoreCommandTests.cpp
-            tests/common/TestTempDirectory.cpp
-            src/commands/RestoreCommand.cpp
-            src/storage/StorageManager.cpp
-            src/core/Registry.cpp
-            src/utils/FileUtils.cpp
-            src/utils/PathUtils.cpp
+        tests/RestoreCommandTests.cpp
+        tests/common/TestTempDirectory.cpp
+        src/commands/RestoreCommand.cpp
+        src/storage/StorageManager.cpp
+        src/core/Registry.cpp
+        src/utils/FileUtils.cpp
+        src/utils/PathUtils.cpp
         LIBRARIES
-            nlohmann_json::nlohmann_json
+        nlohmann_json::nlohmann_json
     )
 
     cfgsync_add_gtest_target(cfgsync_restore_command_cli_tests CLI
         SOURCES
-            tests/RestoreCommandCliTests.cpp
-            tests/common/CliTestUtils.cpp
-            tests/common/TestTempDirectory.cpp
-            src/utils/FileUtils.cpp
-            src/utils/PathUtils.cpp
+        tests/RestoreCommandCliTests.cpp
+        tests/common/CliTestUtils.cpp
+        tests/common/TestTempDirectory.cpp
+        src/utils/FileUtils.cpp
+        src/utils/PathUtils.cpp
         LIBRARIES
-            nlohmann_json::nlohmann_json
+        nlohmann_json::nlohmann_json
     )
 endif()
