@@ -143,6 +143,33 @@ TEST_F(BackupCommandTest, ContinuesAfterMissingSourceAndReportsPartialFailure) {
     EXPECT_EQ(cfgsync::tests::ReadJsonFile(RegistryPath()), registryBeforeBackup);
 }
 
+TEST_F(BackupCommandTest, MissingSourcesWithExistingBackupsReportPluralFailureAndLeaveBackupsUntouched) {
+    const auto firstPath = SourcePath(".gitconfig");
+    const auto secondPath = SourcePath("starship.toml");
+    cfgsync::tests::WriteTextFile(firstPath, "first current\n");
+    cfgsync::tests::WriteTextFile(secondPath, "second current\n");
+    const auto firstStoredRelativePath = TrackFile(Registry(), firstPath);
+    const auto secondStoredRelativePath = TrackFile(Registry(), secondPath);
+    cfgsync::tests::WriteTextFile(StorageRoot() / firstStoredRelativePath, "first stored\n");
+    cfgsync::tests::WriteTextFile(StorageRoot() / secondStoredRelativePath, "second stored\n");
+    fs::remove(firstPath);
+    fs::remove(secondPath);
+
+    cfgsync::storage::StorageManager storageManager{StorageRoot()};
+    const cfgsync::commands::BackupCommand command{Registry(), storageManager};
+
+    try {
+        command.Execute();
+        FAIL() << "Backup with missing sources and existing backups did not throw.";
+    } catch (const cfgsync::CommandError& error) {
+        const std::string message = error.what();
+        EXPECT_NE(message.find("Backup completed with 2 failures."), std::string::npos);
+    }
+
+    EXPECT_EQ(cfgsync::tests::ReadTextFile(StorageRoot() / firstStoredRelativePath), "first stored\n");
+    EXPECT_EQ(cfgsync::tests::ReadTextFile(StorageRoot() / secondStoredRelativePath), "second stored\n");
+}
+
 TEST_F(BackupCommandTest, EmptyRegistrySucceedsWithoutCreatingStoredFiles) {
     cfgsync::storage::StorageManager storageManager{StorageRoot()};
     const cfgsync::commands::BackupCommand command{Registry(), storageManager};
