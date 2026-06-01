@@ -9,14 +9,33 @@
 #include <format>
 #include <fstream>
 #include <iomanip>
+#include <memory>
 #include <openssl/evp.h>
 #include <sstream>
 #include <string>
+#include <string_view>
 
 namespace cfgsync::commands {
 namespace fs = std::filesystem;
 
 namespace {
+
+using DigestContext = std::unique_ptr<EVP_MD_CTX, decltype(&EVP_MD_CTX_free)>;
+
+void RequireOpenSslSuccess(int result, std::string_view failureMessage) {
+    if (result != 1) {
+        throw FileError{std::string{failureMessage}};
+    }
+}
+
+DigestContext CreateDigestContext() {
+    DigestContext context{EVP_MD_CTX_new(), EVP_MD_CTX_free};
+    if (context == nullptr) {
+        throw FileError{"Unable to create SHA-256 context"};
+    }
+
+    return context;
+}
 
 std::string CalculateSha256(const fs::path& path) {
     std::ifstream file{path, std::ios::binary};
@@ -24,15 +43,8 @@ std::string CalculateSha256(const fs::path& path) {
         throw FileError{std::format("Unable to open file '{}'", path.string())};
     }
 
-    EVP_MD_CTX* context = EVP_MD_CTX_new();
-    if (context == nullptr) {
-        throw FileError{"Unable to create SHA-256 context"};
-    }
-
-    if (EVP_DigestInit_ex(context, EVP_sha256(), nullptr) != 1) {
-        EVP_MD_CTX_free(context);
-        throw FileError{"Unable to initialize SHA-256"};
-    }
+    auto context = CreateDigestContext();
+    RequireOpenSslSuccess(EVP_DigestInit_ex(context.get(), EVP_sha256(), nullptr), "Unable to initialize SHA-256");
 
     std::array<char, 8192> buffer{};
 
@@ -41,27 +53,19 @@ std::string CalculateSha256(const fs::path& path) {
         const auto bytesRead = file.gcount();
 
         if (bytesRead > 0) {
-            if (EVP_DigestUpdate(context, buffer.data(), static_cast<std::size_t>(bytesRead)) != 1) {
-                EVP_MD_CTX_free(context);
-                throw FileError{std::format("Unable to hash file '{}'", path.string())};
-            }
+            RequireOpenSslSuccess(EVP_DigestUpdate(context.get(), buffer.data(), static_cast<std::size_t>(bytesRead)),
+                                  std::format("Unable to hash file '{}'", path.string()));
         }
     }
 
     if (file.bad()) {
-        EVP_MD_CTX_free(context);
         throw FileError{std::format("Unable to read file '{}'", path.string())};
     }
 
     std::array<unsigned char, EVP_MAX_MD_SIZE> hash{};
     unsigned int hashLength = 0;
 
-    if (EVP_DigestFinal_ex(context, hash.data(), &hashLength) != 1) {
-        EVP_MD_CTX_free(context);
-        throw FileError{"Unable to finalize SHA-256"};
-    }
-
-    EVP_MD_CTX_free(context);
+    RequireOpenSslSuccess(EVP_DigestFinal_ex(context.get(), hash.data(), &hashLength), "Unable to finalize SHA-256");
 
     std::ostringstream result;
     result << std::hex << std::setfill('0');

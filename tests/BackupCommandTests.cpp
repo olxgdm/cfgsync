@@ -78,6 +78,23 @@ TEST_F(BackupCommandTest, SkipsExistingStoredCopyWhenContentMatches) {
     EXPECT_NE(output.find("No new files to back up."), std::string::npos);
 }
 
+TEST_F(BackupCommandTest, SkipsExistingStoredCopyWhenBothFilesAreEmpty) {
+    const auto sourcePath = SourcePath();
+    cfgsync::tests::WriteTextFile(sourcePath, "");
+    const auto storedRelativePath = TrackFile(Registry(), sourcePath);
+    cfgsync::tests::WriteTextFile(StorageRoot() / storedRelativePath, "");
+
+    cfgsync::storage::StorageManager storageManager{StorageRoot()};
+    const cfgsync::commands::BackupCommand command{Registry(), storageManager};
+
+    testing::internal::CaptureStdout();
+    command.Execute();
+    const auto output = testing::internal::GetCapturedStdout();
+
+    EXPECT_EQ(cfgsync::tests::ReadTextFile(StorageRoot() / storedRelativePath), "");
+    EXPECT_NE(output.find("No new files to back up."), std::string::npos);
+}
+
 TEST_F(BackupCommandTest, RefreshesExistingStoredCopyWhenContentDiffers) {
     const auto sourcePath = SourcePath();
     cfgsync::tests::WriteTextFile(sourcePath, "new contents\n");
