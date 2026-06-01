@@ -29,7 +29,7 @@ void RequireOpenSslSuccess(int result, std::string_view failureMessage) {
 }
 
 DigestContext CreateDigestContext() {
-    DigestContext context{EVP_MD_CTX_new(), EVP_MD_CTX_free};
+    DigestContext context{EVP_MD_CTX_new(), &EVP_MD_CTX_free};
     if (context == nullptr) {
         throw FileError{"Unable to create SHA-256 context"};
     }
