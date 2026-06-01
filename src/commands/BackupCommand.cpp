@@ -3,11 +3,14 @@
 #include "Exceptions.hpp"
 #include "utils/LogUtils.hpp"
 
+#include <array>
 #include <cstddef>
 #include <filesystem>
 #include <format>
 #include <fstream>
+#include <iomanip>
 #include <openssl/evp.h>
+#include <sstream>
 #include <string>
 
 namespace cfgsync::commands {
