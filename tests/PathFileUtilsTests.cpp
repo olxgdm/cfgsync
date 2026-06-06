@@ -10,6 +10,8 @@
 #include <iterator>
 #include <optional>
 #include <string>
+#include <string_view>
+#include <vector>
 
 #ifdef _WIN32
 #include <cstdlib>
@@ -66,6 +68,35 @@ void RestoreEnvironmentVariable(const char* name, const std::optional<std::strin
     }
 
     UnsetEnvironmentVariable(name);
+}
+
+fs::path ExpectedStorageRelativePathForNormalizedPath(const fs::path& normalizedPath) {
+    fs::path expectedPath{"files"};
+    const auto rootName = normalizedPath.root_name().generic_string();
+    if (!rootName.empty()) {
+        std::string sanitizedRoot = rootName;
+        sanitizedRoot.erase(
+            std::remove_if(sanitizedRoot.begin(), sanitizedRoot.end(),
+                           [](char character) { return character == ':' || character == '/' || character == '\\'; }),
+            sanitizedRoot.end());
+        if (!sanitizedRoot.empty()) {
+            expectedPath /= sanitizedRoot;
+        }
+    }
+
+    for (const auto& component : normalizedPath) {
+        if (!normalizedPath.root_name().empty() && component == normalizedPath.root_name()) {
+            continue;
+        }
+
+        if (component == normalizedPath.root_directory()) {
+            continue;
+        }
+
+        expectedPath /= component;
+    }
+
+    return expectedPath;
 }
 
 class PathFileUtilsTest : public testing::Test {
