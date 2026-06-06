@@ -10,6 +10,8 @@
 #include <iterator>
 #include <optional>
 #include <string>
+#include <string_view>
+#include <vector>
 
 #ifdef _WIN32
 #include <cstdlib>
@@ -66,6 +68,35 @@ void RestoreEnvironmentVariable(const char* name, const std::optional<std::strin
     }
 
     UnsetEnvironmentVariable(name);
+}
+
+fs::path ExpectedStorageRelativePathForNormalizedPath(const fs::path& normalizedPath) {
+    fs::path expectedPath{"files"};
+    const auto rootName = normalizedPath.root_name().generic_string();
+    if (!rootName.empty()) {
+        std::string sanitizedRoot = rootName;
+        sanitizedRoot.erase(
+            std::remove_if(sanitizedRoot.begin(), sanitizedRoot.end(),
+                           [](char character) { return character == ':' || character == '/' || character == '\\'; }),
+            sanitizedRoot.end());
+        if (!sanitizedRoot.empty()) {
+            expectedPath /= sanitizedRoot;
+        }
+    }
+
+    for (const auto& component : normalizedPath) {
+        if (!normalizedPath.root_name().empty() && component == normalizedPath.root_name()) {
+            continue;
+        }
+
+        if (component == normalizedPath.root_directory()) {
+            continue;
+        }
+
+        expectedPath /= component;
+    }
+
+    return expectedPath;
 }
 
 class PathFileUtilsTest : public testing::Test {
@@ -152,6 +183,12 @@ TEST_F(PathFileUtilsTest, MakeStorageRelativePathMapsPosixPathUnderFiles) {
     EXPECT_EQ(storagePath.generic_string(), "files/home/user/.gitconfig");
 }
 
+TEST_F(PathFileUtilsTest, MakeStorageRelativePathNormalizesPosixPathBeforeMapping) {
+    const auto storagePath = cfgsync::utils::MakeStorageRelativePath("/home/user/../user/.config/./nvim/init.lua");
+
+    EXPECT_EQ(storagePath.generic_string(), "files/home/user/.config/nvim/init.lua");
+}
+
 TEST_F(PathFileUtilsTest, MakeStorageRelativePathMapsNestedPosixPathUnderFiles) {
     const auto storagePath = cfgsync::utils::MakeStorageRelativePath("/home/user/.config/nvim/init.lua");
 
@@ -164,38 +201,107 @@ TEST_F(PathFileUtilsTest, MakeStorageRelativePathMapsWindowsDrivePathUnderFiles)
     EXPECT_EQ(storagePath.generic_string(), "files/C/Users/Oleksii/.gitconfig");
 }
 
+TEST_F(PathFileUtilsTest, MakeStorageRelativePathMapsWindowsDrivePathsWithSlashVariantsUnderFiles) {
+    struct TestCase {
+        std::string_view Input;
+        std::string_view Expected;
+    };
+
+    const std::vector<TestCase> testCases{
+        {R"(C:/Users/Oleksii/.gitconfig)", "files/C/Users/Oleksii/.gitconfig"},
+        {R"(C:\Users\Oleksii\.gitconfig)", "files/C/Users/Oleksii/.gitconfig"},
+        {R"(C:\Users/Oleksii\.config/nvim/init.lua)", "files/C/Users/Oleksii/.config/nvim/init.lua"},
+    };
+
+    for (const auto& testCase : testCases) {
+        SCOPED_TRACE(testCase.Input);
+        const auto storagePath = cfgsync::utils::MakeStorageRelativePath(fs::path{testCase.Input});
+
+        EXPECT_EQ(storagePath.generic_string(), testCase.Expected);
+    }
+}
+
 TEST_F(PathFileUtilsTest, MakeStorageRelativePathNormalizesRelativeInputUnderFiles) {
     const auto inputPath = fs::path{"relative"} / ".." / "cfgsync-relative.conf";
     const auto normalizedPath = cfgsync::utils::NormalizePath(inputPath);
 
-    fs::path expectedPath{"files"};
-    const auto rootName = normalizedPath.root_name().generic_string();
-    if (!rootName.empty()) {
-        std::string sanitizedRoot = rootName;
-        sanitizedRoot.erase(
-            std::remove_if(sanitizedRoot.begin(), sanitizedRoot.end(),
-                           [](char character) { return character == ':' || character == '/' || character == '\\'; }),
-            sanitizedRoot.end());
-        if (!sanitizedRoot.empty()) {
-            expectedPath /= sanitizedRoot;
-        }
-    }
-
-    for (const auto& component : normalizedPath) {
-        if (!normalizedPath.root_name().empty() && component == normalizedPath.root_name()) {
-            continue;
-        }
-
-        if (component == normalizedPath.root_directory()) {
-            continue;
-        }
-
-        expectedPath /= component;
-    }
-
     const auto storagePath = cfgsync::utils::MakeStorageRelativePath(inputPath);
 
-    EXPECT_EQ(storagePath, expectedPath);
+    EXPECT_EQ(storagePath, ExpectedStorageRelativePathForNormalizedPath(normalizedPath));
+    EXPECT_EQ(cfgsync::utils::ValidateStoredRelativePath(storagePath.generic_string()),
+              cfgsync::utils::StoredRelativePathValidationError::None);
+}
+
+TEST_F(PathFileUtilsTest, ValidateStoredRelativePathAcceptsFilesChildrenWithSlashVariants) {
+    const std::vector<std::string> validStoredRelativePaths{
+        "files/home/user/.gitconfig",
+        R"(files\home\user\.gitconfig)",
+        R"(files/home\user/.config\nvim/init.lua)",
+    };
+
+    for (const auto& storedRelativePath : validStoredRelativePaths) {
+        SCOPED_TRACE(storedRelativePath);
+        EXPECT_EQ(cfgsync::utils::ValidateStoredRelativePath(storedRelativePath),
+                  cfgsync::utils::StoredRelativePathValidationError::None);
+    }
+}
+
+TEST_F(PathFileUtilsTest, ValidateStoredRelativePathRejectsMalformedOrRootedPaths) {
+    struct TestCase {
+        std::string StoredRelativePath;
+        cfgsync::utils::StoredRelativePathValidationError ExpectedError;
+    };
+
+    const std::vector<TestCase> testCases{
+        {"", cfgsync::utils::StoredRelativePathValidationError::Empty},
+        {"/files/x", cfgsync::utils::StoredRelativePathValidationError::Absolute},
+        {"C:files/x", cfgsync::utils::StoredRelativePathValidationError::Absolute},
+        {R"(C:\files\x)", cfgsync::utils::StoredRelativePathValidationError::Absolute},
+        {"files/../x", cfgsync::utils::StoredRelativePathValidationError::ParentTraversal},
+        {R"(files\..\x)", cfgsync::utils::StoredRelativePathValidationError::ParentTraversal},
+        {"backup/foo", cfgsync::utils::StoredRelativePathValidationError::OutsideFiles},
+        {"files", cfgsync::utils::StoredRelativePathValidationError::MissingFilesChild},
+    };
+
+    for (const auto& testCase : testCases) {
+        SCOPED_TRACE(testCase.StoredRelativePath);
+        EXPECT_EQ(cfgsync::utils::ValidateStoredRelativePath(testCase.StoredRelativePath), testCase.ExpectedError);
+    }
+}
+
+TEST_F(PathFileUtilsTest, GeneratedStorageRelativePathsAlwaysValidate) {
+    const auto home = GetTestRoot() / "home";
+    cfgsync::utils::EnsureDirectoryExists(home);
+
+#ifdef _WIN32
+    const auto previousUserProfile = GetEnvironmentVariable("USERPROFILE");
+    SetEnvironmentVariable("USERPROFILE", home.string());
+#else
+    const auto previousHome = GetEnvironmentVariable("HOME");
+    SetEnvironmentVariable("HOME", home.string());
+#endif
+
+    const std::vector<fs::path> originalPaths{
+        "/home/user/.gitconfig",
+        R"(C:\Users\Oleksii\.gitconfig)",
+        R"(C:\Users/Oleksii\.config/nvim/init.lua)",
+        fs::path{"relative"} / ".." / "cfgsync-relative.conf",
+        "~/config/file.conf",
+    };
+
+    for (const auto& originalPath : originalPaths) {
+        SCOPED_TRACE(originalPath.generic_string());
+        const auto storedRelativePath = cfgsync::utils::MakeStorageRelativePath(originalPath).generic_string();
+
+        EXPECT_EQ(cfgsync::utils::ValidateStoredRelativePath(storedRelativePath),
+                  cfgsync::utils::StoredRelativePathValidationError::None);
+    }
+
+#ifdef _WIN32
+    RestoreEnvironmentVariable("USERPROFILE", previousUserProfile);
+#else
+    RestoreEnvironmentVariable("HOME", previousHome);
+#endif
 }
 
 TEST_F(PathFileUtilsTest, OrdinaryFileValidationAcceptsRegularFile) {

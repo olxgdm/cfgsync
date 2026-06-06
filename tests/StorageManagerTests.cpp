@@ -69,7 +69,17 @@ TEST_F(StorageManagerTest, ResolvesStoredPathFromTrackedRelativePath) {
 TEST_F(StorageManagerTest, UnsafeStoredRelativePathsThrowFileError) {
     const cfgsync::storage::StorageManager storageManager{StorageRoot()};
     const std::vector<std::string> unsafeStoredRelativePaths{
-        "", "../escape", "files/../../escape", (StorageRoot() / "escape").string(), "backup/foo", "files",
+        "",
+        "../escape",
+        "files/../../escape",
+        "files/../x",
+        R"(files\..\x)",
+        (StorageRoot() / "escape").string(),
+        "/files/x",
+        "C:files/x",
+        R"(C:\files\x)",
+        "backup/foo",
+        "files",
     };
 
     for (const auto& storedRelativePath : unsafeStoredRelativePaths) {
