@@ -78,6 +78,8 @@ TEST_F(AddCommandCliTest, AddDirectoryUsesActiveStorageRootAndWritesImportedFile
     const auto result = RunCommand("add " + cfgsync::tests::QuoteForCommand(directoryPath));
 
     EXPECT_EQ(result.ExitCode, 0);
+    EXPECT_NE(result.Output.find("Imported 2 file(s) from directory"), std::string::npos);
+    EXPECT_NE(result.Output.find(directoryPath.string()), std::string::npos);
     EXPECT_TRUE(result.Error.empty());
 
     const std::vector<fs::path> expectedPaths{
@@ -109,8 +111,35 @@ TEST_F(AddCommandCliTest, RepeatedDirectoryAddSucceedsAndLeavesRegistryUnchanged
     const auto result = RunCommand("add " + cfgsync::tests::QuoteForCommand(directoryPath));
 
     EXPECT_EQ(result.ExitCode, 0);
+    EXPECT_NE(result.Output.find("No new files to track under directory"), std::string::npos);
+    EXPECT_NE(result.Output.find(directoryPath.string()), std::string::npos);
     EXPECT_TRUE(result.Error.empty());
     EXPECT_EQ(ReadJsonFile(StorageRoot() / "registry.json"), documentAfterFirstAdd);
+}
+
+TEST_F(AddCommandCliTest, DirectoryAddReportsSkippedAlreadyTrackedFilesWhenImportingNewFiles) {
+    const auto directoryPath = GetTestRoot() / "configs";
+    const auto existingPath = directoryPath / ".gitconfig";
+    const auto newPath = directoryPath / "nvim" / "init.lua";
+    WriteTextFile(existingPath, "[user]\n");
+    WriteTextFile(newPath, "vim.opt.number = true\n");
+
+    ASSERT_TRUE(cfgsync::tests::CfgsyncCommandSucceeded(
+        "init --storage " + cfgsync::tests::QuoteForCommand(StorageRoot()), GetTestRoot()));
+    ASSERT_TRUE(
+        cfgsync::tests::CfgsyncCommandSucceeded("add " + cfgsync::tests::QuoteForCommand(existingPath), GetTestRoot()));
+
+    const auto result = RunCommand("add " + cfgsync::tests::QuoteForCommand(directoryPath));
+
+    EXPECT_EQ(result.ExitCode, 0);
+    EXPECT_NE(result.Output.find("Imported 1 file(s) from directory"), std::string::npos);
+    EXPECT_NE(result.Output.find("skipped 1 already tracked file(s)"), std::string::npos);
+    EXPECT_TRUE(result.Error.empty());
+
+    const auto document = ReadJsonFile(StorageRoot() / "registry.json");
+    ASSERT_EQ(document["tracked_files"].size(), 2U);
+    EXPECT_EQ(document["tracked_files"][0]["original_path"], cfgsync::utils::NormalizePath(existingPath).string());
+    EXPECT_EQ(document["tracked_files"][1]["original_path"], cfgsync::utils::NormalizePath(newPath).string());
 }
 
 }  // namespace
