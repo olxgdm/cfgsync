@@ -11,6 +11,10 @@
 #include <string>
 #include <vector>
 
+#ifndef _WIN32
+#include <sys/stat.h>
+#endif
+
 namespace {
 namespace fs = std::filesystem;
 
@@ -134,6 +138,29 @@ TEST_F(AddCommandTest, DirectoryImportSkipsSymlinksAndKeepsImportingOrdinaryFile
     EXPECT_EQ(Registry().GetTrackedEntries()[0].OriginalPath, cfgsync::utils::NormalizePath(sourcePath).string());
 }
 
+TEST_F(AddCommandTest, DirectoryImportSkipsSymlinkedDirectoriesWithoutImportingTheirContents) {
+    const auto directoryPath = SourcePath().parent_path();
+    const auto sourcePath = directoryPath / ".gitconfig";
+    const auto linkedDirectoryTarget = StorageRoot() / "external-configs";
+    const auto linkedFilePath = linkedDirectoryTarget / "secret.conf";
+    const auto symlinkPath = directoryPath / "linked-configs";
+    WriteTextFile(sourcePath, "[user]\n");
+    WriteTextFile(linkedFilePath, "secret\n");
+
+    std::error_code errorCode;
+    fs::create_directory_symlink(linkedDirectoryTarget, symlinkPath, errorCode);
+    if (errorCode) {
+        GTEST_SKIP() << "Directory symlink creation is not available in this test environment.";
+    }
+
+    cfgsync::commands::AddCommand command{Registry()};
+
+    command.Execute(directoryPath);
+
+    ASSERT_EQ(Registry().GetTrackedEntries().size(), 1U);
+    EXPECT_EQ(Registry().GetTrackedEntries()[0].OriginalPath, cfgsync::utils::NormalizePath(sourcePath).string());
+}
+
 TEST_F(AddCommandTest, EmptyDirectoryImportSucceedsWithoutChangingRegistry) {
     const auto directoryPath = SourcePath().parent_path();
     cfgsync::utils::EnsureDirectoryExists(directoryPath);
@@ -180,6 +207,27 @@ TEST_F(AddCommandTest, DirectoryImportContinuesAfterUnreadableSubdirectoryWhenPe
 
     ASSERT_EQ(Registry().GetTrackedEntries().size(), 1U);
     EXPECT_EQ(Registry().GetTrackedEntries()[0].OriginalPath, cfgsync::utils::NormalizePath(readablePath).string());
+}
+#endif
+
+#ifndef _WIN32
+TEST_F(AddCommandTest, DirectoryImportSkipsSpecialFilesAndKeepsImportingOrdinaryFiles) {
+    const auto directoryPath = SourcePath().parent_path();
+    const auto sourcePath = directoryPath / ".gitconfig";
+    const auto fifoPath = directoryPath / "events.fifo";
+    WriteTextFile(sourcePath, "[user]\n");
+
+    const auto result = mkfifo(fifoPath.c_str(), S_IRUSR | S_IWUSR);
+    if (result != 0) {
+        GTEST_SKIP() << "Unable to create a FIFO in this test environment.";
+    }
+
+    cfgsync::commands::AddCommand command{Registry()};
+
+    command.Execute(directoryPath);
+
+    ASSERT_EQ(Registry().GetTrackedEntries().size(), 1U);
+    EXPECT_EQ(Registry().GetTrackedEntries()[0].OriginalPath, cfgsync::utils::NormalizePath(sourcePath).string());
 }
 #endif
 
