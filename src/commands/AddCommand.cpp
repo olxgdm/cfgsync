@@ -1,12 +1,12 @@
 #include "commands/AddCommand.hpp"
 
+#include "Exceptions.hpp"
 #include "utils/FileUtils.hpp"
 #include "utils/LogUtils.hpp"
 #include "utils/PathUtils.hpp"
 
 #include <algorithm>
 #include <format>
-#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -103,15 +103,14 @@ AddCommand::AddCommand(core::Registry& registry) : Registry_(registry) {}
 bool AddCommand::AddFileEntry(const fs::path& normalizedPath) const {
     const auto storedRelativePath = utils::MakeStorageRelativePath(normalizedPath);
     if (storedRelativePath.empty()) {
-        throw std::logic_error{"Unable to derive a storage path for: " + normalizedPath.string()};
+        throw CommandError{"Unable to derive a storage path for: " + normalizedPath.string()};
     }
 
-    const auto added = Registry_.AddEntry({
-        .OriginalPath = normalizedPath.string(),
-        .StoredRelativePath = storedRelativePath.generic_string(),
-    });
-
-    if (!added) {
+    if (const auto added = Registry_.AddEntry({
+            .OriginalPath = normalizedPath.string(),
+            .StoredRelativePath = storedRelativePath.generic_string(),
+        });
+        !added) {
         utils::LogInfo("File is already tracked: " + normalizedPath.string());
         return false;
     }
