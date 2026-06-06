@@ -137,9 +137,12 @@ void AddCommand::ExecuteDirectory(const fs::path& normalizedPath) const {
     }
 
     auto addedCount = 0U;
+    auto duplicateCount = 0U;
     for (const auto& filePath : files) {
         if (AddFileEntry(filePath)) {
             ++addedCount;
+        } else {
+            ++duplicateCount;
         }
     }
 
@@ -149,7 +152,11 @@ void AddCommand::ExecuteDirectory(const fs::path& normalizedPath) const {
     }
 
     Registry_.Save();
-    utils::LogInfo(std::format("Imported {} file(s) from directory: {}", addedCount, normalizedPath.string()));
+    auto summary = std::format("Imported {} file(s) from directory: {}", addedCount, normalizedPath.string());
+    if (duplicateCount > 0U) {
+        summary += std::format(" (skipped {} already tracked file(s))", duplicateCount);
+    }
+    utils::LogInfo(summary);
 }
 
 void AddCommand::Execute(const fs::path& path) const {
