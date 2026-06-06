@@ -27,11 +27,22 @@ std::string DescribeSkippedEntry(const fs::path& path, const std::error_code& er
 
 std::string DescribeUnsupportedEntry(const fs::path& path) { return "Skipping unsupported entry: " + path.string(); }
 
-void IncrementIterator(fs::recursive_directory_iterator& iterator, const fs::recursive_directory_iterator& end) {
+std::string DescribeSymlinkEntry(const fs::directory_entry& entry) {
+    std::error_code errorCode;
+    const auto targetStatus = entry.status(errorCode);
+    if (!errorCode && fs::is_directory(targetStatus)) {
+        return "Skipping symlinked directory: " + entry.path().string();
+    }
+
+    return "Skipping symlink: " + entry.path().string();
+}
+
+void IncrementIterator(fs::recursive_directory_iterator& iterator, const fs::recursive_directory_iterator& end,
+                       const fs::path& entryPath) {
     std::error_code errorCode;
     iterator.increment(errorCode);
     if (errorCode) {
-        utils::LogWarn("Skipping directory entry: " + errorCode.message());
+        utils::LogWarn(DescribeSkippedEntry(entryPath, errorCode));
         iterator = end;
     }
 }
@@ -53,30 +64,30 @@ std::vector<fs::path> CollectOrdinaryFiles(const fs::path& directoryPath) {
         if (errorCode) {
             iterator.disable_recursion_pending();
             utils::LogWarn(DescribeSkippedEntry(entryPath, errorCode));
-            IncrementIterator(iterator, end);
+            IncrementIterator(iterator, end, entryPath);
             continue;
         }
 
         if (fs::is_symlink(status)) {
             iterator.disable_recursion_pending();
-            utils::LogWarn("Skipping symlink: " + entryPath.string());
-            IncrementIterator(iterator, end);
+            utils::LogWarn(DescribeSymlinkEntry(*iterator));
+            IncrementIterator(iterator, end, entryPath);
             continue;
         }
 
         if (fs::is_directory(status)) {
-            IncrementIterator(iterator, end);
+            IncrementIterator(iterator, end, entryPath);
             continue;
         }
 
         if (fs::is_regular_file(status)) {
             files.push_back(utils::NormalizePath(entryPath));
-            IncrementIterator(iterator, end);
+            IncrementIterator(iterator, end, entryPath);
             continue;
         }
 
         utils::LogWarn(DescribeUnsupportedEntry(entryPath));
-        IncrementIterator(iterator, end);
+        IncrementIterator(iterator, end, entryPath);
     }
 
     std::sort(files.begin(), files.end(), [](const fs::path& left, const fs::path& right) {
