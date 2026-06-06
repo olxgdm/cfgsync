@@ -29,8 +29,7 @@ std::string DescribeUnsupportedEntry(const fs::path& path) { return "Skipping un
 
 std::string DescribeSymlinkEntry(const fs::directory_entry& entry) {
     std::error_code errorCode;
-    const auto targetStatus = entry.status(errorCode);
-    if (!errorCode && fs::is_directory(targetStatus)) {
+    if (const auto targetStatus = entry.status(errorCode); !errorCode && fs::is_directory(targetStatus)) {
         return "Skipping symlinked directory: " + entry.path().string();
     }
 
@@ -90,7 +89,7 @@ std::vector<fs::path> CollectOrdinaryFiles(const fs::path& directoryPath) {
         IncrementIterator(iterator, end, entryPath);
     }
 
-    std::sort(files.begin(), files.end(), [](const fs::path& left, const fs::path& right) {
+    std::ranges::sort(files, [](const fs::path& left, const fs::path& right) {
         return left.generic_string() < right.generic_string();
     });
 
