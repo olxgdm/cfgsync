@@ -20,6 +20,20 @@ protected:
     cfgsync::tests::CommandResult RunRestoreSingleCommand(const fs::path& sourcePath) const {
         return RunCommand("restore " + cfgsync::tests::QuoteForCommand(sourcePath));
     }
+
+    cfgsync::tests::CommandResult RunRestoreAllWithRemapCommand(const fs::path& fromPrefix,
+                                                                const fs::path& toPrefix) const {
+        return RunCommand("restore --all --from-prefix " + cfgsync::tests::QuoteForCommand(fromPrefix) +
+                          " --to-prefix " + cfgsync::tests::QuoteForCommand(toPrefix));
+    }
+
+    cfgsync::tests::CommandResult RunRestoreSingleWithRemapCommand(const fs::path& sourcePath,
+                                                                   const fs::path& fromPrefix,
+                                                                   const fs::path& toPrefix) const {
+        return RunCommand("restore " + cfgsync::tests::QuoteForCommand(sourcePath) + " --from-prefix " +
+                          cfgsync::tests::QuoteForCommand(fromPrefix) + " --to-prefix " +
+                          cfgsync::tests::QuoteForCommand(toPrefix));
+    }
 };
 
 TEST_F(RestoreCommandCliTest, RestoreSingleUsesActiveStorageRootPersistedByInit) {
@@ -85,6 +99,54 @@ TEST_F(RestoreCommandCliTest, RestoreOverwritesChangedLocalFile) {
 
     EXPECT_EQ(result.ExitCode, 0);
     EXPECT_EQ(cfgsync::tests::ReadTextFile(sourcePath), "stored contents\n");
+}
+
+TEST_F(RestoreCommandCliTest, RestoreSingleWithPrefixRemapRestoresToRemappedDestination) {
+    const auto sourcePath = SourcePath(".config/nvim/init.lua");
+    const auto fromPrefix = SourcePath(".placeholder").parent_path();
+    const auto toPrefix = GetTestRoot() / "new-configs";
+    const auto destinationPath = toPrefix / ".config" / "nvim" / "init.lua";
+    cfgsync::tests::WriteTextFile(sourcePath, "vim.opt.number = true\n");
+    ASSERT_TRUE(RunInitCommand());
+    ASSERT_TRUE(RunAddCommand(sourcePath));
+    ASSERT_EQ(RunBackupCommand().ExitCode, 0);
+
+    const auto result = RunRestoreSingleWithRemapCommand(sourcePath, fromPrefix, toPrefix);
+
+    EXPECT_EQ(result.ExitCode, 0);
+    EXPECT_TRUE(result.Error.empty());
+    EXPECT_EQ(cfgsync::tests::ReadTextFile(destinationPath), "vim.opt.number = true\n");
+}
+
+TEST_F(RestoreCommandCliTest, RestoreAllWithPrefixRemapRestoresToRemappedDestinations) {
+    const auto firstPath = SourcePath(".gitconfig");
+    const auto secondPath = SourcePath(".config/nvim/init.lua");
+    const auto fromPrefix = SourcePath(".placeholder").parent_path();
+    const auto toPrefix = GetTestRoot() / "new-configs";
+    cfgsync::tests::WriteTextFile(firstPath, "[user]\n");
+    cfgsync::tests::WriteTextFile(secondPath, "vim.opt.number = true\n");
+    ASSERT_TRUE(RunInitCommand());
+    ASSERT_TRUE(RunAddCommand(firstPath));
+    ASSERT_TRUE(RunAddCommand(secondPath));
+    ASSERT_EQ(RunBackupCommand().ExitCode, 0);
+
+    const auto result = RunRestoreAllWithRemapCommand(fromPrefix, toPrefix);
+
+    EXPECT_EQ(result.ExitCode, 0);
+    EXPECT_TRUE(result.Error.empty());
+    EXPECT_EQ(cfgsync::tests::ReadTextFile(toPrefix / ".gitconfig"), "[user]\n");
+    EXPECT_EQ(cfgsync::tests::ReadTextFile(toPrefix / ".config" / "nvim" / "init.lua"), "vim.opt.number = true\n");
+}
+
+TEST_F(RestoreCommandCliTest, RestoreWithOnlyOnePrefixFlagReturnsNonZero) {
+    ASSERT_TRUE(RunInitCommand());
+
+    const auto result = RunCommand("restore --all --from-prefix " +
+                                   cfgsync::tests::QuoteForCommand(SourcePath(".placeholder").parent_path()));
+
+    EXPECT_NE(result.ExitCode, 0);
+    EXPECT_TRUE(result.Output.empty());
+    EXPECT_NE(result.Error.find("Specify '--from-prefix' and '--to-prefix' together."), std::string::npos);
 }
 
 TEST_F(RestoreCommandCliTest, SingleRestoreOfUntrackedFileReturnsNonZero) {
