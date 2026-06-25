@@ -19,12 +19,13 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <string_view>
 
 namespace cfgsync::cli {
 namespace {
 
-void ValidateRestoreArguments(bool restoreAll, const std::string& restoreFile, const std::string& fromPrefix,
-                              const std::string& toPrefix) {
+void ValidateRestoreArguments(bool restoreAll, std::string_view restoreFile, std::string_view fromPrefix,
+                              std::string_view toPrefix) {
     if (restoreAll && !restoreFile.empty()) {
         throw CLI::ValidationError("restore", "Specify either '--all' or a file.");
     }
@@ -38,15 +39,15 @@ void ValidateRestoreArguments(bool restoreAll, const std::string& restoreFile, c
     }
 }
 
-std::optional<commands::RestorePrefixRemap> BuildRestorePrefixRemap(const std::string& fromPrefix,
-                                                                    const std::string& toPrefix) {
+std::optional<commands::RestorePrefixRemap> BuildRestorePrefixRemap(std::string_view fromPrefix,
+                                                                    std::string_view toPrefix) {
     if (fromPrefix.empty()) {
         return std::nullopt;
     }
 
     return commands::RestorePrefixRemap{
-        .FromPrefix = utils::NormalizePath(std::filesystem::path{fromPrefix}),
-        .ToPrefix = utils::NormalizePath(std::filesystem::path{toPrefix}),
+        .FromPrefix = utils::NormalizePath(std::filesystem::path{std::string{fromPrefix}}),
+        .ToPrefix = utils::NormalizePath(std::filesystem::path{std::string{toPrefix}}),
     };
 }
 
