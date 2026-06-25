@@ -75,7 +75,7 @@ jobs:
         shell: bash
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang-18 llvm-18
+          sudo apt-get install -y clang-18 llvm-18 curl unzip
 
           {
             echo "CC=clang-18"
@@ -84,8 +84,23 @@ jobs:
             echo "LLVM_COV=llvm-cov-18"
           } >> "$GITHUB_ENV"
 
-      - name: Install SonarQube Build Wrapper
-        uses: SonarSource/sonarqube-scan-action/install-build-wrapper@v6
+      - name: Install SonarCloud Build Wrapper
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          wrapper_dir="${RUNNER_TEMP}/sonar-build-wrapper"
+          wrapper_zip="${wrapper_dir}/build-wrapper-linux-x86.zip"
+
+          rm -rf "${wrapper_dir}"
+          mkdir -p "${wrapper_dir}"
+
+          curl -sSLo "${wrapper_zip}" \
+            "https://sonarcloud.io/static/cpp/build-wrapper-linux-x86.zip"
+          unzip -q "${wrapper_zip}" -d "${wrapper_dir}"
+
+          echo "${wrapper_dir}/build-wrapper-linux-x86" >> "$GITHUB_PATH"
+          "${wrapper_dir}/build-wrapper-linux-x86/build-wrapper-linux-x86-64" --version
 
       - name: Configure CMake for SonarQube
         shell: bash
