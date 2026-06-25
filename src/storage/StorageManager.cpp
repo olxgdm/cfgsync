@@ -74,8 +74,11 @@ void StorageManager::BackupEntry(const core::TrackedEntry& entry) const {
 }
 
 void StorageManager::RestoreEntry(const core::TrackedEntry& entry) const {
+    RestoreEntry(entry, std::filesystem::path{entry.OriginalPath});
+}
+
+void StorageManager::RestoreEntry(const core::TrackedEntry& entry, const std::filesystem::path& destinationPath) const {
     const auto sourcePath = ResolveStoredPath(entry);
-    const std::filesystem::path destinationPath{entry.OriginalPath};
 
     utils::RequireOrdinaryFile(sourcePath);
     utils::CopyFile(sourcePath, destinationPath);

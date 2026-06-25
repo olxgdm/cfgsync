@@ -115,6 +115,18 @@ TEST_F(StorageManagerTest, RestoreCopiesStoredPathToOriginalDestination) {
     EXPECT_EQ(cfgsync::tests::ReadTextFile(sourcePath), "vim.opt.number = true\n");
 }
 
+TEST_F(StorageManagerTest, RestoreCopiesStoredPathToExplicitDestination) {
+    const auto sourcePath = SourcePath(".config/nvim/init.lua");
+    const auto destinationPath = StorageRoot().parent_path() / "new-home" / "user" / ".config" / "nvim" / "init.lua";
+    const auto entry = TrackedEntryFor(sourcePath);
+    const cfgsync::storage::StorageManager storageManager{StorageRoot()};
+    cfgsync::tests::WriteTextFile(storageManager.ResolveStoredPath(entry), "vim.opt.number = true\n");
+
+    storageManager.RestoreEntry(entry, destinationPath);
+
+    EXPECT_EQ(cfgsync::tests::ReadTextFile(destinationPath), "vim.opt.number = true\n");
+}
+
 }  // namespace
 
 int main(int argc, char** argv) { return cfgsync::tests::RunGoogleTests(argc, argv); }
