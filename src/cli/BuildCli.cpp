@@ -39,6 +39,24 @@ void ValidateRestoreArguments(bool restoreAll, std::string_view restoreFile, std
     }
 }
 
+commands::BackupMode BuildBackupMode(bool missingOnly, bool force) {
+    using enum commands::BackupMode;
+
+    if (missingOnly && force) {
+        throw CLI::ValidationError("backup", "Specify at most one backup mode: '--missing-only' or '--force'.");
+    }
+
+    if (missingOnly) {
+        return MissingOnly;
+    }
+
+    if (force) {
+        return Force;
+    }
+
+    return RefreshChanged;
+}
+
 std::optional<commands::RestorePrefixRemap> BuildRestorePrefixRemap(std::string_view fromPrefix,
                                                                     std::string_view toPrefix) {
     if (fromPrefix.empty()) {
@@ -109,11 +127,18 @@ void BuildCli(CLI::App& app, core::Registry& registry, storage::StorageManager& 
         command.Execute();
     });
 
-    auto* backupCommand = app.add_subcommand("backup", "Create missing stored copies for tracked files.");
-    backupCommand->callback([&registry, &storageManager, loadActiveStorage]() {
+    auto* backupCommand =
+        app.add_subcommand("backup", "Back up tracked files; by default, create missing copies and refresh changes.");
+    auto backupMissingOnly = std::make_shared<bool>(false);
+    auto backupForce = std::make_shared<bool>(false);
+    backupCommand->add_flag("--missing-only", *backupMissingOnly,
+                            "Only create missing stored copies; leave existing backups unchanged.");
+    backupCommand->add_flag("--force", *backupForce, "Overwrite every stored backup, even when content matches.");
+    backupCommand->callback([&registry, &storageManager, loadActiveStorage, backupMissingOnly, backupForce]() {
+        const auto backupMode = BuildBackupMode(*backupMissingOnly, *backupForce);
         loadActiveStorage();
         const commands::BackupCommand command{registry, storageManager};
-        command.Execute();
+        command.Execute(backupMode);
     });
 
     auto* statusCommand = app.add_subcommand("status", "Show tracked files that differ from stored backups.");

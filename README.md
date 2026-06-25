@@ -126,7 +126,7 @@ Typical flow:
 
 1. Run `cfgsync init --storage <dir>` once to create the storage directory and record it as the active storage root.
 2. Run `cfgsync add <file>` for one ordinary config file, or `cfgsync add <directory>` to recursively import existing ordinary files under a directory.
-3. Run `cfgsync backup` to create stored copies for newly added or otherwise unbacked-up tracked files.
+3. Run `cfgsync backup` to create missing stored copies and refresh changed stored backups.
 4. Run `cfgsync status` to check which tracked files differ from stored backups.
 5. Run `cfgsync diff <file>` to inspect a tracked file's text changes.
 6. Optionally run `cfgsync watch` as a long-running foreground watch that keeps backing up tracked files as they change until you stop it.
@@ -226,13 +226,17 @@ No files tracked.
 
 ### `cfgsync backup`
 
-Creates missing stored copies for tracked files in the storage `files/` tree.
+Creates or refreshes stored copies for tracked files in the storage `files/` tree.
 
-Existing stored backup files are left unchanged. If all tracked files already have stored copies, it prints:
+By default, `cfgsync backup` creates missing stored backups, refreshes stored backups whose content differs from the current tracked original, and skips stored backups that already match. If no stored files need to be created or refreshed, it prints:
 
 ```text
 No new files to back up.
 ```
+
+Use `cfgsync backup --missing-only` to create only missing stored backups while leaving existing stored backups unchanged, even when the tracked original has changed.
+
+Use `cfgsync backup --force` to copy every tracked original into storage and overwrite existing stored backups regardless of whether the content already matches.
 
 If one tracked file cannot be backed up, cfgsync reports that file, continues with the remaining entries, and exits with a failure after the batch finishes.
 

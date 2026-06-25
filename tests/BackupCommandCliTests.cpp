@@ -14,6 +14,9 @@ namespace fs = std::filesystem;
 class BackupCommandCliTest : public cfgsync::tests::CliCommandTestFixture {
 protected:
     cfgsync::tests::CommandResult RunBackupCommand() const { return RunCommand("backup"); }
+    cfgsync::tests::CommandResult RunBackupCommand(const std::string& options) const {
+        return RunCommand("backup " + options);
+    }
 };
 
 TEST_F(BackupCommandCliTest, BackupUsesActiveStorageRootPersistedByInit) {
@@ -59,6 +62,84 @@ TEST_F(BackupCommandCliTest, BackupRefreshesExistingStoredCopyWhenContentDiffers
 
     EXPECT_EQ(result.ExitCode, 0);
     EXPECT_EQ(cfgsync::tests::ReadTextFile(cfgsync::tests::StoredPathFor(StorageRoot(), sourcePath)), "new contents\n");
+}
+
+TEST_F(BackupCommandCliTest, BackupMissingOnlyCreatesMissingStoredCopy) {
+    const auto sourcePath = SourcePath(".gitconfig");
+    cfgsync::tests::WriteTextFile(sourcePath, "[user]\n");
+    ASSERT_TRUE(RunInitCommand());
+    ASSERT_TRUE(RunAddCommand(sourcePath));
+
+    const auto result = RunBackupCommand("--missing-only");
+
+    EXPECT_EQ(result.ExitCode, 0);
+    EXPECT_NE(result.Output.find("Backed up file"), std::string::npos);
+    EXPECT_TRUE(result.Error.empty());
+    EXPECT_EQ(cfgsync::tests::ReadTextFile(cfgsync::tests::StoredPathFor(StorageRoot(), sourcePath)), "[user]\n");
+}
+
+TEST_F(BackupCommandCliTest, BackupMissingOnlyPreservesChangedExistingStoredCopy) {
+    const auto sourcePath = SourcePath(".gitconfig");
+    cfgsync::tests::WriteTextFile(sourcePath, "current contents\n");
+    ASSERT_TRUE(RunInitCommand());
+    ASSERT_TRUE(RunAddCommand(sourcePath));
+    cfgsync::tests::WriteTextFile(cfgsync::tests::StoredPathFor(StorageRoot(), sourcePath), "stored contents\n");
+
+    const auto backupResult = RunBackupCommand("--missing-only");
+    const auto statusResult = RunCommand("status");
+
+    EXPECT_EQ(backupResult.ExitCode, 0);
+    EXPECT_NE(backupResult.Output.find("No new files to back up."), std::string::npos);
+    EXPECT_TRUE(backupResult.Error.empty());
+    EXPECT_EQ(cfgsync::tests::ReadTextFile(cfgsync::tests::StoredPathFor(StorageRoot(), sourcePath)),
+              "stored contents\n");
+    EXPECT_EQ(statusResult.ExitCode, 0);
+    EXPECT_EQ(statusResult.Output, "modified " + cfgsync::utils::NormalizePath(sourcePath).string() + "\n");
+}
+
+TEST_F(BackupCommandCliTest, BackupForceOverwritesExistingStoredCopy) {
+    const auto sourcePath = SourcePath(".gitconfig");
+    cfgsync::tests::WriteTextFile(sourcePath, "forced contents\n");
+    ASSERT_TRUE(RunInitCommand());
+    ASSERT_TRUE(RunAddCommand(sourcePath));
+    cfgsync::tests::WriteTextFile(cfgsync::tests::StoredPathFor(StorageRoot(), sourcePath), "stored contents\n");
+
+    const auto backupResult = RunBackupCommand("--force");
+    const auto statusResult = RunCommand("status");
+
+    EXPECT_EQ(backupResult.ExitCode, 0);
+    EXPECT_NE(backupResult.Output.find("Backed up file"), std::string::npos);
+    EXPECT_TRUE(backupResult.Error.empty());
+    EXPECT_EQ(cfgsync::tests::ReadTextFile(cfgsync::tests::StoredPathFor(StorageRoot(), sourcePath)),
+              "forced contents\n");
+    EXPECT_EQ(statusResult.ExitCode, 0);
+    EXPECT_EQ(statusResult.Output, "Clean.\n");
+}
+
+TEST_F(BackupCommandCliTest, BackupForceCopiesMatchingStoredCopy) {
+    const auto sourcePath = SourcePath(".gitconfig");
+    cfgsync::tests::WriteTextFile(sourcePath, "same contents\n");
+    ASSERT_TRUE(RunInitCommand());
+    ASSERT_TRUE(RunAddCommand(sourcePath));
+    cfgsync::tests::WriteTextFile(cfgsync::tests::StoredPathFor(StorageRoot(), sourcePath), "same contents\n");
+
+    const auto result = RunBackupCommand("--force");
+
+    EXPECT_EQ(result.ExitCode, 0);
+    EXPECT_NE(result.Output.find("Backed up file"), std::string::npos);
+    EXPECT_TRUE(result.Error.empty());
+    EXPECT_EQ(cfgsync::tests::ReadTextFile(cfgsync::tests::StoredPathFor(StorageRoot(), sourcePath)),
+              "same contents\n");
+}
+
+TEST_F(BackupCommandCliTest, BackupRejectsCombinedExplicitModes) {
+    const auto result = RunBackupCommand("--missing-only --force");
+
+    EXPECT_NE(result.ExitCode, 0);
+    EXPECT_TRUE(result.Output.empty());
+    EXPECT_NE(result.Error.find("Specify at most one backup mode"), std::string::npos);
+    EXPECT_NE(result.Error.find("--missing-only"), std::string::npos);
+    EXPECT_NE(result.Error.find("--force"), std::string::npos);
 }
 
 TEST_F(BackupCommandCliTest, BackupWithoutSourceChangesReportsNoNewFilesAndStatusClean) {

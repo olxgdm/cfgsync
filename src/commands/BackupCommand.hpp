@@ -5,11 +5,17 @@
 
 namespace cfgsync::commands {
 
+enum class BackupMode {
+    RefreshChanged,
+    MissingOnly,
+    Force,
+};
+
 class BackupCommand {
 public:
     BackupCommand(core::Registry& registry, storage::StorageManager& storageManager);
 
-    void Execute() const;
+    void Execute(BackupMode mode = BackupMode::RefreshChanged) const;
 
 private:
     core::Registry& Registry_;                 // NOLINT(cppcoreguidelines-avoid-const-or-ref-data-members)

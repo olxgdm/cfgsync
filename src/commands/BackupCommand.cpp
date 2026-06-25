@@ -96,12 +96,39 @@ bool StoredBackupIsUpToDate(const fs::path& originalPath, const fs::path& stored
     return originalChecksum == storedChecksum;
 }
 
+bool StoredBackupExists(const fs::path& storedPath) {
+    std::error_code errorCode;
+
+    const auto exists = fs::exists(storedPath, errorCode);
+    if (errorCode) {
+        throw FileError{
+            std::format("Unable to inspect stored backup '{}': {}", storedPath.string(), errorCode.message())};
+    }
+
+    return exists;
+}
+
+bool ShouldBackUpEntry(BackupMode mode, const fs::path& originalPath, const fs::path& storedPath) {
+    using enum BackupMode;
+
+    switch (mode) {
+        case RefreshChanged:
+            return !StoredBackupIsUpToDate(originalPath, storedPath);
+        case MissingOnly:
+            return !StoredBackupExists(storedPath);
+        case Force:
+            return true;
+    }
+
+    return true;
+}
+
 }  // namespace
 
 BackupCommand::BackupCommand(core::Registry& registry, storage::StorageManager& storageManager)
     : Registry_(registry), StorageManager_(storageManager) {}
 
-void BackupCommand::Execute() const {
+void BackupCommand::Execute(BackupMode mode) const {
     const auto& trackedEntries = Registry_.GetTrackedEntries();
 
     if (trackedEntries.empty()) {
@@ -115,7 +142,7 @@ void BackupCommand::Execute() const {
     for (const auto& trackedEntry : trackedEntries) {
         try {
             if (const auto storedPath = StorageManager_.ResolveStoredPath(trackedEntry);
-                StoredBackupIsUpToDate(trackedEntry.OriginalPath, storedPath)) {
+                !ShouldBackUpEntry(mode, trackedEntry.OriginalPath, storedPath)) {
                 continue;
             }
 

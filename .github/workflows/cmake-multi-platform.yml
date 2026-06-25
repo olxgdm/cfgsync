@@ -84,26 +84,22 @@ jobs:
             echo "LLVM_COV=llvm-cov-18"
           } >> "$GITHUB_ENV"
 
-      - name: Install SonarQube Build Wrapper
-        uses: SonarSource/sonarqube-scan-action/install-build-wrapper@v6
-
       - name: Configure CMake for SonarQube
         shell: bash
         run: |
           cmake -B "${{ steps.strings.outputs.build-output-dir }}" \
             -DCMAKE_CXX_COMPILER="${CXX}" \
             -DCMAKE_C_COMPILER="${CC}" \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
             -DCMAKE_BUILD_TYPE=Debug \
             -DCFGSYNC_BUILD_TESTS=ON \
             -DCFGSYNC_ENABLE_COVERAGE=ON \
             -S "${{ github.workspace }}"
 
-      - name: Build with SonarQube Build Wrapper
+      - name: Build
         shell: bash
         run: |
-          build-wrapper-linux-x86-64 \
-            --out-dir bw-output \
-            cmake --build "${{ steps.strings.outputs.build-output-dir }}" --config Debug
+          cmake --build "${{ steps.strings.outputs.build-output-dir }}" --config Debug
 
       - name: Test with LLVM coverage
         shell: bash
@@ -228,7 +224,7 @@ jobs:
           SONAR_HOST_URL: https://sonarcloud.io
         with:
           args: >
-            -Dsonar.cfamily.compile-commands=bw-output/compile_commands.json
+            -Dsonar.cfamily.compile-commands=${{ steps.strings.outputs.build-output-dir }}/compile_commands.json
             -Dsonar.cfamily.llvm-cov.reportPath=${{ steps.strings.outputs.coverage-output-dir }}/llvm-cov.txt
             -Dsonar.qualitygate.wait=true
 
