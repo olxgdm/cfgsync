@@ -79,6 +79,72 @@ TEST_F(RestoreCommandTest, OverwritesChangedLocalFile) {
     EXPECT_EQ(cfgsync::tests::ReadTextFile(sourcePath), "stored contents\n");
 }
 
+TEST_F(RestoreCommandTest, SingleRestoreWithPrefixRemapRestoresToRemappedDestination) {
+    const auto sourcePath = SourcePath(".config/nvim/init.lua");
+    const auto storedRelativePath = TrackFile(Registry(), sourcePath);
+    const auto fromPrefix = sourcePath.parent_path().parent_path().parent_path();
+    const auto toPrefix = StorageRoot().parent_path() / "new-home" / "user";
+    const auto destinationPath = toPrefix / ".config" / "nvim" / "init.lua";
+    cfgsync::tests::WriteTextFile(StorageRoot() / storedRelativePath, "vim.opt.number = true\n");
+    const auto registryBeforeRestore = cfgsync::tests::ReadJsonFile(RegistryPath());
+
+    cfgsync::storage::StorageManager storageManager{StorageRoot()};
+    const cfgsync::commands::RestoreCommand command{Registry(), storageManager};
+
+    command.ExecuteSingle(sourcePath, cfgsync::commands::RestorePrefixRemap{
+                                          .FromPrefix = cfgsync::utils::NormalizePath(fromPrefix),
+                                          .ToPrefix = cfgsync::utils::NormalizePath(toPrefix),
+                                      });
+
+    EXPECT_EQ(cfgsync::tests::ReadTextFile(destinationPath), "vim.opt.number = true\n");
+    EXPECT_EQ(cfgsync::tests::ReadJsonFile(RegistryPath()), registryBeforeRestore);
+}
+
+TEST_F(RestoreCommandTest, RestoreAllWithPrefixRemapRestoresMultipleFilesToRemappedDestinations) {
+    const auto firstPath = SourcePath(".gitconfig");
+    const auto secondPath = SourcePath(".config/nvim/init.lua");
+    const auto firstStoredRelativePath = TrackFile(Registry(), firstPath);
+    const auto secondStoredRelativePath = TrackFile(Registry(), secondPath);
+    const auto fromPrefix = SourcePath().parent_path();
+    const auto toPrefix = StorageRoot().parent_path() / "new-home" / "user";
+    cfgsync::tests::WriteTextFile(StorageRoot() / firstStoredRelativePath, "[user]\n");
+    cfgsync::tests::WriteTextFile(StorageRoot() / secondStoredRelativePath, "vim.opt.number = true\n");
+
+    cfgsync::storage::StorageManager storageManager{StorageRoot()};
+    const cfgsync::commands::RestoreCommand command{Registry(), storageManager};
+
+    command.ExecuteAll(cfgsync::commands::RestorePrefixRemap{
+        .FromPrefix = cfgsync::utils::NormalizePath(fromPrefix),
+        .ToPrefix = cfgsync::utils::NormalizePath(toPrefix),
+    });
+
+    EXPECT_EQ(cfgsync::tests::ReadTextFile(toPrefix / ".gitconfig"), "[user]\n");
+    EXPECT_EQ(cfgsync::tests::ReadTextFile(toPrefix / ".config" / "nvim" / "init.lua"), "vim.opt.number = true\n");
+}
+
+TEST_F(RestoreCommandTest, SingleRestoreWithPrefixRemapFailsWhenTrackedFileIsOutsidePrefix) {
+    const auto sourcePath = SourcePath(".gitconfig");
+    const auto storedRelativePath = TrackFile(Registry(), sourcePath);
+    const auto fromPrefix = StorageRoot().parent_path() / "other-home" / "user";
+    const auto toPrefix = StorageRoot().parent_path() / "new-home" / "user";
+    cfgsync::tests::WriteTextFile(StorageRoot() / storedRelativePath, "[user]\n");
+
+    cfgsync::storage::StorageManager storageManager{StorageRoot()};
+    const cfgsync::commands::RestoreCommand command{Registry(), storageManager};
+
+    try {
+        command.ExecuteSingle(sourcePath, cfgsync::commands::RestorePrefixRemap{
+                                              .FromPrefix = cfgsync::utils::NormalizePath(fromPrefix),
+                                              .ToPrefix = cfgsync::utils::NormalizePath(toPrefix),
+                                          });
+        FAIL() << "Restore with a non-matching prefix did not throw.";
+    } catch (const cfgsync::CommandError& error) {
+        const std::string message = error.what();
+        EXPECT_NE(message.find("outside --from-prefix"), std::string::npos);
+        EXPECT_NE(message.find(cfgsync::utils::NormalizePath(sourcePath).string()), std::string::npos);
+    }
+}
+
 TEST_F(RestoreCommandTest, SingleRestoreFailsForUntrackedFile) {
     cfgsync::storage::StorageManager storageManager{StorageRoot()};
     const cfgsync::commands::RestoreCommand command{Registry(), storageManager};
@@ -131,6 +197,35 @@ TEST_F(RestoreCommandTest, RestoreAllContinuesAfterMissingStoredBackupAndReports
     }
 
     EXPECT_EQ(cfgsync::tests::ReadTextFile(existingPath), "[user]\n");
+    EXPECT_EQ(cfgsync::tests::ReadJsonFile(RegistryPath()), registryBeforeRestore);
+}
+
+TEST_F(RestoreCommandTest, RestoreAllWithPrefixRemapContinuesWhenEntryIsOutsidePrefix) {
+    const auto restoredPath = SourcePath(".gitconfig");
+    const auto outsidePath = StorageRoot().parent_path() / "other-home" / "user" / "settings.conf";
+    const auto restoredStoredRelativePath = TrackFile(Registry(), restoredPath);
+    const auto outsideStoredRelativePath = TrackFile(Registry(), outsidePath);
+    const auto fromPrefix = SourcePath().parent_path();
+    const auto toPrefix = StorageRoot().parent_path() / "new-home" / "user";
+    cfgsync::tests::WriteTextFile(StorageRoot() / restoredStoredRelativePath, "[user]\n");
+    cfgsync::tests::WriteTextFile(StorageRoot() / outsideStoredRelativePath, "outside\n");
+    const auto registryBeforeRestore = cfgsync::tests::ReadJsonFile(RegistryPath());
+
+    cfgsync::storage::StorageManager storageManager{StorageRoot()};
+    const cfgsync::commands::RestoreCommand command{Registry(), storageManager};
+
+    try {
+        command.ExecuteAll(cfgsync::commands::RestorePrefixRemap{
+            .FromPrefix = cfgsync::utils::NormalizePath(fromPrefix),
+            .ToPrefix = cfgsync::utils::NormalizePath(toPrefix),
+        });
+        FAIL() << "Restore with a non-matching prefix did not throw.";
+    } catch (const cfgsync::CommandError& error) {
+        const std::string message = error.what();
+        EXPECT_NE(message.find("Restore completed with 1 failure."), std::string::npos);
+    }
+
+    EXPECT_EQ(cfgsync::tests::ReadTextFile(toPrefix / ".gitconfig"), "[user]\n");
     EXPECT_EQ(cfgsync::tests::ReadJsonFile(RegistryPath()), registryBeforeRestore);
 }
 

@@ -12,13 +12,46 @@
 #include "commands/UseCommand.hpp"
 #include "commands/WatchCommand.hpp"
 #include "utils/LogUtils.hpp"
+#include "utils/PathUtils.hpp"
 #include "watch/EfswFileWatcher.hpp"
 
 #include <filesystem>
 #include <memory>
+#include <optional>
 #include <string>
+#include <string_view>
 
 namespace cfgsync::cli {
+namespace {
+
+void ValidateRestoreArguments(bool restoreAll, std::string_view restoreFile, std::string_view fromPrefix,
+                              std::string_view toPrefix) {
+    if (restoreAll && !restoreFile.empty()) {
+        throw CLI::ValidationError("restore", "Specify either '--all' or a file.");
+    }
+
+    if (!restoreAll && restoreFile.empty()) {
+        throw CLI::ValidationError("restore", "Specify either '--all' or a single file path to restore.");
+    }
+
+    if (fromPrefix.empty() != toPrefix.empty()) {
+        throw CLI::ValidationError("restore", "Specify '--from-prefix' and '--to-prefix' together.");
+    }
+}
+
+std::optional<commands::RestorePrefixRemap> BuildRestorePrefixRemap(std::string_view fromPrefix,
+                                                                    std::string_view toPrefix) {
+    if (fromPrefix.empty()) {
+        return std::nullopt;
+    }
+
+    return commands::RestorePrefixRemap{
+        .FromPrefix = utils::NormalizePath(std::filesystem::path{std::string{fromPrefix}}),
+        .ToPrefix = utils::NormalizePath(std::filesystem::path{std::string{toPrefix}}),
+    };
+}
+
+}  // namespace
 
 void BuildCli(CLI::App& app, core::Registry& registry, storage::StorageManager& storageManager,
               core::AppConfig& appConfig) {
@@ -110,27 +143,26 @@ void BuildCli(CLI::App& app, core::Registry& registry, storage::StorageManager& 
     auto* restoreCommand = app.add_subcommand("restore", "Restore one tracked file or all tracked files.");
     auto restoreAll = std::make_shared<bool>(false);
     auto restoreFile = std::make_shared<std::string>();
+    auto restoreFromPrefix = std::make_shared<std::string>();
+    auto restoreToPrefix = std::make_shared<std::string>();
     restoreCommand->add_flag("--all", *restoreAll, "Restore every tracked file.");
+    restoreCommand->add_option("--from-prefix", *restoreFromPrefix, "Tracked original path prefix to remap from.");
+    restoreCommand->add_option("--to-prefix", *restoreToPrefix, "Destination path prefix to remap to.");
     restoreCommand->add_option("file", *restoreFile, "Tracked file path to restore.");
-    restoreCommand->callback([&registry, &storageManager, loadActiveStorage, restoreAll, restoreFile]() {
-        if (*restoreAll && !restoreFile->empty()) {
-            throw CLI::ValidationError("restore", "Specify either '--all' or a file.");
-        }
+    restoreCommand->callback(
+        [&registry, &storageManager, loadActiveStorage, restoreAll, restoreFile, restoreFromPrefix, restoreToPrefix]() {
+            ValidateRestoreArguments(*restoreAll, *restoreFile, *restoreFromPrefix, *restoreToPrefix);
+            const auto remap = BuildRestorePrefixRemap(*restoreFromPrefix, *restoreToPrefix);
+            loadActiveStorage();
+            const commands::RestoreCommand command{registry, storageManager};
 
-        if (!*restoreAll && restoreFile->empty()) {
-            throw CLI::ValidationError("restore", "Specify either '--all' or a single file path to restore.");
-        }
+            if (*restoreAll) {
+                command.ExecuteAll(remap);
+                return;
+            }
 
-        loadActiveStorage();
-        const commands::RestoreCommand command{registry, storageManager};
-
-        if (*restoreAll) {
-            command.ExecuteAll();
-            return;
-        }
-
-        command.ExecuteSingle(std::filesystem::path{*restoreFile});
-    });
+            command.ExecuteSingle(std::filesystem::path{*restoreFile}, remap);
+        });
 }
 
 }  // namespace cfgsync::cli

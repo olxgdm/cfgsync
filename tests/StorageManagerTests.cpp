@@ -69,17 +69,10 @@ TEST_F(StorageManagerTest, ResolvesStoredPathFromTrackedRelativePath) {
 TEST_F(StorageManagerTest, UnsafeStoredRelativePathsThrowFileError) {
     const cfgsync::storage::StorageManager storageManager{StorageRoot()};
     const std::vector<std::string> unsafeStoredRelativePaths{
-        "",
-        "../escape",
-        "files/../../escape",
-        "files/../x",
-        R"(files\..\x)",
-        (StorageRoot() / "escape").string(),
-        "/files/x",
-        "C:files/x",
-        R"(C:\files\x)",
-        "backup/foo",
-        "files",
+        "",           "../escape",     "files/../../escape",
+        "files/../x", R"(files\..\x)", (StorageRoot() / "escape").string(),
+        "/files/x",   "C:files/x",     R"(C:\files\x)",
+        "backup/foo", "files",
     };
 
     for (const auto& storedRelativePath : unsafeStoredRelativePaths) {
@@ -113,6 +106,18 @@ TEST_F(StorageManagerTest, RestoreCopiesStoredPathToOriginalDestination) {
     storageManager.RestoreEntry(entry);
 
     EXPECT_EQ(cfgsync::tests::ReadTextFile(sourcePath), "vim.opt.number = true\n");
+}
+
+TEST_F(StorageManagerTest, RestoreCopiesStoredPathToExplicitDestination) {
+    const auto sourcePath = SourcePath(".config/nvim/init.lua");
+    const auto destinationPath = StorageRoot().parent_path() / "new-home" / "user" / ".config" / "nvim" / "init.lua";
+    const auto entry = TrackedEntryFor(sourcePath);
+    const cfgsync::storage::StorageManager storageManager{StorageRoot()};
+    cfgsync::tests::WriteTextFile(storageManager.ResolveStoredPath(entry), "vim.opt.number = true\n");
+
+    storageManager.RestoreEntry(entry, destinationPath);
+
+    EXPECT_EQ(cfgsync::tests::ReadTextFile(destinationPath), "vim.opt.number = true\n");
 }
 
 }  // namespace
