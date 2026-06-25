@@ -12,6 +12,7 @@
 
 namespace {
 namespace fs = std::filesystem;
+using cfgsync::commands::BackupMode;
 using cfgsync::tests::TrackFile;
 
 class BackupCommandTest : public cfgsync::tests::RegistryCommandTestFixture {};
@@ -107,6 +108,81 @@ TEST_F(BackupCommandTest, RefreshesExistingStoredCopyWhenContentDiffers) {
     command.Execute();
 
     EXPECT_EQ(cfgsync::tests::ReadTextFile(StorageRoot() / storedRelativePath), "new contents\n");
+}
+
+TEST_F(BackupCommandTest, MissingOnlyCreatesMissingStoredCopy) {
+    const auto sourcePath = SourcePath();
+    cfgsync::tests::WriteTextFile(sourcePath, "[user]\n");
+    const auto storedRelativePath = TrackFile(Registry(), sourcePath);
+
+    cfgsync::storage::StorageManager storageManager{StorageRoot()};
+    const cfgsync::commands::BackupCommand command{Registry(), storageManager};
+
+    command.Execute(BackupMode::MissingOnly);
+
+    EXPECT_EQ(cfgsync::tests::ReadTextFile(StorageRoot() / storedRelativePath), "[user]\n");
+}
+
+TEST_F(BackupCommandTest, MissingOnlyPreservesChangedExistingStoredCopy) {
+    const auto sourcePath = SourcePath();
+    cfgsync::tests::WriteTextFile(sourcePath, "new contents\n");
+    const auto storedRelativePath = TrackFile(Registry(), sourcePath);
+    cfgsync::tests::WriteTextFile(StorageRoot() / storedRelativePath, "old contents\n");
+
+    cfgsync::storage::StorageManager storageManager{StorageRoot()};
+    const cfgsync::commands::BackupCommand command{Registry(), storageManager};
+
+    testing::internal::CaptureStdout();
+    command.Execute(BackupMode::MissingOnly);
+    const auto output = testing::internal::GetCapturedStdout();
+
+    EXPECT_EQ(cfgsync::tests::ReadTextFile(StorageRoot() / storedRelativePath), "old contents\n");
+    EXPECT_NE(output.find("No new files to back up."), std::string::npos);
+}
+
+TEST_F(BackupCommandTest, MissingOnlyPreservesExistingStoredCopyWhenOriginalIsMissing) {
+    const auto sourcePath = SourcePath();
+    cfgsync::tests::WriteTextFile(sourcePath, "current contents\n");
+    const auto storedRelativePath = TrackFile(Registry(), sourcePath);
+    cfgsync::tests::WriteTextFile(StorageRoot() / storedRelativePath, "stored contents\n");
+    fs::remove(sourcePath);
+
+    cfgsync::storage::StorageManager storageManager{StorageRoot()};
+    const cfgsync::commands::BackupCommand command{Registry(), storageManager};
+
+    EXPECT_NO_THROW(command.Execute(BackupMode::MissingOnly));
+    EXPECT_EQ(cfgsync::tests::ReadTextFile(StorageRoot() / storedRelativePath), "stored contents\n");
+}
+
+TEST_F(BackupCommandTest, ForceOverwritesExistingStoredCopy) {
+    const auto sourcePath = SourcePath();
+    cfgsync::tests::WriteTextFile(sourcePath, "forced contents\n");
+    const auto storedRelativePath = TrackFile(Registry(), sourcePath);
+    cfgsync::tests::WriteTextFile(StorageRoot() / storedRelativePath, "stored contents\n");
+
+    cfgsync::storage::StorageManager storageManager{StorageRoot()};
+    const cfgsync::commands::BackupCommand command{Registry(), storageManager};
+
+    command.Execute(BackupMode::Force);
+
+    EXPECT_EQ(cfgsync::tests::ReadTextFile(StorageRoot() / storedRelativePath), "forced contents\n");
+}
+
+TEST_F(BackupCommandTest, ForceBacksUpMatchingStoredCopy) {
+    const auto sourcePath = SourcePath();
+    cfgsync::tests::WriteTextFile(sourcePath, "same contents\n");
+    const auto storedRelativePath = TrackFile(Registry(), sourcePath);
+    cfgsync::tests::WriteTextFile(StorageRoot() / storedRelativePath, "same contents\n");
+
+    cfgsync::storage::StorageManager storageManager{StorageRoot()};
+    const cfgsync::commands::BackupCommand command{Registry(), storageManager};
+
+    testing::internal::CaptureStdout();
+    command.Execute(BackupMode::Force);
+    const auto output = testing::internal::GetCapturedStdout();
+
+    EXPECT_EQ(cfgsync::tests::ReadTextFile(StorageRoot() / storedRelativePath), "same contents\n");
+    EXPECT_NE(output.find("Backed up file"), std::string::npos);
 }
 
 TEST_F(BackupCommandTest, SkipsCleanRefreshesChangedAndCreatesMissingStoredCopies) {
