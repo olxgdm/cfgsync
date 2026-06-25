@@ -68,9 +68,12 @@ void RestoreCommand::ExecuteAll(const std::optional<RestorePrefixRemap>& remap) 
     std::size_t failureCount = 0;
     for (const auto& trackedEntry : trackedEntries) {
         try {
-            StorageManager_.RestoreEntry(trackedEntry);
+            StorageManager_.RestoreEntry(trackedEntry, GetRestoreDestinationPath(trackedEntry, remap));
             utils::LogInfo("Restored file: " + trackedEntry.OriginalPath);
         } catch (const FileError& error) {
+            ++failureCount;
+            utils::LogWarn("Failed to restore file: " + trackedEntry.OriginalPath + ": " + error.what());
+        } catch (const CommandError& error) {
             ++failureCount;
             utils::LogWarn("Failed to restore file: " + trackedEntry.OriginalPath + ": " + error.what());
         }
@@ -82,14 +85,15 @@ void RestoreCommand::ExecuteAll(const std::optional<RestorePrefixRemap>& remap) 
     }
 }
 
-void RestoreCommand::ExecuteSingle(const std::filesystem::path& filePath) const {
+void RestoreCommand::ExecuteSingle(const std::filesystem::path& filePath,
+                                   const std::optional<RestorePrefixRemap>& remap) const {
     const auto normalizedPath = utils::NormalizePath(filePath);
     const auto* trackedEntry = Registry_.FindEntryByOriginalPath(normalizedPath);
     if (trackedEntry == nullptr) {
         throw CommandError{"File is not tracked: " + normalizedPath.string()};
     }
 
-    StorageManager_.RestoreEntry(*trackedEntry);
+    StorageManager_.RestoreEntry(*trackedEntry, GetRestoreDestinationPath(*trackedEntry, remap));
     utils::LogInfo("Restored file: " + trackedEntry->OriginalPath);
 }
 
