@@ -21,6 +21,36 @@
 #include <string>
 
 namespace cfgsync::cli {
+namespace {
+
+void ValidateRestoreArguments(bool restoreAll, const std::string& restoreFile, const std::string& fromPrefix,
+                              const std::string& toPrefix) {
+    if (restoreAll && !restoreFile.empty()) {
+        throw CLI::ValidationError("restore", "Specify either '--all' or a file.");
+    }
+
+    if (!restoreAll && restoreFile.empty()) {
+        throw CLI::ValidationError("restore", "Specify either '--all' or a single file path to restore.");
+    }
+
+    if (fromPrefix.empty() != toPrefix.empty()) {
+        throw CLI::ValidationError("restore", "Specify '--from-prefix' and '--to-prefix' together.");
+    }
+}
+
+std::optional<commands::RestorePrefixRemap> BuildRestorePrefixRemap(const std::string& fromPrefix,
+                                                                    const std::string& toPrefix) {
+    if (fromPrefix.empty()) {
+        return std::nullopt;
+    }
+
+    return commands::RestorePrefixRemap{
+        .FromPrefix = utils::NormalizePath(std::filesystem::path{fromPrefix}),
+        .ToPrefix = utils::NormalizePath(std::filesystem::path{toPrefix}),
+    };
+}
+
+}  // namespace
 
 void BuildCli(CLI::App& app, core::Registry& registry, storage::StorageManager& storageManager,
               core::AppConfig& appConfig) {
@@ -120,28 +150,8 @@ void BuildCli(CLI::App& app, core::Registry& registry, storage::StorageManager& 
     restoreCommand->add_option("file", *restoreFile, "Tracked file path to restore.");
     restoreCommand->callback(
         [&registry, &storageManager, loadActiveStorage, restoreAll, restoreFile, restoreFromPrefix, restoreToPrefix]() {
-            if (*restoreAll && !restoreFile->empty()) {
-                throw CLI::ValidationError("restore", "Specify either '--all' or a file.");
-            }
-
-            if (!*restoreAll && restoreFile->empty()) {
-                throw CLI::ValidationError("restore", "Specify either '--all' or a single file path to restore.");
-            }
-
-            const auto hasFromPrefix = !restoreFromPrefix->empty();
-            const auto hasToPrefix = !restoreToPrefix->empty();
-            if (hasFromPrefix != hasToPrefix) {
-                throw CLI::ValidationError("restore", "Specify '--from-prefix' and '--to-prefix' together.");
-            }
-
-            std::optional<commands::RestorePrefixRemap> remap;
-            if (hasFromPrefix) {
-                remap = commands::RestorePrefixRemap{
-                    .FromPrefix = utils::NormalizePath(std::filesystem::path{*restoreFromPrefix}),
-                    .ToPrefix = utils::NormalizePath(std::filesystem::path{*restoreToPrefix}),
-                };
-            }
-
+            ValidateRestoreArguments(*restoreAll, *restoreFile, *restoreFromPrefix, *restoreToPrefix);
+            const auto remap = BuildRestorePrefixRemap(*restoreFromPrefix, *restoreToPrefix);
             loadActiveStorage();
             const commands::RestoreCommand command{registry, storageManager};
 
