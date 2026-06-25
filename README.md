@@ -149,6 +149,15 @@ After `use`, inspect tracked paths with `cfgsync list`, then restore everything 
 cfgsync restore ~/.gitconfig
 ```
 
+If the tracked paths in the registry point at an old machine or user path, remap that prefix during restore:
+
+```bash
+cfgsync restore --all --from-prefix /old/home/user --to-prefix ~/new-home
+cfgsync restore /old/home/user/.gitconfig --from-prefix /old/home/user --to-prefix ~
+```
+
+Prefix remapping only changes the restore destination for that command. It does not rewrite `registry.json`, move stored backups, or change the tracked original paths.
+
 ## Commands
 
 ### `cfgsync init --storage <dir>`
@@ -271,11 +280,15 @@ Parent directories are created before files are restored. Existing destination f
 
 If one tracked file cannot be restored, cfgsync reports that file, continues with the remaining entries, and exits with a failure after the batch finishes.
 
+Use `--from-prefix <old-prefix> --to-prefix <new-prefix>` to restore tracked paths under an old prefix into an equivalent location under a new prefix without modifying the registry.
+
 ### `cfgsync restore <file>`
 
 Restores one tracked file from storage back to its original location.
 
 The file path is normalized before lookup. The command fails if the file is not tracked or if no stored backup exists.
+
+Use `--from-prefix <old-prefix> --to-prefix <new-prefix>` to restore a tracked original path to the matching destination under a new prefix. The `<file>` argument remains the tracked original path from the registry.
 
 ## Storage Layout
 
