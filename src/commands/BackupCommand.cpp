@@ -141,8 +141,8 @@ void BackupCommand::Execute(BackupMode mode) const {
 
     for (const auto& trackedEntry : trackedEntries) {
         try {
-            const auto storedPath = StorageManager_.ResolveStoredPath(trackedEntry);
-            if (!ShouldBackUpEntry(mode, trackedEntry.OriginalPath, storedPath)) {
+            if (const auto storedPath = StorageManager_.ResolveStoredPath(trackedEntry);
+                !ShouldBackUpEntry(mode, trackedEntry.OriginalPath, storedPath)) {
                 continue;
             }
 
