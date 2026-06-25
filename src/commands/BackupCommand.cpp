@@ -109,12 +109,14 @@ bool StoredBackupExists(const fs::path& storedPath) {
 }
 
 bool ShouldBackUpEntry(BackupMode mode, const fs::path& originalPath, const fs::path& storedPath) {
+    using enum BackupMode;
+
     switch (mode) {
-        case BackupMode::RefreshChanged:
+        case RefreshChanged:
             return !StoredBackupIsUpToDate(originalPath, storedPath);
-        case BackupMode::MissingOnly:
+        case MissingOnly:
             return !StoredBackupExists(storedPath);
-        case BackupMode::Force:
+        case Force:
             return true;
     }
 
