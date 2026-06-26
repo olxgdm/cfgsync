@@ -117,7 +117,9 @@ cfgsync backup
 cfgsync status
 cfgsync diff ~/.gitconfig
 cfgsync watch
+cfgsync restore ~/.gitconfig --dry-run
 cfgsync restore ~/.gitconfig
+cfgsync restore --all --dry-run
 cfgsync restore --all
 cfgsync remove ~/.gitconfig
 ```
@@ -138,6 +140,7 @@ Fresh-system restore flow:
 ```bash
 cfgsync use --storage ~/cfgsync-store
 cfgsync list
+cfgsync restore --all --dry-run
 cfgsync restore --all
 ```
 
@@ -146,13 +149,15 @@ Use `cfgsync use --storage <dir>` when a cfgsync storage directory already exist
 After `use`, inspect tracked paths with `cfgsync list`, then restore everything with `cfgsync restore --all` or restore one tracked file with:
 
 ```bash
+cfgsync restore ~/.gitconfig --dry-run
 cfgsync restore ~/.gitconfig
 ```
 
 If the tracked paths in the registry point at an old machine or user path, remap that prefix during restore:
 
 ```bash
-cfgsync restore --all --from-prefix /old/home/user --to-prefix ~/new-home
+cfgsync restore --all --dry-run --from-prefix /old/home/user --to-prefix ~
+cfgsync restore --all --from-prefix /old/home/user --to-prefix ~
 cfgsync restore /old/home/user/.gitconfig --from-prefix /old/home/user --to-prefix ~
 ```
 
@@ -282,6 +287,8 @@ Restores every tracked file from storage back to its original location.
 
 Parent directories are created before files are restored. Existing destination files are overwritten.
 
+Use `--dry-run` to preview restore impact without copying files, creating parent directories, or modifying tracked files. Dry-run prints one line per planned entry: `would-create <destination>`, `would-overwrite <destination>`, or `unchanged <destination>`.
+
 If one tracked file cannot be restored, cfgsync reports that file, continues with the remaining entries, and exits with a failure after the batch finishes.
 
 Use `--from-prefix <old-prefix> --to-prefix <new-prefix>` to restore tracked paths under an old prefix into an equivalent location under a new prefix without modifying the registry.
@@ -291,6 +298,8 @@ Use `--from-prefix <old-prefix> --to-prefix <new-prefix>` to restore tracked pat
 Restores one tracked file from storage back to its original location.
 
 The file path is normalized before lookup. The command fails if the file is not tracked or if no stored backup exists.
+
+Use `--dry-run` to preview whether the restore would create, overwrite, or leave the destination unchanged.
 
 Use `--from-prefix <old-prefix> --to-prefix <new-prefix>` to restore a tracked original path to the matching destination under a new prefix. The `<file>` argument remains the tracked original path from the registry.
 
