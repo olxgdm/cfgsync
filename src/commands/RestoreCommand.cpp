@@ -1,11 +1,17 @@
 #include "commands/RestoreCommand.hpp"
 
 #include "Exceptions.hpp"
+#include "utils/FileUtils.hpp"
 #include "utils/LogUtils.hpp"
 #include "utils/PathUtils.hpp"
 
+#include <algorithm>
+#include <array>
 #include <cstddef>
+#include <filesystem>
 #include <format>
+#include <fstream>
+#include <iostream>
 #include <string>
 
 namespace cfgsync::commands {
