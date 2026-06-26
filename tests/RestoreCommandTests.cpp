@@ -79,6 +79,56 @@ TEST_F(RestoreCommandTest, OverwritesChangedLocalFile) {
     EXPECT_EQ(cfgsync::tests::ReadTextFile(sourcePath), "stored contents\n");
 }
 
+TEST_F(RestoreCommandTest, SingleDryRunDoesNotOverwriteDestination) {
+    const auto sourcePath = SourcePath(".gitconfig");
+    const auto storedRelativePath = TrackFile(Registry(), sourcePath);
+    cfgsync::tests::WriteTextFile(StorageRoot() / storedRelativePath, "stored contents\n");
+    cfgsync::tests::WriteTextFile(sourcePath, "local changes\n");
+    const auto registryBeforeRestore = cfgsync::tests::ReadJsonFile(RegistryPath());
+
+    cfgsync::storage::StorageManager storageManager{StorageRoot()};
+    const cfgsync::commands::RestoreCommand command{Registry(), storageManager};
+
+    testing::internal::CaptureStdout();
+    command.ExecuteSingle(sourcePath, std::nullopt, cfgsync::commands::RestoreMode::DryRun);
+    const auto output = testing::internal::GetCapturedStdout();
+
+    EXPECT_NE(output.find("would-overwrite " + sourcePath.string()), std::string::npos);
+    EXPECT_EQ(cfgsync::tests::ReadTextFile(sourcePath), "local changes\n");
+    EXPECT_EQ(cfgsync::tests::ReadJsonFile(RegistryPath()), registryBeforeRestore);
+}
+
+TEST_F(RestoreCommandTest, RestoreAllDryRunReportsCreateOverwriteAndUnchangedWithoutMutatingDestinations) {
+    const auto createPath = SourcePath("missing.conf");
+    const auto overwritePath = SourcePath(".gitconfig");
+    const auto unchangedPath = SourcePath("init.lua");
+    const auto createStoredRelativePath = TrackFile(Registry(), createPath);
+    const auto overwriteStoredRelativePath = TrackFile(Registry(), overwritePath);
+    const auto unchangedStoredRelativePath = TrackFile(Registry(), unchangedPath);
+    cfgsync::tests::WriteTextFile(StorageRoot() / createStoredRelativePath, "created contents\n");
+    cfgsync::tests::WriteTextFile(StorageRoot() / overwriteStoredRelativePath, "stored contents\n");
+    cfgsync::tests::WriteTextFile(StorageRoot() / unchangedStoredRelativePath, "same contents\n");
+    cfgsync::tests::WriteTextFile(overwritePath, "local changes\n");
+    cfgsync::tests::WriteTextFile(unchangedPath, "same contents\n");
+    ASSERT_FALSE(fs::exists(createPath));
+    const auto registryBeforeRestore = cfgsync::tests::ReadJsonFile(RegistryPath());
+
+    cfgsync::storage::StorageManager storageManager{StorageRoot()};
+    const cfgsync::commands::RestoreCommand command{Registry(), storageManager};
+
+    testing::internal::CaptureStdout();
+    command.ExecuteAll(std::nullopt, cfgsync::commands::RestoreMode::DryRun);
+    const auto output = testing::internal::GetCapturedStdout();
+
+    EXPECT_NE(output.find("would-create " + createPath.string()), std::string::npos);
+    EXPECT_NE(output.find("would-overwrite " + overwritePath.string()), std::string::npos);
+    EXPECT_NE(output.find("unchanged " + unchangedPath.string()), std::string::npos);
+    EXPECT_FALSE(fs::exists(createPath));
+    EXPECT_EQ(cfgsync::tests::ReadTextFile(overwritePath), "local changes\n");
+    EXPECT_EQ(cfgsync::tests::ReadTextFile(unchangedPath), "same contents\n");
+    EXPECT_EQ(cfgsync::tests::ReadJsonFile(RegistryPath()), registryBeforeRestore);
+}
+
 TEST_F(RestoreCommandTest, SingleRestoreWithPrefixRemapRestoresToRemappedDestination) {
     const auto sourcePath = SourcePath(".config/nvim/init.lua");
     const auto storedRelativePath = TrackFile(Registry(), sourcePath);
@@ -120,6 +170,32 @@ TEST_F(RestoreCommandTest, RestoreAllWithPrefixRemapRestoresMultipleFilesToRemap
 
     EXPECT_EQ(cfgsync::tests::ReadTextFile(toPrefix / ".gitconfig"), "[user]\n");
     EXPECT_EQ(cfgsync::tests::ReadTextFile(toPrefix / ".config" / "nvim" / "init.lua"), "vim.opt.number = true\n");
+}
+
+TEST_F(RestoreCommandTest, DryRunWithPrefixRemapReportsRemappedDestinationWithoutCreatingParents) {
+    const auto sourcePath = SourcePath(".config/nvim/init.lua");
+    const auto storedRelativePath = TrackFile(Registry(), sourcePath);
+    const auto fromPrefix = SourcePath().parent_path();
+    const auto toPrefix = StorageRoot().parent_path() / "new-home" / "user";
+    const auto destinationPath = toPrefix / ".config" / "nvim" / "init.lua";
+    cfgsync::tests::WriteTextFile(StorageRoot() / storedRelativePath, "vim.opt.number = true\n");
+    ASSERT_FALSE(fs::exists(toPrefix));
+
+    cfgsync::storage::StorageManager storageManager{StorageRoot()};
+    const cfgsync::commands::RestoreCommand command{Registry(), storageManager};
+
+    testing::internal::CaptureStdout();
+    command.ExecuteSingle(sourcePath,
+                          cfgsync::commands::RestorePrefixRemap{
+                              .FromPrefix = cfgsync::utils::NormalizePath(fromPrefix),
+                              .ToPrefix = cfgsync::utils::NormalizePath(toPrefix),
+                          },
+                          cfgsync::commands::RestoreMode::DryRun);
+    const auto output = testing::internal::GetCapturedStdout();
+
+    EXPECT_NE(output.find("would-create " + destinationPath.string()), std::string::npos);
+    EXPECT_FALSE(fs::exists(destinationPath));
+    EXPECT_FALSE(fs::exists(toPrefix));
 }
 
 TEST_F(RestoreCommandTest, SingleRestoreWithPrefixRemapFailsWhenTrackedFileIsOutsidePrefix) {
@@ -169,6 +245,23 @@ TEST_F(RestoreCommandTest, SingleRestoreFailsWhenStoredBackupIsMissing) {
     try {
         command.ExecuteSingle(sourcePath);
         FAIL() << "Restore with a missing stored backup did not throw.";
+    } catch (const cfgsync::FileError& error) {
+        const std::string message = error.what();
+        EXPECT_NE(message.find("Path does not exist"), std::string::npos);
+        EXPECT_NE(message.find((StorageRoot() / storedRelativePath).string()), std::string::npos);
+    }
+}
+
+TEST_F(RestoreCommandTest, SingleDryRunFailsWhenStoredBackupIsMissing) {
+    const auto sourcePath = SourcePath();
+    const auto storedRelativePath = TrackFile(Registry(), sourcePath);
+
+    cfgsync::storage::StorageManager storageManager{StorageRoot()};
+    const cfgsync::commands::RestoreCommand command{Registry(), storageManager};
+
+    try {
+        command.ExecuteSingle(sourcePath, std::nullopt, cfgsync::commands::RestoreMode::DryRun);
+        FAIL() << "Dry-run restore with a missing stored backup did not throw.";
     } catch (const cfgsync::FileError& error) {
         const std::string message = error.what();
         EXPECT_NE(message.find("Path does not exist"), std::string::npos);
@@ -227,6 +320,39 @@ TEST_F(RestoreCommandTest, RestoreAllWithPrefixRemapContinuesWhenEntryIsOutsideP
 
     EXPECT_EQ(cfgsync::tests::ReadTextFile(toPrefix / ".gitconfig"), "[user]\n");
     EXPECT_EQ(cfgsync::tests::ReadJsonFile(RegistryPath()), registryBeforeRestore);
+}
+
+TEST_F(RestoreCommandTest, RestoreAllDryRunWithPrefixRemapContinuesWhenEntryIsOutsidePrefix) {
+    const auto restoredPath = SourcePath(".gitconfig");
+    const auto outsidePath = StorageRoot().parent_path() / "other-home" / "user" / "settings.conf";
+    const auto restoredStoredRelativePath = TrackFile(Registry(), restoredPath);
+    const auto outsideStoredRelativePath = TrackFile(Registry(), outsidePath);
+    const auto fromPrefix = SourcePath().parent_path();
+    const auto toPrefix = StorageRoot().parent_path() / "new-home" / "user";
+    cfgsync::tests::WriteTextFile(StorageRoot() / restoredStoredRelativePath, "[user]\n");
+    cfgsync::tests::WriteTextFile(StorageRoot() / outsideStoredRelativePath, "outside\n");
+
+    cfgsync::storage::StorageManager storageManager{StorageRoot()};
+    const cfgsync::commands::RestoreCommand command{Registry(), storageManager};
+
+    testing::internal::CaptureStdout();
+    try {
+        command.ExecuteAll(
+            cfgsync::commands::RestorePrefixRemap{
+                .FromPrefix = cfgsync::utils::NormalizePath(fromPrefix),
+                .ToPrefix = cfgsync::utils::NormalizePath(toPrefix),
+            },
+            cfgsync::commands::RestoreMode::DryRun);
+        FAIL() << "Dry-run restore with a non-matching prefix did not throw.";
+    } catch (const cfgsync::CommandError& error) {
+        const auto output = testing::internal::GetCapturedStdout();
+        const std::string message = error.what();
+        EXPECT_NE(output.find("would-create " + (toPrefix / ".gitconfig").string()), std::string::npos);
+        EXPECT_NE(output.find("Failed to restore file"), std::string::npos);
+        EXPECT_NE(message.find("Restore completed with 1 failure."), std::string::npos);
+    }
+
+    EXPECT_FALSE(fs::exists(toPrefix / ".gitconfig"));
 }
 
 TEST_F(RestoreCommandTest, EmptyRegistrySucceedsWithoutCreatingStoredFiles) {
