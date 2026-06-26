@@ -17,8 +17,14 @@ protected:
 
     cfgsync::tests::CommandResult RunRestoreAllCommand() const { return RunCommand("restore --all"); }
 
+    cfgsync::tests::CommandResult RunRestoreAllDryRunCommand() const { return RunCommand("restore --all --dry-run"); }
+
     cfgsync::tests::CommandResult RunRestoreSingleCommand(const fs::path& sourcePath) const {
         return RunCommand("restore " + cfgsync::tests::QuoteForCommand(sourcePath));
+    }
+
+    cfgsync::tests::CommandResult RunRestoreSingleDryRunCommand(const fs::path& sourcePath) const {
+        return RunCommand("restore " + cfgsync::tests::QuoteForCommand(sourcePath) + " --dry-run");
     }
 
     cfgsync::tests::CommandResult RunRestoreAllWithRemapCommand(const fs::path& fromPrefix,
@@ -33,6 +39,12 @@ protected:
         return RunCommand("restore " + cfgsync::tests::QuoteForCommand(sourcePath) + " --from-prefix " +
                           cfgsync::tests::QuoteForCommand(fromPrefix) + " --to-prefix " +
                           cfgsync::tests::QuoteForCommand(toPrefix));
+    }
+
+    cfgsync::tests::CommandResult RunRestoreAllDryRunWithRemapCommand(const fs::path& fromPrefix,
+                                                                      const fs::path& toPrefix) const {
+        return RunCommand("restore --all --dry-run --from-prefix " + cfgsync::tests::QuoteForCommand(fromPrefix) +
+                          " --to-prefix " + cfgsync::tests::QuoteForCommand(toPrefix));
     }
 };
 
@@ -101,6 +113,53 @@ TEST_F(RestoreCommandCliTest, RestoreOverwritesChangedLocalFile) {
     EXPECT_EQ(cfgsync::tests::ReadTextFile(sourcePath), "stored contents\n");
 }
 
+TEST_F(RestoreCommandCliTest, RestoreSingleDryRunDoesNotOverwriteChangedLocalFile) {
+    const auto sourcePath = SourcePath(".gitconfig");
+    cfgsync::tests::WriteTextFile(sourcePath, "stored contents\n");
+    ASSERT_TRUE(RunInitCommand());
+    ASSERT_TRUE(RunAddCommand(sourcePath));
+    ASSERT_EQ(RunBackupCommand().ExitCode, 0);
+    cfgsync::tests::WriteTextFile(sourcePath, "local changes\n");
+
+    const auto result = RunRestoreSingleDryRunCommand(sourcePath);
+
+    EXPECT_EQ(result.ExitCode, 0);
+    EXPECT_NE(result.Output.find("would-overwrite"), std::string::npos);
+    EXPECT_NE(result.Output.find(cfgsync::utils::NormalizePath(sourcePath).string()), std::string::npos);
+    EXPECT_TRUE(result.Error.empty());
+    EXPECT_EQ(cfgsync::tests::ReadTextFile(sourcePath), "local changes\n");
+}
+
+TEST_F(RestoreCommandCliTest, RestoreAllDryRunReportsPlannedImpactWithoutMutatingDestinations) {
+    const auto createPath = SourcePath("missing.conf");
+    const auto overwritePath = SourcePath(".gitconfig");
+    const auto unchangedPath = SourcePath("init.lua");
+    cfgsync::tests::WriteTextFile(createPath, "created contents\n");
+    cfgsync::tests::WriteTextFile(overwritePath, "stored contents\n");
+    cfgsync::tests::WriteTextFile(unchangedPath, "same contents\n");
+    ASSERT_TRUE(RunInitCommand());
+    ASSERT_TRUE(RunAddCommand(createPath));
+    ASSERT_TRUE(RunAddCommand(overwritePath));
+    ASSERT_TRUE(RunAddCommand(unchangedPath));
+    ASSERT_EQ(RunBackupCommand().ExitCode, 0);
+    fs::remove(createPath);
+    cfgsync::tests::WriteTextFile(overwritePath, "local changes\n");
+
+    const auto result = RunRestoreAllDryRunCommand();
+
+    EXPECT_EQ(result.ExitCode, 0);
+    EXPECT_NE(result.Output.find("would-create " + cfgsync::utils::NormalizePath(createPath).string()),
+              std::string::npos);
+    EXPECT_NE(result.Output.find("would-overwrite " + cfgsync::utils::NormalizePath(overwritePath).string()),
+              std::string::npos);
+    EXPECT_NE(result.Output.find("unchanged " + cfgsync::utils::NormalizePath(unchangedPath).string()),
+              std::string::npos);
+    EXPECT_TRUE(result.Error.empty());
+    EXPECT_FALSE(fs::exists(createPath));
+    EXPECT_EQ(cfgsync::tests::ReadTextFile(overwritePath), "local changes\n");
+    EXPECT_EQ(cfgsync::tests::ReadTextFile(unchangedPath), "same contents\n");
+}
+
 TEST_F(RestoreCommandCliTest, RestoreSingleWithPrefixRemapRestoresToRemappedDestination) {
     const auto sourcePath = SourcePath(".config/nvim/init.lua");
     const auto fromPrefix = SourcePath(".placeholder").parent_path();
@@ -136,6 +195,26 @@ TEST_F(RestoreCommandCliTest, RestoreAllWithPrefixRemapRestoresToRemappedDestina
     EXPECT_TRUE(result.Error.empty());
     EXPECT_EQ(cfgsync::tests::ReadTextFile(toPrefix / ".gitconfig"), "[user]\n");
     EXPECT_EQ(cfgsync::tests::ReadTextFile(toPrefix / ".config" / "nvim" / "init.lua"), "vim.opt.number = true\n");
+}
+
+TEST_F(RestoreCommandCliTest, RestoreAllDryRunWithPrefixRemapReportsRemappedDestinationsWithoutCreatingFiles) {
+    const auto sourcePath = SourcePath(".gitconfig");
+    const auto fromPrefix = SourcePath(".placeholder").parent_path();
+    const auto toPrefix = GetTestRoot() / "new-configs";
+    const auto destinationPath = toPrefix / ".gitconfig";
+    cfgsync::tests::WriteTextFile(sourcePath, "[user]\n");
+    ASSERT_TRUE(RunInitCommand());
+    ASSERT_TRUE(RunAddCommand(sourcePath));
+    ASSERT_EQ(RunBackupCommand().ExitCode, 0);
+
+    const auto result = RunRestoreAllDryRunWithRemapCommand(fromPrefix, toPrefix);
+
+    EXPECT_EQ(result.ExitCode, 0);
+    EXPECT_NE(result.Output.find("would-create " + cfgsync::utils::NormalizePath(destinationPath).string()),
+              std::string::npos);
+    EXPECT_TRUE(result.Error.empty());
+    EXPECT_FALSE(fs::exists(destinationPath));
+    EXPECT_FALSE(fs::exists(toPrefix));
 }
 
 TEST_F(RestoreCommandCliTest, RestoreWithOnlyOnePrefixFlagReturnsNonZero) {
@@ -234,6 +313,13 @@ TEST_F(RestoreCommandCliTest, MalformedRegistryFailsClearly) {
     EXPECT_NE(result.ExitCode, 0);
     EXPECT_TRUE(result.Output.empty());
     EXPECT_NE(result.Error.find("Malformed cfgsync registry"), std::string::npos);
+}
+
+TEST_F(RestoreCommandCliTest, RestoreHelpIncludesDryRunFlag) {
+    const auto result = RunCommand("restore --help");
+
+    EXPECT_EQ(result.ExitCode, 0);
+    EXPECT_NE(result.Output.find("--dry-run"), std::string::npos);
 }
 
 }  // namespace
