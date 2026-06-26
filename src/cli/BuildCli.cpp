@@ -170,24 +170,27 @@ void BuildCli(CLI::App& app, core::Registry& registry, storage::StorageManager& 
     auto restoreFile = std::make_shared<std::string>();
     auto restoreFromPrefix = std::make_shared<std::string>();
     auto restoreToPrefix = std::make_shared<std::string>();
+    auto restoreDryRun = std::make_shared<bool>(false);
     restoreCommand->add_flag("--all", *restoreAll, "Restore every tracked file.");
+    restoreCommand->add_flag("--dry-run", *restoreDryRun, "Preview restore impact without copying files.");
     restoreCommand->add_option("--from-prefix", *restoreFromPrefix, "Tracked original path prefix to remap from.");
     restoreCommand->add_option("--to-prefix", *restoreToPrefix, "Destination path prefix to remap to.");
     restoreCommand->add_option("file", *restoreFile, "Tracked file path to restore.");
-    restoreCommand->callback(
-        [&registry, &storageManager, loadActiveStorage, restoreAll, restoreFile, restoreFromPrefix, restoreToPrefix]() {
-            ValidateRestoreArguments(*restoreAll, *restoreFile, *restoreFromPrefix, *restoreToPrefix);
-            const auto remap = BuildRestorePrefixRemap(*restoreFromPrefix, *restoreToPrefix);
-            loadActiveStorage();
-            const commands::RestoreCommand command{registry, storageManager};
+    restoreCommand->callback([&registry, &storageManager, loadActiveStorage, restoreAll, restoreFile, restoreFromPrefix,
+                              restoreToPrefix, restoreDryRun]() {
+        ValidateRestoreArguments(*restoreAll, *restoreFile, *restoreFromPrefix, *restoreToPrefix);
+        const auto remap = BuildRestorePrefixRemap(*restoreFromPrefix, *restoreToPrefix);
+        const auto mode = *restoreDryRun ? commands::RestoreMode::DryRun : commands::RestoreMode::Apply;
+        loadActiveStorage();
+        const commands::RestoreCommand command{registry, storageManager};
 
-            if (*restoreAll) {
-                command.ExecuteAll(remap);
-                return;
-            }
+        if (*restoreAll) {
+            command.ExecuteAll(remap, mode);
+            return;
+        }
 
-            command.ExecuteSingle(std::filesystem::path{*restoreFile}, remap);
-        });
+        command.ExecuteSingle(std::filesystem::path{*restoreFile}, remap, mode);
+    });
 }
 
 }  // namespace cfgsync::cli
