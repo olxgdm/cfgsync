@@ -236,6 +236,33 @@ TEST_F(RestoreCommandTest, DryRunWithPrefixRemapReportsRemappedDestinationWithou
     EXPECT_FALSE(fs::exists(toPrefix));
 }
 
+TEST_F(RestoreCommandTest, SingleDryRunWithPrefixRemapFailsWhenTrackedFileIsOutsidePrefix) {
+    const auto sourcePath = SourcePath(".gitconfig");
+    const auto storedRelativePath = TrackFile(Registry(), sourcePath);
+    const auto fromPrefix = StorageRoot().parent_path() / "other-home" / "user";
+    const auto toPrefix = StorageRoot().parent_path() / "new-home" / "user";
+    cfgsync::tests::WriteTextFile(StorageRoot() / storedRelativePath, "[user]\n");
+
+    cfgsync::storage::StorageManager storageManager{StorageRoot()};
+    const cfgsync::commands::RestoreCommand command{Registry(), storageManager};
+
+    try {
+        command.ExecuteSingle(sourcePath,
+                              cfgsync::commands::RestorePrefixRemap{
+                                  .FromPrefix = cfgsync::utils::NormalizePath(fromPrefix),
+                                  .ToPrefix = cfgsync::utils::NormalizePath(toPrefix),
+                              },
+                              cfgsync::commands::RestoreMode::DryRun);
+        FAIL() << "Dry-run restore with a non-matching prefix did not throw.";
+    } catch (const cfgsync::CommandError& error) {
+        const std::string message = error.what();
+        EXPECT_NE(message.find("outside --from-prefix"), std::string::npos);
+        EXPECT_NE(message.find(cfgsync::utils::NormalizePath(sourcePath).string()), std::string::npos);
+    }
+
+    EXPECT_FALSE(fs::exists(toPrefix / ".gitconfig"));
+}
+
 TEST_F(RestoreCommandTest, SingleRestoreWithPrefixRemapFailsWhenTrackedFileIsOutsidePrefix) {
     const auto sourcePath = SourcePath(".gitconfig");
     const auto storedRelativePath = TrackFile(Registry(), sourcePath);

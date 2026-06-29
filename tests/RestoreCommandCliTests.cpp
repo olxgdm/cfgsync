@@ -41,6 +41,14 @@ protected:
                           cfgsync::tests::QuoteForCommand(toPrefix));
     }
 
+    cfgsync::tests::CommandResult RunRestoreSingleDryRunWithRemapCommand(const fs::path& sourcePath,
+                                                                         const fs::path& fromPrefix,
+                                                                         const fs::path& toPrefix) const {
+        return RunCommand("restore " + cfgsync::tests::QuoteForCommand(sourcePath) +
+                          " --dry-run --from-prefix " + cfgsync::tests::QuoteForCommand(fromPrefix) +
+                          " --to-prefix " + cfgsync::tests::QuoteForCommand(toPrefix));
+    }
+
     cfgsync::tests::CommandResult RunRestoreAllDryRunWithRemapCommand(const fs::path& fromPrefix,
                                                                       const fs::path& toPrefix) const {
         return RunCommand("restore --all --dry-run --from-prefix " + cfgsync::tests::QuoteForCommand(fromPrefix) +
@@ -215,6 +223,24 @@ TEST_F(RestoreCommandCliTest, RestoreAllDryRunWithPrefixRemapReportsRemappedDest
     EXPECT_TRUE(result.Error.empty());
     EXPECT_FALSE(fs::exists(destinationPath));
     EXPECT_FALSE(fs::exists(toPrefix));
+}
+
+TEST_F(RestoreCommandCliTest, RestoreSingleDryRunWithPrefixRemapOutsidePrefixReturnsNonZero) {
+    const auto sourcePath = SourcePath(".gitconfig");
+    const auto fromPrefix = GetTestRoot() / "other-configs";
+    const auto toPrefix = GetTestRoot() / "new-configs";
+    cfgsync::tests::WriteTextFile(sourcePath, "[user]\n");
+    ASSERT_TRUE(RunInitCommand());
+    ASSERT_TRUE(RunAddCommand(sourcePath));
+    ASSERT_EQ(RunBackupCommand().ExitCode, 0);
+
+    const auto result = RunRestoreSingleDryRunWithRemapCommand(sourcePath, fromPrefix, toPrefix);
+
+    EXPECT_NE(result.ExitCode, 0);
+    EXPECT_TRUE(result.Output.empty());
+    EXPECT_NE(result.Error.find("outside --from-prefix"), std::string::npos);
+    EXPECT_NE(result.Error.find(cfgsync::utils::NormalizePath(sourcePath).string()), std::string::npos);
+    EXPECT_FALSE(fs::exists(toPrefix / ".gitconfig"));
 }
 
 TEST_F(RestoreCommandCliTest, RestoreWithOnlyOnePrefixFlagReturnsNonZero) {
