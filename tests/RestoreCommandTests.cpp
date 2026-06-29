@@ -98,6 +98,44 @@ TEST_F(RestoreCommandTest, SingleDryRunDoesNotOverwriteDestination) {
     EXPECT_EQ(cfgsync::tests::ReadJsonFile(RegistryPath()), registryBeforeRestore);
 }
 
+TEST_F(RestoreCommandTest, SingleDryRunReportsOverwriteWhenSameLengthContentsDiffer) {
+    const auto sourcePath = SourcePath(".gitconfig");
+    const auto storedRelativePath = TrackFile(Registry(), sourcePath);
+    cfgsync::tests::WriteTextFile(StorageRoot() / storedRelativePath, "stored value\n");
+    cfgsync::tests::WriteTextFile(sourcePath, "localx value\n");
+
+    cfgsync::storage::StorageManager storageManager{StorageRoot()};
+    const cfgsync::commands::RestoreCommand command{Registry(), storageManager};
+
+    testing::internal::CaptureStdout();
+    command.ExecuteSingle(sourcePath, std::nullopt, cfgsync::commands::RestoreMode::DryRun);
+    const auto output = testing::internal::GetCapturedStdout();
+
+    EXPECT_NE(output.find("would-overwrite " + sourcePath.string()), std::string::npos);
+    EXPECT_EQ(cfgsync::tests::ReadTextFile(sourcePath), "localx value\n");
+}
+
+TEST_F(RestoreCommandTest, SingleDryRunFailsWhenDestinationIsDirectory) {
+    const auto sourcePath = SourcePath(".gitconfig");
+    const auto storedRelativePath = TrackFile(Registry(), sourcePath);
+    cfgsync::tests::WriteTextFile(StorageRoot() / storedRelativePath, "stored contents\n");
+    fs::create_directories(sourcePath);
+
+    cfgsync::storage::StorageManager storageManager{StorageRoot()};
+    const cfgsync::commands::RestoreCommand command{Registry(), storageManager};
+
+    try {
+        command.ExecuteSingle(sourcePath, std::nullopt, cfgsync::commands::RestoreMode::DryRun);
+        FAIL() << "Dry-run restore to a directory destination did not throw.";
+    } catch (const cfgsync::FileError& error) {
+        const std::string message = error.what();
+        EXPECT_NE(message.find("Destination path is not an ordinary file"), std::string::npos);
+        EXPECT_NE(message.find(sourcePath.string()), std::string::npos);
+    }
+
+    EXPECT_TRUE(fs::is_directory(sourcePath));
+}
+
 TEST_F(RestoreCommandTest, RestoreAllDryRunReportsCreateOverwriteAndUnchangedWithoutMutatingDestinations) {
     const auto createPath = SourcePath("missing.conf");
     const auto overwritePath = SourcePath(".gitconfig");
