@@ -307,6 +307,65 @@ TEST_F(RestoreCommandTest, SingleDryRunFailsWhenStoredBackupIsMissing) {
     }
 }
 
+TEST_F(RestoreCommandTest, RestoreAllDryRunContinuesAfterMissingStoredBackupAndReportsPartialFailure) {
+    const auto missingBackupPath = SourcePath("missing.conf");
+    const auto previewPath = SourcePath(".gitconfig");
+    TrackFile(Registry(), missingBackupPath);
+    const auto previewStoredRelativePath = TrackFile(Registry(), previewPath);
+    cfgsync::tests::WriteTextFile(StorageRoot() / previewStoredRelativePath, "[user]\n");
+    cfgsync::tests::WriteTextFile(previewPath, "changed contents\n");
+    const auto registryBeforeRestore = cfgsync::tests::ReadJsonFile(RegistryPath());
+
+    cfgsync::storage::StorageManager storageManager{StorageRoot()};
+    const cfgsync::commands::RestoreCommand command{Registry(), storageManager};
+
+    testing::internal::CaptureStdout();
+    try {
+        command.ExecuteAll(std::nullopt, cfgsync::commands::RestoreMode::DryRun);
+        FAIL() << "Dry-run restore with a missing stored backup did not throw.";
+    } catch (const cfgsync::CommandError& error) {
+        const auto output = testing::internal::GetCapturedStdout();
+        const std::string message = error.what();
+        EXPECT_NE(output.find("Failed to restore file"), std::string::npos);
+        EXPECT_NE(output.find(missingBackupPath.string()), std::string::npos);
+        EXPECT_NE(output.find("would-overwrite " + previewPath.string()), std::string::npos);
+        EXPECT_NE(message.find("Restore completed with 1 failure."), std::string::npos);
+    }
+
+    EXPECT_EQ(cfgsync::tests::ReadTextFile(previewPath), "changed contents\n");
+    EXPECT_EQ(cfgsync::tests::ReadJsonFile(RegistryPath()), registryBeforeRestore);
+}
+
+TEST_F(RestoreCommandTest, RestoreAllDryRunContinuesAfterDestinationStateFailure) {
+    const auto directoryDestinationPath = SourcePath(".gitconfig");
+    const auto previewPath = SourcePath("init.lua");
+    const auto directoryStoredRelativePath = TrackFile(Registry(), directoryDestinationPath);
+    const auto previewStoredRelativePath = TrackFile(Registry(), previewPath);
+    cfgsync::tests::WriteTextFile(StorageRoot() / directoryStoredRelativePath, "[user]\n");
+    cfgsync::tests::WriteTextFile(StorageRoot() / previewStoredRelativePath, "vim.opt.number = true\n");
+    fs::create_directories(directoryDestinationPath);
+    ASSERT_FALSE(fs::exists(previewPath));
+
+    cfgsync::storage::StorageManager storageManager{StorageRoot()};
+    const cfgsync::commands::RestoreCommand command{Registry(), storageManager};
+
+    testing::internal::CaptureStdout();
+    try {
+        command.ExecuteAll(std::nullopt, cfgsync::commands::RestoreMode::DryRun);
+        FAIL() << "Dry-run restore with an invalid destination did not throw.";
+    } catch (const cfgsync::CommandError& error) {
+        const auto output = testing::internal::GetCapturedStdout();
+        const std::string message = error.what();
+        EXPECT_NE(output.find("Failed to restore file"), std::string::npos);
+        EXPECT_NE(output.find("Destination path is not an ordinary file"), std::string::npos);
+        EXPECT_NE(output.find("would-create " + previewPath.string()), std::string::npos);
+        EXPECT_NE(message.find("Restore completed with 1 failure."), std::string::npos);
+    }
+
+    EXPECT_TRUE(fs::is_directory(directoryDestinationPath));
+    EXPECT_FALSE(fs::exists(previewPath));
+}
+
 TEST_F(RestoreCommandTest, RestoreAllContinuesAfterMissingStoredBackupAndReportsPartialFailure) {
     const auto existingPath = SourcePath(".gitconfig");
     const auto missingBackupPath = SourcePath("missing.conf");
