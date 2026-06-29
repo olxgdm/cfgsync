@@ -261,14 +261,31 @@ TEST_F(RestoreCommandCliTest, SingleRestoreWithMissingStoredBackupReturnsNonZero
     EXPECT_NE(result.Error.find(cfgsync::tests::StoredPathFor(StorageRoot(), sourcePath).string()), std::string::npos);
 }
 
+TEST_F(RestoreCommandCliTest, SingleDryRunWithMissingStoredBackupReturnsNonZero) {
+    const auto sourcePath = SourcePath(".gitconfig");
+    cfgsync::tests::WriteTextFile(sourcePath, "[user]\n");
+    ASSERT_TRUE(RunInitCommand());
+    ASSERT_TRUE(RunAddCommand(sourcePath));
+    ASSERT_EQ(RunBackupCommand().ExitCode, 0);
+    fs::remove(cfgsync::tests::StoredPathFor(StorageRoot(), sourcePath));
+
+    const auto result = RunRestoreSingleDryRunCommand(sourcePath);
+
+    EXPECT_NE(result.ExitCode, 0);
+    EXPECT_TRUE(result.Output.empty());
+    EXPECT_NE(result.Error.find("Path does not exist"), std::string::npos);
+    EXPECT_NE(result.Error.find(cfgsync::tests::StoredPathFor(StorageRoot(), sourcePath).string()), std::string::npos);
+    EXPECT_TRUE(fs::exists(sourcePath));
+}
+
 TEST_F(RestoreCommandCliTest, RestoreAllContinuesAfterMissingStoredBackupAndReturnsNonZero) {
     const auto existingPath = SourcePath(".gitconfig");
     const auto missingBackupPath = SourcePath("missing.conf");
     cfgsync::tests::WriteTextFile(existingPath, "[user]\n");
     cfgsync::tests::WriteTextFile(missingBackupPath, "temporary\n");
     ASSERT_TRUE(RunInitCommand());
-    ASSERT_TRUE(RunAddCommand(existingPath));
     ASSERT_TRUE(RunAddCommand(missingBackupPath));
+    ASSERT_TRUE(RunAddCommand(existingPath));
     ASSERT_EQ(RunBackupCommand().ExitCode, 0);
     const auto registryBeforeRestore = cfgsync::tests::ReadJsonFile(StorageRoot() / "registry.json");
     cfgsync::tests::WriteTextFile(existingPath, "changed contents\n");
@@ -282,6 +299,31 @@ TEST_F(RestoreCommandCliTest, RestoreAllContinuesAfterMissingStoredBackupAndRetu
     EXPECT_NE(result.Output.find(cfgsync::utils::NormalizePath(missingBackupPath).string()), std::string::npos);
     EXPECT_NE(result.Error.find("Restore completed with 1 failure."), std::string::npos);
     EXPECT_EQ(cfgsync::tests::ReadTextFile(existingPath), "[user]\n");
+    EXPECT_EQ(cfgsync::tests::ReadJsonFile(StorageRoot() / "registry.json"), registryBeforeRestore);
+}
+
+TEST_F(RestoreCommandCliTest, RestoreAllDryRunContinuesAfterMissingStoredBackupAndReturnsNonZero) {
+    const auto existingPath = SourcePath(".gitconfig");
+    const auto missingBackupPath = SourcePath("missing.conf");
+    cfgsync::tests::WriteTextFile(existingPath, "[user]\n");
+    cfgsync::tests::WriteTextFile(missingBackupPath, "temporary\n");
+    ASSERT_TRUE(RunInitCommand());
+    ASSERT_TRUE(RunAddCommand(missingBackupPath));
+    ASSERT_TRUE(RunAddCommand(existingPath));
+    ASSERT_EQ(RunBackupCommand().ExitCode, 0);
+    const auto registryBeforeRestore = cfgsync::tests::ReadJsonFile(StorageRoot() / "registry.json");
+    cfgsync::tests::WriteTextFile(existingPath, "changed contents\n");
+    fs::remove(cfgsync::tests::StoredPathFor(StorageRoot(), missingBackupPath));
+
+    const auto result = RunRestoreAllDryRunCommand();
+
+    EXPECT_NE(result.ExitCode, 0);
+    EXPECT_NE(result.Output.find("would-overwrite " + cfgsync::utils::NormalizePath(existingPath).string()),
+              std::string::npos);
+    EXPECT_NE(result.Output.find("Failed to restore file"), std::string::npos);
+    EXPECT_NE(result.Output.find(cfgsync::utils::NormalizePath(missingBackupPath).string()), std::string::npos);
+    EXPECT_NE(result.Error.find("Restore completed with 1 failure."), std::string::npos);
+    EXPECT_EQ(cfgsync::tests::ReadTextFile(existingPath), "changed contents\n");
     EXPECT_EQ(cfgsync::tests::ReadJsonFile(StorageRoot() / "registry.json"), registryBeforeRestore);
 }
 
