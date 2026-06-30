@@ -150,6 +150,7 @@ add_executable(cfgsync
     src/commands/DiffCommand.cpp
     src/commands/WatchCommand.cpp
     src/commands/RestoreCommand.cpp
+    src/commands/RestoreDryRunPreview.cpp
     src/utils/AppConfigPath.cpp
     src/utils/PathUtils.cpp
     src/utils/FileUtils.cpp
@@ -524,6 +525,7 @@ if(CFGSYNC_BUILD_TESTS)
         tests/RestoreCommandTests.cpp
         tests/common/TestTempDirectory.cpp
         src/commands/RestoreCommand.cpp
+        src/commands/RestoreDryRunPreview.cpp
         src/storage/StorageManager.cpp
         src/core/Registry.cpp
         src/utils/FileUtils.cpp
