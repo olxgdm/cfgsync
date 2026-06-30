@@ -1,5 +1,6 @@
 #include "Exceptions.hpp"
 #include "commands/RestoreCommand.hpp"
+#include "commands/RestoreDryRunPreview.hpp"
 #include "common/GoogleTestMain.hpp"
 #include "common/RegistryCommandTestFixture.hpp"
 #include "common/TestFileUtils.hpp"
@@ -8,12 +9,188 @@
 #include "storage/StorageManager.hpp"
 #include "utils/PathUtils.hpp"
 
+#include <algorithm>
 #include <filesystem>
+#include <ios>
+#include <memory>
 #include <string>
+#include <system_error>
+#include <unordered_map>
+#include <utility>
 
 namespace {
 namespace fs = std::filesystem;
 using cfgsync::tests::TrackFile;
+
+struct FakeInputScript {
+    bool IsOpen = true;
+    bool BadAfterRead = false;
+    std::string Bytes;
+    std::streamsize GCountOverride = -1;
+};
+
+class FakeBinaryInput final : public cfgsync::commands::detail::BinaryInput {
+public:
+    explicit FakeBinaryInput(FakeInputScript script) : Script_(std::move(script)) {}
+
+    bool IsOpen() const override { return Script_.IsOpen; }
+    bool Good() const override { return Script_.IsOpen && ReadCount_ == 0; }
+
+    void Read(char* buffer, std::streamsize count) override {
+        const auto bytesToCopy = std::min(count, static_cast<std::streamsize>(Script_.Bytes.size()));
+        std::copy_n(Script_.Bytes.begin(), bytesToCopy, buffer);
+        LastGCount_ = Script_.GCountOverride >= 0 ? Script_.GCountOverride : bytesToCopy;
+        ++ReadCount_;
+    }
+
+    bool Bad() const override { return Script_.BadAfterRead && ReadCount_ > 0; }
+    std::streamsize GCount() const override { return LastGCount_; }
+
+private:
+    FakeInputScript Script_;
+    int ReadCount_ = 0;
+    std::streamsize LastGCount_ = 0;
+};
+
+class FakeDryRunFileOperations final : public cfgsync::commands::detail::DryRunFileOperations {
+public:
+    void SetFileSize(const fs::path& path, std::uintmax_t size) { FileSizes_[path.string()] = size; }
+
+    void SetFileSizeError(const fs::path& path, std::errc error) { FileSizeErrors_[path.string()] = error; }
+
+    void SetInput(const fs::path& path, FakeInputScript script) { Inputs_[path.string()] = std::move(script); }
+
+    std::uintmax_t FileSize(const fs::path& path, std::error_code& errorCode) const override {
+        if (const auto error = FileSizeErrors_.find(path.string()); error != FileSizeErrors_.end()) {
+            errorCode = std::make_error_code(error->second);
+            return 0;
+        }
+
+        errorCode.clear();
+        return FileSizes_.at(path.string());
+    }
+
+    std::unique_ptr<cfgsync::commands::detail::BinaryInput> OpenBinaryInput(const fs::path& path) const override {
+        return std::make_unique<FakeBinaryInput>(Inputs_.at(path.string()));
+    }
+
+private:
+    std::unordered_map<std::string, std::uintmax_t> FileSizes_;
+    std::unordered_map<std::string, std::errc> FileSizeErrors_;
+    std::unordered_map<std::string, FakeInputScript> Inputs_;
+};
+
+TEST(RestoreCommandDryRunPreviewTest, FilesHaveSameContentsFailsWhenFirstFileSizeCannotBeInspected) {
+    const fs::path storedPath{"stored.conf"};
+    const fs::path destinationPath{"destination.conf"};
+    FakeDryRunFileOperations operations;
+    operations.SetFileSizeError(storedPath, std::errc::permission_denied);
+    operations.SetFileSize(destinationPath, 1);
+
+    try {
+        (void)cfgsync::commands::detail::FilesHaveSameContents(storedPath, destinationPath, operations);
+        FAIL() << "Expected FileError";
+    } catch (const cfgsync::FileError& error) {
+        const std::string message = error.what();
+        EXPECT_NE(message.find("Unable to inspect file 'stored.conf'"), std::string::npos);
+    }
+}
+
+TEST(RestoreCommandDryRunPreviewTest, FilesHaveSameContentsFailsWhenSecondFileSizeCannotBeInspected) {
+    const fs::path storedPath{"stored.conf"};
+    const fs::path destinationPath{"destination.conf"};
+    FakeDryRunFileOperations operations;
+    operations.SetFileSize(storedPath, 1);
+    operations.SetFileSizeError(destinationPath, std::errc::permission_denied);
+
+    try {
+        (void)cfgsync::commands::detail::FilesHaveSameContents(storedPath, destinationPath, operations);
+        FAIL() << "Expected FileError";
+    } catch (const cfgsync::FileError& error) {
+        const std::string message = error.what();
+        EXPECT_NE(message.find("Unable to inspect file 'destination.conf'"), std::string::npos);
+    }
+}
+
+TEST(RestoreCommandDryRunPreviewTest, FilesHaveSameContentsFailsWhenFirstFileCannotBeOpened) {
+    const fs::path storedPath{"stored.conf"};
+    const fs::path destinationPath{"destination.conf"};
+    FakeDryRunFileOperations operations;
+    operations.SetFileSize(storedPath, 1);
+    operations.SetFileSize(destinationPath, 1);
+    operations.SetInput(storedPath, {.IsOpen = false});
+    operations.SetInput(destinationPath, {.Bytes = "a"});
+
+    try {
+        (void)cfgsync::commands::detail::FilesHaveSameContents(storedPath, destinationPath, operations);
+        FAIL() << "Expected FileError";
+    } catch (const cfgsync::FileError& error) {
+        EXPECT_STREQ(error.what(), "Unable to open file 'stored.conf'");
+    }
+}
+
+TEST(RestoreCommandDryRunPreviewTest, FilesHaveSameContentsFailsWhenSecondFileCannotBeOpened) {
+    const fs::path storedPath{"stored.conf"};
+    const fs::path destinationPath{"destination.conf"};
+    FakeDryRunFileOperations operations;
+    operations.SetFileSize(storedPath, 1);
+    operations.SetFileSize(destinationPath, 1);
+    operations.SetInput(storedPath, {.Bytes = "a"});
+    operations.SetInput(destinationPath, {.IsOpen = false});
+
+    try {
+        (void)cfgsync::commands::detail::FilesHaveSameContents(storedPath, destinationPath, operations);
+        FAIL() << "Expected FileError";
+    } catch (const cfgsync::FileError& error) {
+        EXPECT_STREQ(error.what(), "Unable to open file 'destination.conf'");
+    }
+}
+
+TEST(RestoreCommandDryRunPreviewTest, FilesHaveSameContentsFailsWhenFirstFileCannotBeRead) {
+    const fs::path storedPath{"stored.conf"};
+    const fs::path destinationPath{"destination.conf"};
+    FakeDryRunFileOperations operations;
+    operations.SetFileSize(storedPath, 1);
+    operations.SetFileSize(destinationPath, 1);
+    operations.SetInput(storedPath, {.BadAfterRead = true, .Bytes = "a"});
+    operations.SetInput(destinationPath, {.Bytes = "a"});
+
+    try {
+        (void)cfgsync::commands::detail::FilesHaveSameContents(storedPath, destinationPath, operations);
+        FAIL() << "Expected FileError";
+    } catch (const cfgsync::FileError& error) {
+        EXPECT_STREQ(error.what(), "Unable to read file 'stored.conf'");
+    }
+}
+
+TEST(RestoreCommandDryRunPreviewTest, FilesHaveSameContentsFailsWhenSecondFileCannotBeRead) {
+    const fs::path storedPath{"stored.conf"};
+    const fs::path destinationPath{"destination.conf"};
+    FakeDryRunFileOperations operations;
+    operations.SetFileSize(storedPath, 1);
+    operations.SetFileSize(destinationPath, 1);
+    operations.SetInput(storedPath, {.Bytes = "a"});
+    operations.SetInput(destinationPath, {.BadAfterRead = true, .Bytes = "a"});
+
+    try {
+        (void)cfgsync::commands::detail::FilesHaveSameContents(storedPath, destinationPath, operations);
+        FAIL() << "Expected FileError";
+    } catch (const cfgsync::FileError& error) {
+        EXPECT_STREQ(error.what(), "Unable to read file 'destination.conf'");
+    }
+}
+
+TEST(RestoreCommandDryRunPreviewTest, FilesHaveSameContentsReportsDifferentWhenReadCountsDiffer) {
+    const fs::path storedPath{"stored.conf"};
+    const fs::path destinationPath{"destination.conf"};
+    FakeDryRunFileOperations operations;
+    operations.SetFileSize(storedPath, 3);
+    operations.SetFileSize(destinationPath, 3);
+    operations.SetInput(storedPath, {.Bytes = "abc", .GCountOverride = 3});
+    operations.SetInput(destinationPath, {.Bytes = "abc", .GCountOverride = 2});
+
+    EXPECT_FALSE(cfgsync::commands::detail::FilesHaveSameContents(storedPath, destinationPath, operations));
+}
 
 class RestoreCommandTest : public cfgsync::tests::RegistryCommandTestFixture {};
 
@@ -79,6 +256,146 @@ TEST_F(RestoreCommandTest, OverwritesChangedLocalFile) {
     EXPECT_EQ(cfgsync::tests::ReadTextFile(sourcePath), "stored contents\n");
 }
 
+TEST_F(RestoreCommandTest, SingleDryRunDoesNotOverwriteDestination) {
+    const auto sourcePath = SourcePath(".gitconfig");
+    const auto storedRelativePath = TrackFile(Registry(), sourcePath);
+    cfgsync::tests::WriteTextFile(StorageRoot() / storedRelativePath, "stored contents\n");
+    cfgsync::tests::WriteTextFile(sourcePath, "local changes\n");
+    const auto registryBeforeRestore = cfgsync::tests::ReadJsonFile(RegistryPath());
+
+    cfgsync::storage::StorageManager storageManager{StorageRoot()};
+    const cfgsync::commands::RestoreCommand command{Registry(), storageManager};
+
+    testing::internal::CaptureStdout();
+    command.ExecuteSingle(sourcePath, std::nullopt, cfgsync::commands::RestoreMode::DryRun);
+    const auto output = testing::internal::GetCapturedStdout();
+
+    EXPECT_NE(output.find("would-overwrite " + sourcePath.string()), std::string::npos);
+    EXPECT_EQ(cfgsync::tests::ReadTextFile(sourcePath), "local changes\n");
+    EXPECT_EQ(cfgsync::tests::ReadJsonFile(RegistryPath()), registryBeforeRestore);
+}
+
+TEST_F(RestoreCommandTest, SingleDryRunReportsOverwriteWhenSameLengthContentsDiffer) {
+    const auto sourcePath = SourcePath(".gitconfig");
+    const auto storedRelativePath = TrackFile(Registry(), sourcePath);
+    cfgsync::tests::WriteTextFile(StorageRoot() / storedRelativePath, "stored value\n");
+    cfgsync::tests::WriteTextFile(sourcePath, "localx value\n");
+
+    cfgsync::storage::StorageManager storageManager{StorageRoot()};
+    const cfgsync::commands::RestoreCommand command{Registry(), storageManager};
+
+    testing::internal::CaptureStdout();
+    command.ExecuteSingle(sourcePath, std::nullopt, cfgsync::commands::RestoreMode::DryRun);
+    const auto output = testing::internal::GetCapturedStdout();
+
+    EXPECT_NE(output.find("would-overwrite " + sourcePath.string()), std::string::npos);
+    EXPECT_EQ(cfgsync::tests::ReadTextFile(sourcePath), "localx value\n");
+}
+
+TEST_F(RestoreCommandTest, SingleDryRunReportsOverwriteWhenFileSizesDiffer) {
+    const auto sourcePath = SourcePath(".gitconfig");
+    const auto storedRelativePath = TrackFile(Registry(), sourcePath);
+    cfgsync::tests::WriteTextFile(StorageRoot() / storedRelativePath, "stored contents are longer\n");
+    cfgsync::tests::WriteTextFile(sourcePath, "local\n");
+
+    cfgsync::storage::StorageManager storageManager{StorageRoot()};
+    const cfgsync::commands::RestoreCommand command{Registry(), storageManager};
+
+    testing::internal::CaptureStdout();
+    command.ExecuteSingle(sourcePath, std::nullopt, cfgsync::commands::RestoreMode::DryRun);
+    const auto output = testing::internal::GetCapturedStdout();
+
+    EXPECT_NE(output.find("would-overwrite " + sourcePath.string()), std::string::npos);
+    EXPECT_EQ(cfgsync::tests::ReadTextFile(sourcePath), "local\n");
+}
+
+TEST_F(RestoreCommandTest, SingleDryRunReportsUnchangedWhenBothFilesAreEmpty) {
+    const auto sourcePath = SourcePath(".gitconfig");
+    const auto storedRelativePath = TrackFile(Registry(), sourcePath);
+    cfgsync::tests::WriteTextFile(StorageRoot() / storedRelativePath, "");
+    cfgsync::tests::WriteTextFile(sourcePath, "");
+
+    cfgsync::storage::StorageManager storageManager{StorageRoot()};
+    const cfgsync::commands::RestoreCommand command{Registry(), storageManager};
+
+    testing::internal::CaptureStdout();
+    command.ExecuteSingle(sourcePath, std::nullopt, cfgsync::commands::RestoreMode::DryRun);
+    const auto output = testing::internal::GetCapturedStdout();
+
+    EXPECT_NE(output.find("unchanged " + sourcePath.string()), std::string::npos);
+    EXPECT_EQ(cfgsync::tests::ReadTextFile(sourcePath), "");
+}
+
+TEST_F(RestoreCommandTest, SingleDryRunFailsWhenDestinationIsDirectory) {
+    const auto sourcePath = SourcePath(".gitconfig");
+    const auto storedRelativePath = TrackFile(Registry(), sourcePath);
+    cfgsync::tests::WriteTextFile(StorageRoot() / storedRelativePath, "stored contents\n");
+    fs::create_directories(sourcePath);
+
+    cfgsync::storage::StorageManager storageManager{StorageRoot()};
+    const cfgsync::commands::RestoreCommand command{Registry(), storageManager};
+
+    try {
+        command.ExecuteSingle(sourcePath, std::nullopt, cfgsync::commands::RestoreMode::DryRun);
+        FAIL() << "Dry-run restore to a directory destination did not throw.";
+    } catch (const cfgsync::FileError& error) {
+        const std::string message = error.what();
+        EXPECT_NE(message.find("Destination path is not an ordinary file"), std::string::npos);
+        EXPECT_NE(message.find(sourcePath.string()), std::string::npos);
+    }
+
+    EXPECT_TRUE(fs::is_directory(sourcePath));
+}
+
+TEST_F(RestoreCommandTest, SingleDryRunFailsWhenStoredBackupIsDirectory) {
+    const auto sourcePath = SourcePath(".gitconfig");
+    const auto storedRelativePath = TrackFile(Registry(), sourcePath);
+    fs::create_directories(StorageRoot() / storedRelativePath);
+
+    cfgsync::storage::StorageManager storageManager{StorageRoot()};
+    const cfgsync::commands::RestoreCommand command{Registry(), storageManager};
+
+    try {
+        command.ExecuteSingle(sourcePath, std::nullopt, cfgsync::commands::RestoreMode::DryRun);
+        FAIL() << "Dry-run restore with a directory stored backup did not throw.";
+    } catch (const cfgsync::FileError& error) {
+        const std::string message = error.what();
+        EXPECT_NE(message.find("Path is not an ordinary file"), std::string::npos);
+        EXPECT_NE(message.find((StorageRoot() / storedRelativePath).string()), std::string::npos);
+    }
+}
+
+TEST_F(RestoreCommandTest, RestoreAllDryRunReportsCreateOverwriteAndUnchangedWithoutMutatingDestinations) {
+    const auto createPath = SourcePath("missing.conf");
+    const auto overwritePath = SourcePath(".gitconfig");
+    const auto unchangedPath = SourcePath("init.lua");
+    const auto createStoredRelativePath = TrackFile(Registry(), createPath);
+    const auto overwriteStoredRelativePath = TrackFile(Registry(), overwritePath);
+    const auto unchangedStoredRelativePath = TrackFile(Registry(), unchangedPath);
+    cfgsync::tests::WriteTextFile(StorageRoot() / createStoredRelativePath, "created contents\n");
+    cfgsync::tests::WriteTextFile(StorageRoot() / overwriteStoredRelativePath, "stored contents\n");
+    cfgsync::tests::WriteTextFile(StorageRoot() / unchangedStoredRelativePath, "same contents\n");
+    cfgsync::tests::WriteTextFile(overwritePath, "local changes\n");
+    cfgsync::tests::WriteTextFile(unchangedPath, "same contents\n");
+    ASSERT_FALSE(fs::exists(createPath));
+    const auto registryBeforeRestore = cfgsync::tests::ReadJsonFile(RegistryPath());
+
+    cfgsync::storage::StorageManager storageManager{StorageRoot()};
+    const cfgsync::commands::RestoreCommand command{Registry(), storageManager};
+
+    testing::internal::CaptureStdout();
+    command.ExecuteAll(std::nullopt, cfgsync::commands::RestoreMode::DryRun);
+    const auto output = testing::internal::GetCapturedStdout();
+
+    EXPECT_NE(output.find("would-create " + createPath.string()), std::string::npos);
+    EXPECT_NE(output.find("would-overwrite " + overwritePath.string()), std::string::npos);
+    EXPECT_NE(output.find("unchanged " + unchangedPath.string()), std::string::npos);
+    EXPECT_FALSE(fs::exists(createPath));
+    EXPECT_EQ(cfgsync::tests::ReadTextFile(overwritePath), "local changes\n");
+    EXPECT_EQ(cfgsync::tests::ReadTextFile(unchangedPath), "same contents\n");
+    EXPECT_EQ(cfgsync::tests::ReadJsonFile(RegistryPath()), registryBeforeRestore);
+}
+
 TEST_F(RestoreCommandTest, SingleRestoreWithPrefixRemapRestoresToRemappedDestination) {
     const auto sourcePath = SourcePath(".config/nvim/init.lua");
     const auto storedRelativePath = TrackFile(Registry(), sourcePath);
@@ -120,6 +437,104 @@ TEST_F(RestoreCommandTest, RestoreAllWithPrefixRemapRestoresMultipleFilesToRemap
 
     EXPECT_EQ(cfgsync::tests::ReadTextFile(toPrefix / ".gitconfig"), "[user]\n");
     EXPECT_EQ(cfgsync::tests::ReadTextFile(toPrefix / ".config" / "nvim" / "init.lua"), "vim.opt.number = true\n");
+}
+
+TEST_F(RestoreCommandTest, DryRunWithPrefixRemapReportsRemappedDestinationWithoutCreatingParents) {
+    const auto sourcePath = SourcePath(".config/nvim/init.lua");
+    const auto storedRelativePath = TrackFile(Registry(), sourcePath);
+    const auto fromPrefix = SourcePath().parent_path();
+    const auto toPrefix = StorageRoot().parent_path() / "new-home" / "user";
+    const auto destinationPath = toPrefix / ".config" / "nvim" / "init.lua";
+    cfgsync::tests::WriteTextFile(StorageRoot() / storedRelativePath, "vim.opt.number = true\n");
+    ASSERT_FALSE(fs::exists(toPrefix));
+
+    cfgsync::storage::StorageManager storageManager{StorageRoot()};
+    const cfgsync::commands::RestoreCommand command{Registry(), storageManager};
+
+    testing::internal::CaptureStdout();
+    command.ExecuteSingle(sourcePath,
+                          cfgsync::commands::RestorePrefixRemap{
+                              .FromPrefix = cfgsync::utils::NormalizePath(fromPrefix),
+                              .ToPrefix = cfgsync::utils::NormalizePath(toPrefix),
+                          },
+                          cfgsync::commands::RestoreMode::DryRun);
+    const auto output = testing::internal::GetCapturedStdout();
+
+    EXPECT_NE(output.find("would-create " + destinationPath.string()), std::string::npos);
+    EXPECT_FALSE(fs::exists(destinationPath));
+    EXPECT_FALSE(fs::exists(toPrefix));
+}
+
+TEST_F(RestoreCommandTest, DryRunWithExactPrefixAndEmptyDestinationPrefixFailsClearly) {
+    const auto sourcePath = SourcePath(".gitconfig");
+    const auto storedRelativePath = TrackFile(Registry(), sourcePath);
+    cfgsync::tests::WriteTextFile(StorageRoot() / storedRelativePath, "[user]\n");
+
+    cfgsync::storage::StorageManager storageManager{StorageRoot()};
+    const cfgsync::commands::RestoreCommand command{Registry(), storageManager};
+
+    try {
+        command.ExecuteSingle(sourcePath,
+                              cfgsync::commands::RestorePrefixRemap{
+                                  .FromPrefix = cfgsync::utils::NormalizePath(sourcePath),
+                                  .ToPrefix = {},
+                              },
+                              cfgsync::commands::RestoreMode::DryRun);
+        FAIL() << "Dry-run restore with an empty destination path did not throw.";
+    } catch (const cfgsync::FileError& error) {
+        const std::string message = error.what();
+        EXPECT_NE(message.find("Destination path must not be empty"), std::string::npos);
+    }
+}
+
+TEST_F(RestoreCommandTest, DryRunWithEmptyDestinationPrefixAndRemainingPathReportsRelativeDestination) {
+    const auto sourcePath = SourcePath("cfgsync-dry-run-relative-destination.conf");
+    const auto storedRelativePath = TrackFile(Registry(), sourcePath);
+    const auto expectedDestination = fs::path{sourcePath.filename()};
+    cfgsync::tests::WriteTextFile(StorageRoot() / storedRelativePath, "stored contents\n");
+    ASSERT_FALSE(fs::exists(expectedDestination));
+
+    cfgsync::storage::StorageManager storageManager{StorageRoot()};
+    const cfgsync::commands::RestoreCommand command{Registry(), storageManager};
+
+    testing::internal::CaptureStdout();
+    command.ExecuteSingle(sourcePath,
+                          cfgsync::commands::RestorePrefixRemap{
+                              .FromPrefix = cfgsync::utils::NormalizePath(sourcePath.parent_path()),
+                              .ToPrefix = {},
+                          },
+                          cfgsync::commands::RestoreMode::DryRun);
+    const auto output = testing::internal::GetCapturedStdout();
+
+    EXPECT_NE(output.find("would-create " + expectedDestination.string()), std::string::npos);
+    EXPECT_FALSE(fs::exists(expectedDestination));
+}
+
+TEST_F(RestoreCommandTest, SingleDryRunWithPrefixRemapFailsWhenTrackedFileIsOutsidePrefix) {
+    const auto sourcePath = SourcePath(".gitconfig");
+    const auto storedRelativePath = TrackFile(Registry(), sourcePath);
+    const auto fromPrefix = StorageRoot().parent_path() / "other-home" / "user";
+    const auto toPrefix = StorageRoot().parent_path() / "new-home" / "user";
+    cfgsync::tests::WriteTextFile(StorageRoot() / storedRelativePath, "[user]\n");
+
+    cfgsync::storage::StorageManager storageManager{StorageRoot()};
+    const cfgsync::commands::RestoreCommand command{Registry(), storageManager};
+
+    try {
+        command.ExecuteSingle(sourcePath,
+                              cfgsync::commands::RestorePrefixRemap{
+                                  .FromPrefix = cfgsync::utils::NormalizePath(fromPrefix),
+                                  .ToPrefix = cfgsync::utils::NormalizePath(toPrefix),
+                              },
+                              cfgsync::commands::RestoreMode::DryRun);
+        FAIL() << "Dry-run restore with a non-matching prefix did not throw.";
+    } catch (const cfgsync::CommandError& error) {
+        const std::string message = error.what();
+        EXPECT_NE(message.find("outside --from-prefix"), std::string::npos);
+        EXPECT_NE(message.find(cfgsync::utils::NormalizePath(sourcePath).string()), std::string::npos);
+    }
+
+    EXPECT_FALSE(fs::exists(toPrefix / ".gitconfig"));
 }
 
 TEST_F(RestoreCommandTest, SingleRestoreWithPrefixRemapFailsWhenTrackedFileIsOutsidePrefix) {
@@ -176,6 +591,111 @@ TEST_F(RestoreCommandTest, SingleRestoreFailsWhenStoredBackupIsMissing) {
     }
 }
 
+TEST_F(RestoreCommandTest, SingleDryRunFailsWhenStoredBackupIsMissing) {
+    const auto sourcePath = SourcePath();
+    const auto storedRelativePath = TrackFile(Registry(), sourcePath);
+
+    cfgsync::storage::StorageManager storageManager{StorageRoot()};
+    const cfgsync::commands::RestoreCommand command{Registry(), storageManager};
+
+    try {
+        command.ExecuteSingle(sourcePath, std::nullopt, cfgsync::commands::RestoreMode::DryRun);
+        FAIL() << "Dry-run restore with a missing stored backup did not throw.";
+    } catch (const cfgsync::FileError& error) {
+        const std::string message = error.what();
+        EXPECT_NE(message.find("Path does not exist"), std::string::npos);
+        EXPECT_NE(message.find((StorageRoot() / storedRelativePath).string()), std::string::npos);
+    }
+}
+
+TEST_F(RestoreCommandTest, RestoreAllDryRunContinuesAfterMissingStoredBackupAndReportsPartialFailure) {
+    const auto missingBackupPath = SourcePath("missing.conf");
+    const auto previewPath = SourcePath(".gitconfig");
+    TrackFile(Registry(), missingBackupPath);
+    const auto previewStoredRelativePath = TrackFile(Registry(), previewPath);
+    cfgsync::tests::WriteTextFile(StorageRoot() / previewStoredRelativePath, "[user]\n");
+    cfgsync::tests::WriteTextFile(previewPath, "changed contents\n");
+    const auto registryBeforeRestore = cfgsync::tests::ReadJsonFile(RegistryPath());
+
+    cfgsync::storage::StorageManager storageManager{StorageRoot()};
+    const cfgsync::commands::RestoreCommand command{Registry(), storageManager};
+
+    testing::internal::CaptureStdout();
+    try {
+        command.ExecuteAll(std::nullopt, cfgsync::commands::RestoreMode::DryRun);
+        FAIL() << "Dry-run restore with a missing stored backup did not throw.";
+    } catch (const cfgsync::CommandError& error) {
+        const auto output = testing::internal::GetCapturedStdout();
+        const std::string message = error.what();
+        EXPECT_NE(output.find("Failed to restore file"), std::string::npos);
+        EXPECT_NE(output.find(missingBackupPath.string()), std::string::npos);
+        EXPECT_NE(output.find("would-overwrite " + previewPath.string()), std::string::npos);
+        EXPECT_NE(message.find("Restore completed with 1 failure."), std::string::npos);
+    }
+
+    EXPECT_EQ(cfgsync::tests::ReadTextFile(previewPath), "changed contents\n");
+    EXPECT_EQ(cfgsync::tests::ReadJsonFile(RegistryPath()), registryBeforeRestore);
+}
+
+TEST_F(RestoreCommandTest, RestoreAllDryRunContinuesAfterDestinationStateFailure) {
+    const auto directoryDestinationPath = SourcePath(".gitconfig");
+    const auto previewPath = SourcePath("init.lua");
+    const auto directoryStoredRelativePath = TrackFile(Registry(), directoryDestinationPath);
+    const auto previewStoredRelativePath = TrackFile(Registry(), previewPath);
+    cfgsync::tests::WriteTextFile(StorageRoot() / directoryStoredRelativePath, "[user]\n");
+    cfgsync::tests::WriteTextFile(StorageRoot() / previewStoredRelativePath, "vim.opt.number = true\n");
+    fs::create_directories(directoryDestinationPath);
+    ASSERT_FALSE(fs::exists(previewPath));
+
+    cfgsync::storage::StorageManager storageManager{StorageRoot()};
+    const cfgsync::commands::RestoreCommand command{Registry(), storageManager};
+
+    testing::internal::CaptureStdout();
+    try {
+        command.ExecuteAll(std::nullopt, cfgsync::commands::RestoreMode::DryRun);
+        FAIL() << "Dry-run restore with an invalid destination did not throw.";
+    } catch (const cfgsync::CommandError& error) {
+        const auto output = testing::internal::GetCapturedStdout();
+        const std::string message = error.what();
+        EXPECT_NE(output.find("Failed to restore file"), std::string::npos);
+        EXPECT_NE(output.find("Destination path is not an ordinary file"), std::string::npos);
+        EXPECT_NE(output.find("would-create " + previewPath.string()), std::string::npos);
+        EXPECT_NE(message.find("Restore completed with 1 failure."), std::string::npos);
+    }
+
+    EXPECT_TRUE(fs::is_directory(directoryDestinationPath));
+    EXPECT_FALSE(fs::exists(previewPath));
+}
+
+TEST_F(RestoreCommandTest, RestoreAllDryRunContinuesAfterStoredBackupIsDirectory) {
+    const auto directoryBackupPath = SourcePath(".gitconfig");
+    const auto previewPath = SourcePath("init.lua");
+    const auto directoryStoredRelativePath = TrackFile(Registry(), directoryBackupPath);
+    const auto previewStoredRelativePath = TrackFile(Registry(), previewPath);
+    fs::create_directories(StorageRoot() / directoryStoredRelativePath);
+    cfgsync::tests::WriteTextFile(StorageRoot() / previewStoredRelativePath, "vim.opt.number = true\n");
+    ASSERT_FALSE(fs::exists(previewPath));
+
+    cfgsync::storage::StorageManager storageManager{StorageRoot()};
+    const cfgsync::commands::RestoreCommand command{Registry(), storageManager};
+
+    testing::internal::CaptureStdout();
+    try {
+        command.ExecuteAll(std::nullopt, cfgsync::commands::RestoreMode::DryRun);
+        FAIL() << "Dry-run restore with a directory stored backup did not throw.";
+    } catch (const cfgsync::CommandError& error) {
+        const auto output = testing::internal::GetCapturedStdout();
+        const std::string message = error.what();
+        EXPECT_NE(output.find("Failed to restore file"), std::string::npos);
+        EXPECT_NE(output.find("Path is not an ordinary file"), std::string::npos);
+        EXPECT_NE(output.find("would-create " + previewPath.string()), std::string::npos);
+        EXPECT_NE(message.find("Restore completed with 1 failure."), std::string::npos);
+    }
+
+    EXPECT_TRUE(fs::is_directory(StorageRoot() / directoryStoredRelativePath));
+    EXPECT_FALSE(fs::exists(previewPath));
+}
+
 TEST_F(RestoreCommandTest, RestoreAllContinuesAfterMissingStoredBackupAndReportsPartialFailure) {
     const auto existingPath = SourcePath(".gitconfig");
     const auto missingBackupPath = SourcePath("missing.conf");
@@ -227,6 +747,39 @@ TEST_F(RestoreCommandTest, RestoreAllWithPrefixRemapContinuesWhenEntryIsOutsideP
 
     EXPECT_EQ(cfgsync::tests::ReadTextFile(toPrefix / ".gitconfig"), "[user]\n");
     EXPECT_EQ(cfgsync::tests::ReadJsonFile(RegistryPath()), registryBeforeRestore);
+}
+
+TEST_F(RestoreCommandTest, RestoreAllDryRunWithPrefixRemapContinuesWhenEntryIsOutsidePrefix) {
+    const auto restoredPath = SourcePath(".gitconfig");
+    const auto outsidePath = StorageRoot().parent_path() / "other-home" / "user" / "settings.conf";
+    const auto restoredStoredRelativePath = TrackFile(Registry(), restoredPath);
+    const auto outsideStoredRelativePath = TrackFile(Registry(), outsidePath);
+    const auto fromPrefix = SourcePath().parent_path();
+    const auto toPrefix = StorageRoot().parent_path() / "new-home" / "user";
+    cfgsync::tests::WriteTextFile(StorageRoot() / restoredStoredRelativePath, "[user]\n");
+    cfgsync::tests::WriteTextFile(StorageRoot() / outsideStoredRelativePath, "outside\n");
+
+    cfgsync::storage::StorageManager storageManager{StorageRoot()};
+    const cfgsync::commands::RestoreCommand command{Registry(), storageManager};
+
+    testing::internal::CaptureStdout();
+    try {
+        command.ExecuteAll(
+            cfgsync::commands::RestorePrefixRemap{
+                .FromPrefix = cfgsync::utils::NormalizePath(fromPrefix),
+                .ToPrefix = cfgsync::utils::NormalizePath(toPrefix),
+            },
+            cfgsync::commands::RestoreMode::DryRun);
+        FAIL() << "Dry-run restore with a non-matching prefix did not throw.";
+    } catch (const cfgsync::CommandError& error) {
+        const auto output = testing::internal::GetCapturedStdout();
+        const std::string message = error.what();
+        EXPECT_NE(output.find("would-create " + (toPrefix / ".gitconfig").string()), std::string::npos);
+        EXPECT_NE(output.find("Failed to restore file"), std::string::npos);
+        EXPECT_NE(message.find("Restore completed with 1 failure."), std::string::npos);
+    }
+
+    EXPECT_FALSE(fs::exists(toPrefix / ".gitconfig"));
 }
 
 TEST_F(RestoreCommandTest, EmptyRegistrySucceedsWithoutCreatingStoredFiles) {

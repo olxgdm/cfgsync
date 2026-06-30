@@ -13,13 +13,20 @@ struct RestorePrefixRemap {
     std::filesystem::path ToPrefix;
 };
 
+enum class RestoreMode {
+    Apply,
+    DryRun,
+};
+
 class RestoreCommand {
 public:
     RestoreCommand(core::Registry& registry, storage::StorageManager& storageManager);
 
-    void ExecuteAll(const std::optional<RestorePrefixRemap>& remap = std::nullopt) const;
+    void ExecuteAll(const std::optional<RestorePrefixRemap>& remap = std::nullopt,
+                    RestoreMode mode = RestoreMode::Apply) const;
     void ExecuteSingle(const std::filesystem::path& filePath,
-                       const std::optional<RestorePrefixRemap>& remap = std::nullopt) const;
+                       const std::optional<RestorePrefixRemap>& remap = std::nullopt,
+                       RestoreMode mode = RestoreMode::Apply) const;
 
 private:
     core::Registry& Registry_;                 // NOLINT(cppcoreguidelines-avoid-const-or-ref-data-members)
