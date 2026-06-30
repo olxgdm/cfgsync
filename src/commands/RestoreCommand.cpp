@@ -1,17 +1,14 @@
 #include "commands/RestoreCommand.hpp"
 
 #include "Exceptions.hpp"
+#include "commands/RestoreDryRunPreview.hpp"
 #include "utils/FileUtils.hpp"
 #include "utils/LogUtils.hpp"
 #include "utils/PathUtils.hpp"
 
-#include <algorithm>
-#include <array>
 #include <cstddef>
 #include <filesystem>
 #include <format>
-#include <fstream>
-#include <iostream>
 #include <string>
 
 namespace cfgsync::commands {
@@ -59,97 +56,6 @@ fs::path GetRestoreDestinationPath(const core::TrackedEntry& trackedEntry,
     return RemapDestinationPath(originalPath, *remap);
 }
 
-void ThrowOpenFailure(const fs::path& path) { throw FileError{std::format("Unable to open file '{}'", path.string())}; }
-
-bool FilesHaveSameContents(const fs::path& firstPath, const fs::path& secondPath) {
-    std::error_code errorCode;
-    const auto firstSize = fs::file_size(firstPath, errorCode);
-    if (errorCode) {
-        throw FileError{std::format("Unable to inspect file '{}': {}", firstPath.string(), errorCode.message())};
-    }
-
-    const auto secondSize = fs::file_size(secondPath, errorCode);
-    if (errorCode) {
-        throw FileError{std::format("Unable to inspect file '{}': {}", secondPath.string(), errorCode.message())};
-    }
-
-    if (firstSize != secondSize) {
-        return false;
-    }
-
-    std::ifstream first{firstPath, std::ios::binary};
-    if (!first) {
-        ThrowOpenFailure(firstPath);
-    }
-
-    std::ifstream second{secondPath, std::ios::binary};
-    if (!second) {
-        ThrowOpenFailure(secondPath);
-    }
-
-    std::array<char, 8192> firstBuffer{};
-    std::array<char, 8192> secondBuffer{};
-
-    while (first.good() && second.good()) {
-        first.read(firstBuffer.data(), static_cast<std::streamsize>(firstBuffer.size()));
-        second.read(secondBuffer.data(), static_cast<std::streamsize>(secondBuffer.size()));
-
-        if (first.bad()) {
-            throw FileError{std::format("Unable to read file '{}'", firstPath.string())};
-        }
-
-        if (second.bad()) {
-            throw FileError{std::format("Unable to read file '{}'", secondPath.string())};
-        }
-
-        const auto bytesRead = first.gcount();
-        if (bytesRead != second.gcount()) {
-            return false;
-        }
-
-        if (!std::equal(firstBuffer.begin(), firstBuffer.begin() + bytesRead, secondBuffer.begin())) {
-            return false;
-        }
-    }
-
-    return true;
-}
-
-std::string GetDryRunImpact(const fs::path& storedPath, const fs::path& destinationPath) {
-    if (destinationPath.empty()) {
-        throw FileError{"Destination path must not be empty."};
-    }
-
-    std::error_code errorCode;
-    const auto destinationStatus = fs::symlink_status(destinationPath, errorCode);
-    if (errorCode) {
-        if (errorCode == std::errc::no_such_file_or_directory) {
-            return "would-create";
-        }
-
-        throw FileError{
-            std::format("Unable to inspect destination '{}': {}", destinationPath.string(), errorCode.message())};
-    }
-
-    if (!fs::exists(destinationStatus)) {
-        return "would-create";
-    }
-
-    if (destinationStatus.type() != fs::file_type::regular) {
-        throw FileError{std::format("Destination path is not an ordinary file: {}", destinationPath.string())};
-    }
-
-    if (FilesHaveSameContents(storedPath, destinationPath)) {
-        return "unchanged";
-    }
-
-    return "would-overwrite";
-}
-
-void PrintDryRunImpact(const fs::path& storedPath, const fs::path& destinationPath) {
-    std::cout << GetDryRunImpact(storedPath, destinationPath) << ' ' << destinationPath.string() << '\n';
-}
-
 }  // namespace
 
 RestoreCommand::RestoreCommand(core::Registry& registry, storage::StorageManager& storageManager)
@@ -169,7 +75,7 @@ void RestoreCommand::ExecuteAll(const std::optional<RestorePrefixRemap>& remap, 
             if (mode == RestoreMode::DryRun) {
                 const auto storedPath = StorageManager_.ResolveStoredPath(trackedEntry);
                 utils::RequireOrdinaryFile(storedPath);
-                PrintDryRunImpact(storedPath, destinationPath);
+                detail::PrintDryRunImpact(storedPath, destinationPath);
                 continue;
             }
 
@@ -202,7 +108,7 @@ void RestoreCommand::ExecuteSingle(const std::filesystem::path& filePath,
     if (mode == RestoreMode::DryRun) {
         const auto storedPath = StorageManager_.ResolveStoredPath(*trackedEntry);
         utils::RequireOrdinaryFile(storedPath);
-        PrintDryRunImpact(storedPath, destinationPath);
+        detail::PrintDryRunImpact(storedPath, destinationPath);
         return;
     }
 
