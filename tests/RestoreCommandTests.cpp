@@ -270,6 +270,51 @@ TEST_F(RestoreCommandTest, DryRunWithPrefixRemapReportsRemappedDestinationWithou
     EXPECT_FALSE(fs::exists(toPrefix));
 }
 
+TEST_F(RestoreCommandTest, DryRunWithExactPrefixAndEmptyDestinationPrefixFailsClearly) {
+    const auto sourcePath = SourcePath(".gitconfig");
+    const auto storedRelativePath = TrackFile(Registry(), sourcePath);
+    cfgsync::tests::WriteTextFile(StorageRoot() / storedRelativePath, "[user]\n");
+
+    cfgsync::storage::StorageManager storageManager{StorageRoot()};
+    const cfgsync::commands::RestoreCommand command{Registry(), storageManager};
+
+    try {
+        command.ExecuteSingle(sourcePath,
+                              cfgsync::commands::RestorePrefixRemap{
+                                  .FromPrefix = cfgsync::utils::NormalizePath(sourcePath),
+                                  .ToPrefix = {},
+                              },
+                              cfgsync::commands::RestoreMode::DryRun);
+        FAIL() << "Dry-run restore with an empty destination path did not throw.";
+    } catch (const cfgsync::FileError& error) {
+        const std::string message = error.what();
+        EXPECT_NE(message.find("Destination path must not be empty"), std::string::npos);
+    }
+}
+
+TEST_F(RestoreCommandTest, DryRunWithEmptyDestinationPrefixAndRemainingPathReportsRelativeDestination) {
+    const auto sourcePath = SourcePath("cfgsync-dry-run-relative-destination.conf");
+    const auto storedRelativePath = TrackFile(Registry(), sourcePath);
+    const auto expectedDestination = fs::path{sourcePath.filename()};
+    cfgsync::tests::WriteTextFile(StorageRoot() / storedRelativePath, "stored contents\n");
+    ASSERT_FALSE(fs::exists(expectedDestination));
+
+    cfgsync::storage::StorageManager storageManager{StorageRoot()};
+    const cfgsync::commands::RestoreCommand command{Registry(), storageManager};
+
+    testing::internal::CaptureStdout();
+    command.ExecuteSingle(sourcePath,
+                          cfgsync::commands::RestorePrefixRemap{
+                              .FromPrefix = cfgsync::utils::NormalizePath(sourcePath.parent_path()),
+                              .ToPrefix = {},
+                          },
+                          cfgsync::commands::RestoreMode::DryRun);
+    const auto output = testing::internal::GetCapturedStdout();
+
+    EXPECT_NE(output.find("would-create " + expectedDestination.string()), std::string::npos);
+    EXPECT_FALSE(fs::exists(expectedDestination));
+}
+
 TEST_F(RestoreCommandTest, SingleDryRunWithPrefixRemapFailsWhenTrackedFileIsOutsidePrefix) {
     const auto sourcePath = SourcePath(".gitconfig");
     const auto storedRelativePath = TrackFile(Registry(), sourcePath);
