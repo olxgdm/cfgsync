@@ -41,7 +41,9 @@ public:
     }
 };
 
-void ThrowOpenFailure(const fs::path& path) { throw FileError{std::format("Unable to open file '{}'", path.string())}; }
+[[noreturn]] void ThrowOpenFailure(const fs::path& path) {
+    throw FileError{std::format("Unable to open file '{}'", path.string())};
+}
 
 const DryRunFileOperations& FileSystemOperations() {
     static const FileSystemDryRunFileOperations operations;
