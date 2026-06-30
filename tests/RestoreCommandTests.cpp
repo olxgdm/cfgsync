@@ -170,6 +170,24 @@ TEST_F(RestoreCommandTest, SingleDryRunFailsWhenDestinationIsDirectory) {
     EXPECT_TRUE(fs::is_directory(sourcePath));
 }
 
+TEST_F(RestoreCommandTest, SingleDryRunFailsWhenStoredBackupIsDirectory) {
+    const auto sourcePath = SourcePath(".gitconfig");
+    const auto storedRelativePath = TrackFile(Registry(), sourcePath);
+    fs::create_directories(StorageRoot() / storedRelativePath);
+
+    cfgsync::storage::StorageManager storageManager{StorageRoot()};
+    const cfgsync::commands::RestoreCommand command{Registry(), storageManager};
+
+    try {
+        command.ExecuteSingle(sourcePath, std::nullopt, cfgsync::commands::RestoreMode::DryRun);
+        FAIL() << "Dry-run restore with a directory stored backup did not throw.";
+    } catch (const cfgsync::FileError& error) {
+        const std::string message = error.what();
+        EXPECT_NE(message.find("Path is not an ordinary file"), std::string::npos);
+        EXPECT_NE(message.find((StorageRoot() / storedRelativePath).string()), std::string::npos);
+    }
+}
+
 TEST_F(RestoreCommandTest, RestoreAllDryRunReportsCreateOverwriteAndUnchangedWithoutMutatingDestinations) {
     const auto createPath = SourcePath("missing.conf");
     const auto overwritePath = SourcePath(".gitconfig");
@@ -469,6 +487,35 @@ TEST_F(RestoreCommandTest, RestoreAllDryRunContinuesAfterDestinationStateFailure
     }
 
     EXPECT_TRUE(fs::is_directory(directoryDestinationPath));
+    EXPECT_FALSE(fs::exists(previewPath));
+}
+
+TEST_F(RestoreCommandTest, RestoreAllDryRunContinuesAfterStoredBackupIsDirectory) {
+    const auto directoryBackupPath = SourcePath(".gitconfig");
+    const auto previewPath = SourcePath("init.lua");
+    const auto directoryStoredRelativePath = TrackFile(Registry(), directoryBackupPath);
+    const auto previewStoredRelativePath = TrackFile(Registry(), previewPath);
+    fs::create_directories(StorageRoot() / directoryStoredRelativePath);
+    cfgsync::tests::WriteTextFile(StorageRoot() / previewStoredRelativePath, "vim.opt.number = true\n");
+    ASSERT_FALSE(fs::exists(previewPath));
+
+    cfgsync::storage::StorageManager storageManager{StorageRoot()};
+    const cfgsync::commands::RestoreCommand command{Registry(), storageManager};
+
+    testing::internal::CaptureStdout();
+    try {
+        command.ExecuteAll(std::nullopt, cfgsync::commands::RestoreMode::DryRun);
+        FAIL() << "Dry-run restore with a directory stored backup did not throw.";
+    } catch (const cfgsync::CommandError& error) {
+        const auto output = testing::internal::GetCapturedStdout();
+        const std::string message = error.what();
+        EXPECT_NE(output.find("Failed to restore file"), std::string::npos);
+        EXPECT_NE(output.find("Path is not an ordinary file"), std::string::npos);
+        EXPECT_NE(output.find("would-create " + previewPath.string()), std::string::npos);
+        EXPECT_NE(message.find("Restore completed with 1 failure."), std::string::npos);
+    }
+
+    EXPECT_TRUE(fs::is_directory(StorageRoot() / directoryStoredRelativePath));
     EXPECT_FALSE(fs::exists(previewPath));
 }
 
