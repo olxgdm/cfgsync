@@ -44,9 +44,9 @@ protected:
     cfgsync::tests::CommandResult RunRestoreSingleDryRunWithRemapCommand(const fs::path& sourcePath,
                                                                          const fs::path& fromPrefix,
                                                                          const fs::path& toPrefix) const {
-        return RunCommand("restore " + cfgsync::tests::QuoteForCommand(sourcePath) +
-                          " --dry-run --from-prefix " + cfgsync::tests::QuoteForCommand(fromPrefix) +
-                          " --to-prefix " + cfgsync::tests::QuoteForCommand(toPrefix));
+        return RunCommand("restore " + cfgsync::tests::QuoteForCommand(sourcePath) + " --dry-run --from-prefix " +
+                          cfgsync::tests::QuoteForCommand(fromPrefix) + " --to-prefix " +
+                          cfgsync::tests::QuoteForCommand(toPrefix));
     }
 
     cfgsync::tests::CommandResult RunRestoreAllDryRunWithRemapCommand(const fs::path& fromPrefix,
@@ -165,8 +165,7 @@ TEST_F(RestoreCommandCliTest, RestoreSingleDryRunReportsUnchangedWhenBothFilesAr
     const auto result = RunRestoreSingleDryRunCommand(sourcePath);
 
     EXPECT_EQ(result.ExitCode, 0);
-    EXPECT_NE(result.Output.find("unchanged " + cfgsync::utils::NormalizePath(sourcePath).string()),
-              std::string::npos);
+    EXPECT_NE(result.Output.find("unchanged " + cfgsync::utils::NormalizePath(sourcePath).string()), std::string::npos);
     EXPECT_TRUE(result.Error.empty());
     EXPECT_EQ(cfgsync::tests::ReadTextFile(sourcePath), "");
 }
