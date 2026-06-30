@@ -138,6 +138,39 @@ TEST_F(RestoreCommandCliTest, RestoreSingleDryRunDoesNotOverwriteChangedLocalFil
     EXPECT_EQ(cfgsync::tests::ReadTextFile(sourcePath), "local changes\n");
 }
 
+TEST_F(RestoreCommandCliTest, RestoreSingleDryRunReportsOverwriteWhenFileSizesDiffer) {
+    const auto sourcePath = SourcePath(".gitconfig");
+    cfgsync::tests::WriteTextFile(sourcePath, "stored contents are longer\n");
+    ASSERT_TRUE(RunInitCommand());
+    ASSERT_TRUE(RunAddCommand(sourcePath));
+    ASSERT_EQ(RunBackupCommand().ExitCode, 0);
+    cfgsync::tests::WriteTextFile(sourcePath, "local\n");
+
+    const auto result = RunRestoreSingleDryRunCommand(sourcePath);
+
+    EXPECT_EQ(result.ExitCode, 0);
+    EXPECT_NE(result.Output.find("would-overwrite " + cfgsync::utils::NormalizePath(sourcePath).string()),
+              std::string::npos);
+    EXPECT_TRUE(result.Error.empty());
+    EXPECT_EQ(cfgsync::tests::ReadTextFile(sourcePath), "local\n");
+}
+
+TEST_F(RestoreCommandCliTest, RestoreSingleDryRunReportsUnchangedWhenBothFilesAreEmpty) {
+    const auto sourcePath = SourcePath(".gitconfig");
+    cfgsync::tests::WriteTextFile(sourcePath, "");
+    ASSERT_TRUE(RunInitCommand());
+    ASSERT_TRUE(RunAddCommand(sourcePath));
+    ASSERT_EQ(RunBackupCommand().ExitCode, 0);
+
+    const auto result = RunRestoreSingleDryRunCommand(sourcePath);
+
+    EXPECT_EQ(result.ExitCode, 0);
+    EXPECT_NE(result.Output.find("unchanged " + cfgsync::utils::NormalizePath(sourcePath).string()),
+              std::string::npos);
+    EXPECT_TRUE(result.Error.empty());
+    EXPECT_EQ(cfgsync::tests::ReadTextFile(sourcePath), "");
+}
+
 TEST_F(RestoreCommandCliTest, RestoreAllDryRunReportsPlannedImpactWithoutMutatingDestinations) {
     const auto createPath = SourcePath("missing.conf");
     const auto overwritePath = SourcePath(".gitconfig");
