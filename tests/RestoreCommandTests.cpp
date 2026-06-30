@@ -115,6 +115,40 @@ TEST_F(RestoreCommandTest, SingleDryRunReportsOverwriteWhenSameLengthContentsDif
     EXPECT_EQ(cfgsync::tests::ReadTextFile(sourcePath), "localx value\n");
 }
 
+TEST_F(RestoreCommandTest, SingleDryRunReportsOverwriteWhenFileSizesDiffer) {
+    const auto sourcePath = SourcePath(".gitconfig");
+    const auto storedRelativePath = TrackFile(Registry(), sourcePath);
+    cfgsync::tests::WriteTextFile(StorageRoot() / storedRelativePath, "stored contents are longer\n");
+    cfgsync::tests::WriteTextFile(sourcePath, "local\n");
+
+    cfgsync::storage::StorageManager storageManager{StorageRoot()};
+    const cfgsync::commands::RestoreCommand command{Registry(), storageManager};
+
+    testing::internal::CaptureStdout();
+    command.ExecuteSingle(sourcePath, std::nullopt, cfgsync::commands::RestoreMode::DryRun);
+    const auto output = testing::internal::GetCapturedStdout();
+
+    EXPECT_NE(output.find("would-overwrite " + sourcePath.string()), std::string::npos);
+    EXPECT_EQ(cfgsync::tests::ReadTextFile(sourcePath), "local\n");
+}
+
+TEST_F(RestoreCommandTest, SingleDryRunReportsUnchangedWhenBothFilesAreEmpty) {
+    const auto sourcePath = SourcePath(".gitconfig");
+    const auto storedRelativePath = TrackFile(Registry(), sourcePath);
+    cfgsync::tests::WriteTextFile(StorageRoot() / storedRelativePath, "");
+    cfgsync::tests::WriteTextFile(sourcePath, "");
+
+    cfgsync::storage::StorageManager storageManager{StorageRoot()};
+    const cfgsync::commands::RestoreCommand command{Registry(), storageManager};
+
+    testing::internal::CaptureStdout();
+    command.ExecuteSingle(sourcePath, std::nullopt, cfgsync::commands::RestoreMode::DryRun);
+    const auto output = testing::internal::GetCapturedStdout();
+
+    EXPECT_NE(output.find("unchanged " + sourcePath.string()), std::string::npos);
+    EXPECT_EQ(cfgsync::tests::ReadTextFile(sourcePath), "");
+}
+
 TEST_F(RestoreCommandTest, SingleDryRunFailsWhenDestinationIsDirectory) {
     const auto sourcePath = SourcePath(".gitconfig");
     const auto storedRelativePath = TrackFile(Registry(), sourcePath);
