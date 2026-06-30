@@ -386,6 +386,32 @@ TEST_F(RestoreCommandCliTest, RestoreAllDryRunContinuesAfterMissingStoredBackupA
     EXPECT_EQ(cfgsync::tests::ReadJsonFile(StorageRoot() / "registry.json"), registryBeforeRestore);
 }
 
+TEST_F(RestoreCommandCliTest, RestoreAllDryRunContinuesAfterStoredBackupIsDirectoryAndReturnsNonZero) {
+    const auto directoryBackupPath = SourcePath(".gitconfig");
+    const auto previewPath = SourcePath("init.lua");
+    cfgsync::tests::WriteTextFile(directoryBackupPath, "[user]\n");
+    cfgsync::tests::WriteTextFile(previewPath, "vim.opt.number = true\n");
+    ASSERT_TRUE(RunInitCommand());
+    ASSERT_TRUE(RunAddCommand(directoryBackupPath));
+    ASSERT_TRUE(RunAddCommand(previewPath));
+    ASSERT_EQ(RunBackupCommand().ExitCode, 0);
+    const auto registryBeforeRestore = cfgsync::tests::ReadJsonFile(StorageRoot() / "registry.json");
+    fs::remove(cfgsync::tests::StoredPathFor(StorageRoot(), directoryBackupPath));
+    fs::create_directories(cfgsync::tests::StoredPathFor(StorageRoot(), directoryBackupPath));
+    fs::remove(previewPath);
+
+    const auto result = RunRestoreAllDryRunCommand();
+
+    EXPECT_NE(result.ExitCode, 0);
+    EXPECT_NE(result.Output.find("Failed to restore file"), std::string::npos);
+    EXPECT_NE(result.Output.find("Path is not an ordinary file"), std::string::npos);
+    EXPECT_NE(result.Output.find("would-create " + cfgsync::utils::NormalizePath(previewPath).string()),
+              std::string::npos);
+    EXPECT_NE(result.Error.find("Restore completed with 1 failure."), std::string::npos);
+    EXPECT_FALSE(fs::exists(previewPath));
+    EXPECT_EQ(cfgsync::tests::ReadJsonFile(StorageRoot() / "registry.json"), registryBeforeRestore);
+}
+
 TEST_F(RestoreCommandCliTest, RestoreAllOfEmptyRegistrySucceedsClearly) {
     ASSERT_TRUE(RunInitCommand());
 
