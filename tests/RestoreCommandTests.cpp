@@ -1,5 +1,6 @@
 #include "Exceptions.hpp"
 #include "commands/RestoreCommand.hpp"
+#include "commands/RestoreDryRunPreview.hpp"
 #include "common/GoogleTestMain.hpp"
 #include "common/RegistryCommandTestFixture.hpp"
 #include "common/TestFileUtils.hpp"
@@ -8,12 +9,188 @@
 #include "storage/StorageManager.hpp"
 #include "utils/PathUtils.hpp"
 
+#include <algorithm>
 #include <filesystem>
+#include <ios>
+#include <memory>
 #include <string>
+#include <system_error>
+#include <unordered_map>
+#include <utility>
 
 namespace {
 namespace fs = std::filesystem;
 using cfgsync::tests::TrackFile;
+
+struct FakeInputScript {
+    bool IsOpen = true;
+    bool BadAfterRead = false;
+    std::string Bytes;
+    std::streamsize GCountOverride = -1;
+};
+
+class FakeBinaryInput final : public cfgsync::commands::detail::BinaryInput {
+public:
+    explicit FakeBinaryInput(FakeInputScript script) : Script_(std::move(script)) {}
+
+    bool IsOpen() const override { return Script_.IsOpen; }
+    bool Good() const override { return Script_.IsOpen && ReadCount_ == 0; }
+
+    void Read(char* buffer, std::streamsize count) override {
+        const auto bytesToCopy = std::min(count, static_cast<std::streamsize>(Script_.Bytes.size()));
+        std::copy_n(Script_.Bytes.begin(), bytesToCopy, buffer);
+        LastGCount_ = Script_.GCountOverride >= 0 ? Script_.GCountOverride : bytesToCopy;
+        ++ReadCount_;
+    }
+
+    bool Bad() const override { return Script_.BadAfterRead && ReadCount_ > 0; }
+    std::streamsize GCount() const override { return LastGCount_; }
+
+private:
+    FakeInputScript Script_;
+    int ReadCount_ = 0;
+    std::streamsize LastGCount_ = 0;
+};
+
+class FakeDryRunFileOperations final : public cfgsync::commands::detail::DryRunFileOperations {
+public:
+    void SetFileSize(const fs::path& path, std::uintmax_t size) { FileSizes_[path.string()] = size; }
+
+    void SetFileSizeError(const fs::path& path, std::errc error) { FileSizeErrors_[path.string()] = error; }
+
+    void SetInput(const fs::path& path, FakeInputScript script) { Inputs_[path.string()] = std::move(script); }
+
+    std::uintmax_t FileSize(const fs::path& path, std::error_code& errorCode) const override {
+        if (const auto error = FileSizeErrors_.find(path.string()); error != FileSizeErrors_.end()) {
+            errorCode = std::make_error_code(error->second);
+            return 0;
+        }
+
+        errorCode.clear();
+        return FileSizes_.at(path.string());
+    }
+
+    std::unique_ptr<cfgsync::commands::detail::BinaryInput> OpenBinaryInput(const fs::path& path) const override {
+        return std::make_unique<FakeBinaryInput>(Inputs_.at(path.string()));
+    }
+
+private:
+    std::unordered_map<std::string, std::uintmax_t> FileSizes_;
+    std::unordered_map<std::string, std::errc> FileSizeErrors_;
+    std::unordered_map<std::string, FakeInputScript> Inputs_;
+};
+
+TEST(RestoreCommandDryRunPreviewTest, FilesHaveSameContentsFailsWhenFirstFileSizeCannotBeInspected) {
+    const fs::path storedPath{"stored.conf"};
+    const fs::path destinationPath{"destination.conf"};
+    FakeDryRunFileOperations operations;
+    operations.SetFileSizeError(storedPath, std::errc::permission_denied);
+    operations.SetFileSize(destinationPath, 1);
+
+    try {
+        (void)cfgsync::commands::detail::FilesHaveSameContents(storedPath, destinationPath, operations);
+        FAIL() << "Expected FileError";
+    } catch (const cfgsync::FileError& error) {
+        const std::string message = error.what();
+        EXPECT_NE(message.find("Unable to inspect file 'stored.conf'"), std::string::npos);
+    }
+}
+
+TEST(RestoreCommandDryRunPreviewTest, FilesHaveSameContentsFailsWhenSecondFileSizeCannotBeInspected) {
+    const fs::path storedPath{"stored.conf"};
+    const fs::path destinationPath{"destination.conf"};
+    FakeDryRunFileOperations operations;
+    operations.SetFileSize(storedPath, 1);
+    operations.SetFileSizeError(destinationPath, std::errc::permission_denied);
+
+    try {
+        (void)cfgsync::commands::detail::FilesHaveSameContents(storedPath, destinationPath, operations);
+        FAIL() << "Expected FileError";
+    } catch (const cfgsync::FileError& error) {
+        const std::string message = error.what();
+        EXPECT_NE(message.find("Unable to inspect file 'destination.conf'"), std::string::npos);
+    }
+}
+
+TEST(RestoreCommandDryRunPreviewTest, FilesHaveSameContentsFailsWhenFirstFileCannotBeOpened) {
+    const fs::path storedPath{"stored.conf"};
+    const fs::path destinationPath{"destination.conf"};
+    FakeDryRunFileOperations operations;
+    operations.SetFileSize(storedPath, 1);
+    operations.SetFileSize(destinationPath, 1);
+    operations.SetInput(storedPath, {.IsOpen = false});
+    operations.SetInput(destinationPath, {.Bytes = "a"});
+
+    try {
+        (void)cfgsync::commands::detail::FilesHaveSameContents(storedPath, destinationPath, operations);
+        FAIL() << "Expected FileError";
+    } catch (const cfgsync::FileError& error) {
+        EXPECT_STREQ(error.what(), "Unable to open file 'stored.conf'");
+    }
+}
+
+TEST(RestoreCommandDryRunPreviewTest, FilesHaveSameContentsFailsWhenSecondFileCannotBeOpened) {
+    const fs::path storedPath{"stored.conf"};
+    const fs::path destinationPath{"destination.conf"};
+    FakeDryRunFileOperations operations;
+    operations.SetFileSize(storedPath, 1);
+    operations.SetFileSize(destinationPath, 1);
+    operations.SetInput(storedPath, {.Bytes = "a"});
+    operations.SetInput(destinationPath, {.IsOpen = false});
+
+    try {
+        (void)cfgsync::commands::detail::FilesHaveSameContents(storedPath, destinationPath, operations);
+        FAIL() << "Expected FileError";
+    } catch (const cfgsync::FileError& error) {
+        EXPECT_STREQ(error.what(), "Unable to open file 'destination.conf'");
+    }
+}
+
+TEST(RestoreCommandDryRunPreviewTest, FilesHaveSameContentsFailsWhenFirstFileCannotBeRead) {
+    const fs::path storedPath{"stored.conf"};
+    const fs::path destinationPath{"destination.conf"};
+    FakeDryRunFileOperations operations;
+    operations.SetFileSize(storedPath, 1);
+    operations.SetFileSize(destinationPath, 1);
+    operations.SetInput(storedPath, {.BadAfterRead = true, .Bytes = "a"});
+    operations.SetInput(destinationPath, {.Bytes = "a"});
+
+    try {
+        (void)cfgsync::commands::detail::FilesHaveSameContents(storedPath, destinationPath, operations);
+        FAIL() << "Expected FileError";
+    } catch (const cfgsync::FileError& error) {
+        EXPECT_STREQ(error.what(), "Unable to read file 'stored.conf'");
+    }
+}
+
+TEST(RestoreCommandDryRunPreviewTest, FilesHaveSameContentsFailsWhenSecondFileCannotBeRead) {
+    const fs::path storedPath{"stored.conf"};
+    const fs::path destinationPath{"destination.conf"};
+    FakeDryRunFileOperations operations;
+    operations.SetFileSize(storedPath, 1);
+    operations.SetFileSize(destinationPath, 1);
+    operations.SetInput(storedPath, {.Bytes = "a"});
+    operations.SetInput(destinationPath, {.BadAfterRead = true, .Bytes = "a"});
+
+    try {
+        (void)cfgsync::commands::detail::FilesHaveSameContents(storedPath, destinationPath, operations);
+        FAIL() << "Expected FileError";
+    } catch (const cfgsync::FileError& error) {
+        EXPECT_STREQ(error.what(), "Unable to read file 'destination.conf'");
+    }
+}
+
+TEST(RestoreCommandDryRunPreviewTest, FilesHaveSameContentsReportsDifferentWhenReadCountsDiffer) {
+    const fs::path storedPath{"stored.conf"};
+    const fs::path destinationPath{"destination.conf"};
+    FakeDryRunFileOperations operations;
+    operations.SetFileSize(storedPath, 3);
+    operations.SetFileSize(destinationPath, 3);
+    operations.SetInput(storedPath, {.Bytes = "abc", .GCountOverride = 3});
+    operations.SetInput(destinationPath, {.Bytes = "abc", .GCountOverride = 2});
+
+    EXPECT_FALSE(cfgsync::commands::detail::FilesHaveSameContents(storedPath, destinationPath, operations));
+}
 
 class RestoreCommandTest : public cfgsync::tests::RegistryCommandTestFixture {};
 
